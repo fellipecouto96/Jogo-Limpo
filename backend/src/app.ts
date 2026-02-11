@@ -1,6 +1,8 @@
 import fastify from 'fastify';
 import cors from '@fastify/cors';
 import { healthRoutes } from './modules/health/health.routes.js';
+import { drawRoutes } from './modules/draw/draw.routes.js';
+import { bracketRoutes } from './modules/bracket/bracket.routes.js';
 
 export async function buildApp() {
   const app = fastify({
@@ -12,6 +14,8 @@ export async function buildApp() {
   });
 
   await app.register(healthRoutes);
+  await app.register(drawRoutes);
+  await app.register(bracketRoutes);
 
   return app;
 }
