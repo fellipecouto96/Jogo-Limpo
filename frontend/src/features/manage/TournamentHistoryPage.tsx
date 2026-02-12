@@ -61,7 +61,7 @@ export function TournamentHistoryPage() {
   if (!bracket) return null;
 
   const { tournament, rounds, totalRounds, champion } = bracket;
-  const hasFinancials = details?.prizePool != null && details.prizePool > 0;
+  const hasFinancials = !!details && (details.totalCollected ?? 0) > 0;
 
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]">
@@ -143,7 +143,11 @@ export function TournamentHistoryPage() {
         <InfoTile label="Jogadores" value={String(details?.playerCount ?? '—')} />
         <InfoTile
           label="Premiacao"
-          value={hasFinancials ? formatCurrency(details!.prizePool!) : '—'}
+          value={
+            hasFinancials
+              ? formatCurrency(details!.prizePool ?? 0)
+              : '—'
+          }
           accent={hasFinancials}
         />
         <InfoTile
@@ -168,31 +172,29 @@ export function TournamentHistoryPage() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Organizador ({details.organizerPercentage ?? 0}%)</span>
+                <span className="text-gray-400">Total arrecadado</span>
+                <span className="text-white font-medium">
+                  {formatCurrency(details.totalCollected ?? 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">
+                  Organizador ({details.organizerPercentage ?? 0}%)
+                </span>
                 <span className="text-amber-400 font-medium">
-                  {formatCurrency(
-                    (details.entryFee ?? 0) *
-                      (details.playerCount ?? 0) *
-                      ((details.organizerPercentage ?? 0) / 100)
-                  )}
+                  {formatCurrency(details.organizerAmount ?? 0)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">1o lugar ({details.firstPlacePercentage ?? 0}%)</span>
                 <span className="text-yellow-300 font-medium">
-                  {formatCurrency(
-                    (details.prizePool ?? 0) *
-                      ((details.firstPlacePercentage ?? 0) / 100)
-                  )}
+                  {formatCurrency(details.firstPlacePrize ?? 0)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">2o lugar ({details.secondPlacePercentage ?? 0}%)</span>
                 <span className="text-gray-300 font-medium">
-                  {formatCurrency(
-                    (details.prizePool ?? 0) *
-                      ((details.secondPlacePercentage ?? 0) / 100)
-                  )}
+                  {formatCurrency(details.secondPlacePrize ?? 0)}
                 </span>
               </div>
             </div>

@@ -13,6 +13,10 @@ export interface TournamentDetail {
   firstPlacePercentage: number | null;
   secondPlacePercentage: number | null;
   prizePool: number | null;
+  totalCollected: number | null;
+  organizerAmount: number | null;
+  firstPlacePrize: number | null;
+  secondPlacePrize: number | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;

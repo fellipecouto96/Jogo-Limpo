@@ -49,12 +49,13 @@ model Tournament {
   startedAt   DateTime?        @map("started_at")
   finishedAt  DateTime?        @map("finished_at")
 
-  prizePool   Decimal?         @map("prize_pool")
+  totalCollected Decimal?       @map("total_collected")
+  prizePool      Decimal?       @map("prize_pool")
 
-  entryFee              Decimal?  @map("entry_fee")
-  organizerPercentage   Decimal?  @map("organizer_percentage")
-  firstPlacePercentage  Decimal?  @map("first_place_percentage")
-  secondPlacePercentage Decimal?  @map("second_place_percentage")
+  entryFee              Decimal? @map("entry_fee")
+  organizerPercentage   Decimal? @map("organizer_percentage")
+  firstPlacePercentage  Decimal? @map("first_place_percentage")
+  secondPlacePercentage Decimal? @map("second_place_percentage")
 
   organizer Organizer @relation(fields: [organizerId], references: [id], onDelete: Restrict)
   rounds    Round[]
