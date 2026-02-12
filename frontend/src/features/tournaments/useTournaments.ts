@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TournamentListItem } from './types.ts';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3333';
+import { apiFetch } from '../../shared/api.ts';
 
 interface UseTournamentsResult {
   data: TournamentListItem[];
@@ -16,7 +15,7 @@ export function useTournaments(): UseTournamentsResult {
 
   const fetchTournaments = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/tournaments`);
+      const res = await apiFetch('/tournaments');
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }

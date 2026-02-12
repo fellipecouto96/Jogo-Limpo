@@ -10,7 +10,7 @@ export function LandingPage() {
             Jogo Limpo
           </span>
           <Link
-            to="/app"
+            to="/login"
             className="text-sm font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
           >
             Entrar
@@ -51,7 +51,7 @@ export function LandingPage() {
             style={{ animationDelay: '300ms' }}
           >
             <Link
-              to="/app"
+              to="/register"
               className="inline-block bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold text-lg px-8 py-4 rounded-xl transition-colors"
             >
               Criar meu primeiro torneio

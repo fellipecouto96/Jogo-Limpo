@@ -1,19 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { OnboardingData, OnboardingResult } from './types.ts';
-import { OrganizerStep } from './steps/OrganizerStep.tsx';
 import { TournamentStep } from './steps/TournamentStep.tsx';
 import { PlayersStep } from './steps/PlayersStep.tsx';
+import { apiFetch } from '../../shared/api.ts';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3333';
-
-const STEP_LABELS = ['Organizador', 'Torneio', 'Jogadores', 'Sorteio'];
+const STEP_LABELS = ['Torneio', 'Jogadores', 'Sorteio'];
 
 export function OnboardingPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<OnboardingData>({
-    organizerName: '',
     tournamentName: '',
     playerNames: [],
   });
@@ -24,9 +21,8 @@ export function OnboardingPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/onboarding/setup`, {
+      const res = await apiFetch('/onboarding/setup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
       if (!res.ok) {
@@ -44,7 +40,7 @@ export function OnboardingPage() {
   };
 
   const handlePlayersNext = () => {
-    setStep(3);
+    setStep(2);
     submitOnboarding();
   };
 
@@ -75,32 +71,23 @@ export function OnboardingPage() {
 
         {/* Steps */}
         {step === 0 && (
-          <OrganizerStep
-            value={data.organizerName}
-            onChange={(v) => setData({ ...data, organizerName: v })}
+          <TournamentStep
+            value={data.tournamentName}
+            onChange={(v) => setData({ ...data, tournamentName: v })}
             onNext={() => setStep(1)}
           />
         )}
 
         {step === 1 && (
-          <TournamentStep
-            value={data.tournamentName}
-            onChange={(v) => setData({ ...data, tournamentName: v })}
-            onNext={() => setStep(2)}
+          <PlayersStep
+            value={data.playerNames}
+            onChange={(v) => setData({ ...data, playerNames: v })}
+            onNext={handlePlayersNext}
             onBack={() => setStep(0)}
           />
         )}
 
         {step === 2 && (
-          <PlayersStep
-            value={data.playerNames}
-            onChange={(v) => setData({ ...data, playerNames: v })}
-            onNext={handlePlayersNext}
-            onBack={() => setStep(1)}
-          />
-        )}
-
-        {step === 3 && (
           <div className="text-center">
             <h2 className="font-display text-3xl text-white mb-4">
               {isSubmitting ? 'Sorteando...' : 'Pronto!'}
@@ -126,7 +113,7 @@ export function OnboardingPage() {
                 <p className="text-red-400 mb-4">{error}</p>
                 <button
                   onClick={() => {
-                    setStep(2);
+                    setStep(1);
                     setError(null);
                   }}
                   className="bg-gray-800 text-white font-bold px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors"

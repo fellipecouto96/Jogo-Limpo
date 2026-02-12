@@ -1,5 +1,4 @@
 export interface OnboardingData {
-  organizerName: string;
   tournamentName: string;
   playerNames: string[];
 }

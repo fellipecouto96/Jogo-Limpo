@@ -11,8 +11,11 @@ export interface TournamentListItem {
   finishedAt: string | null;
 }
 
-export async function listTournaments(): Promise<TournamentListItem[]> {
+export async function listTournaments(
+  organizerId: string
+): Promise<TournamentListItem[]> {
   const tournaments = await prisma.tournament.findMany({
+    where: { organizerId },
     orderBy: { createdAt: 'desc' },
     include: {
       organizer: { select: { id: true, name: true } },

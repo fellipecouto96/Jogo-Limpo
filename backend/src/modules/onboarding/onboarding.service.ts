@@ -2,7 +2,7 @@ import { prisma } from '../../shared/database/prisma.js';
 import { generateDraw } from '../draw/draw.service.js';
 
 export interface OnboardingInput {
-  organizerName: string;
+  organizerId: string;
   tournamentName: string;
   playerNames: string[];
 }
@@ -16,11 +16,8 @@ export interface OnboardingResult {
 export async function runOnboardingSetup(
   input: OnboardingInput
 ): Promise<OnboardingResult> {
-  const { organizerName, tournamentName, playerNames } = input;
+  const { organizerId, tournamentName, playerNames } = input;
 
-  if (!organizerName.trim()) {
-    throw new OnboardingError('Organizer name is required', 400);
-  }
   if (!tournamentName.trim()) {
     throw new OnboardingError('Tournament name is required', 400);
   }
@@ -28,16 +25,11 @@ export async function runOnboardingSetup(
     throw new OnboardingError('At least 2 players are required', 400);
   }
 
-  // Create organizer, tournament, and players in a transaction
   const result = await prisma.$transaction(async (tx) => {
-    const organizer = await tx.organizer.create({
-      data: { name: organizerName.trim() },
-    });
-
     const tournament = await tx.tournament.create({
       data: {
         name: tournamentName.trim(),
-        organizerId: organizer.id,
+        organizerId,
         status: 'OPEN',
       },
     });
@@ -49,7 +41,7 @@ export async function runOnboardingSetup(
     );
 
     return {
-      organizerId: organizer.id,
+      organizerId,
       tournamentId: tournament.id,
       playerIds: players.map((p) => p.id),
     };

@@ -6,7 +6,6 @@ import {
 import { DrawError } from '../draw/draw.service.js';
 
 interface OnboardingBody {
-  organizerName: string;
   tournamentName: string;
   playerNames: string[];
 }
@@ -16,7 +15,8 @@ export async function setupOnboarding(
   reply: FastifyReply
 ) {
   try {
-    const { organizerName, tournamentName, playerNames } = request.body;
+    const organizerId = request.user.sub;
+    const { tournamentName, playerNames } = request.body;
 
     if (!Array.isArray(playerNames)) {
       return reply
@@ -25,7 +25,7 @@ export async function setupOnboarding(
     }
 
     const result = await runOnboardingSetup({
-      organizerName,
+      organizerId,
       tournamentName,
       playerNames,
     });
