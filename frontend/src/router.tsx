@@ -1,17 +1,18 @@
-import { Routes, Route } from 'react-router-dom';
-import App from './App.tsx';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { TournamentsPage } from './features/tournaments/TournamentsPage.tsx';
 import { TournamentPublicView } from './features/tv/TournamentPublicView.tsx';
 
 export function AppRouter() {
   return (
     <Routes>
-      <Route path="/" element={<App />} />
+      <Route path="/" element={<Navigate to="/tournaments" replace />} />
+      <Route path="/tournaments" element={<TournamentsPage />} />
       <Route
-        path="/tv/:tournamentId"
+        path="/tournament/:tournamentId/tv"
         element={<TournamentPublicView mode="tv" />}
       />
       <Route
-        path="/m/:tournamentId"
+        path="/tournament/:tournamentId/mobile"
         element={<TournamentPublicView mode="mobile" />}
       />
     </Routes>
