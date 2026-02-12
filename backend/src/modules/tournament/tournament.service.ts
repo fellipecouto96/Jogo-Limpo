@@ -65,6 +65,8 @@ export interface TournamentDetail {
   organizerAmount: number | null;
   firstPlacePrize: number | null;
   secondPlacePrize: number | null;
+  champion: { id: string; name: string } | null;
+  runnerUp: { id: string; name: string } | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
@@ -78,6 +80,8 @@ export async function getTournamentById(
     where: { id: tournamentId },
     include: {
       organizer: { select: { name: true } },
+      champion: { select: { id: true, name: true } },
+      runnerUp: { select: { id: true, name: true } },
       rounds: {
         where: { roundNumber: 1 },
         include: { matches: { select: { isBye: true } } },
@@ -135,6 +139,12 @@ export async function getTournamentById(
       (t.prizePool && t.secondPlacePercentage
         ? (t.prizePool.toNumber() * t.secondPlacePercentage.toNumber()) / 100
         : null),
+    champion: t.champion
+      ? { id: t.champion.id, name: t.champion.name }
+      : null,
+    runnerUp: t.runnerUp
+      ? { id: t.runnerUp.id, name: t.runnerUp.name }
+      : null,
     createdAt: t.createdAt.toISOString(),
     startedAt: t.startedAt?.toISOString() ?? null,
     finishedAt: t.finishedAt?.toISOString() ?? null,
@@ -214,6 +224,8 @@ export async function updateTournamentFinancials(
     },
     include: {
       organizer: { select: { name: true } },
+      champion: { select: { id: true, name: true } },
+      runnerUp: { select: { id: true, name: true } },
       rounds: {
         where: { roundNumber: 1 },
         include: { matches: { select: { isBye: true } } },
@@ -237,6 +249,12 @@ export async function updateTournamentFinancials(
     organizerAmount: snapshot.organizerAmount,
     firstPlacePrize: snapshot.firstPlacePrize,
     secondPlacePrize: snapshot.secondPlacePrize,
+    champion: updated.champion
+      ? { id: updated.champion.id, name: updated.champion.name }
+      : null,
+    runnerUp: updated.runnerUp
+      ? { id: updated.runnerUp.id, name: updated.runnerUp.name }
+      : null,
     createdAt: updated.createdAt.toISOString(),
     startedAt: updated.startedAt?.toISOString() ?? null,
     finishedAt: updated.finishedAt?.toISOString() ?? null,

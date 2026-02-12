@@ -17,6 +17,8 @@ export interface TournamentDetail {
   organizerAmount: number | null;
   firstPlacePrize: number | null;
   secondPlacePrize: number | null;
+  champion: { id: string; name: string } | null;
+  runnerUp: { id: string; name: string } | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;

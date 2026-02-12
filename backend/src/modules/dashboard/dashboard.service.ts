@@ -54,6 +54,8 @@ export async function getDashboardSummary(
       where: { organizerId, status: 'FINISHED' },
       orderBy: { finishedAt: 'desc' },
       include: {
+        champion: { select: { id: true, name: true } },
+        runnerUp: { select: { id: true, name: true } },
         rounds: {
           orderBy: { roundNumber: 'asc' },
           include: {
@@ -117,25 +119,29 @@ export async function getDashboardSummary(
       ? countPlayers(firstRound.matches.map((m) => ({ isBye: m.isBye })))
       : 0;
 
-    let champion: { id: string; name: string } | null = null;
-    let runnerUp: { id: string; name: string } | null = null;
+    let champion: { id: string; name: string } | null = t.champion
+      ? { id: t.champion.id, name: t.champion.name }
+      : null;
+    let runnerUp: { id: string; name: string } | null = t.runnerUp
+      ? { id: t.runnerUp.id, name: t.runnerUp.name }
+      : null;
 
-    if (totalRounds > 0) {
+    if (totalRounds > 0 && (!champion || !runnerUp)) {
       const finalRound = t.rounds[totalRounds - 1];
       if (finalRound.matches.length === 1) {
         const finalMatch = finalRound.matches[0];
-        if (finalMatch.winner) {
+        if (finalMatch.winner && !champion) {
           champion = {
             id: finalMatch.winner.id,
             name: finalMatch.winner.name,
           };
-          if (finalMatch.player2) {
-            const loser =
-              finalMatch.winner.id === finalMatch.player1.id
-                ? finalMatch.player2
-                : finalMatch.player1;
-            runnerUp = { id: loser.id, name: loser.name };
-          }
+        }
+        if (!runnerUp && finalMatch.player2) {
+          const loser =
+            finalMatch.winner?.id === finalMatch.player1.id
+              ? finalMatch.player2
+              : finalMatch.player1;
+          runnerUp = loser ? { id: loser.id, name: loser.name } : null;
         }
       }
     }

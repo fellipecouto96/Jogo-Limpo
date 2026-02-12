@@ -102,9 +102,17 @@ export async function recordMatchResult(
 
     if (!nextRound) {
       // Final round complete — finish tournament
+      const championId = winnerId;
+      const runnerUpId =
+        match.player1Id === winnerId ? match.player2Id : match.player1Id;
       await tx.tournament.update({
         where: { id: tournamentId },
-        data: { status: 'FINISHED', finishedAt: new Date() },
+        data: {
+          status: 'FINISHED',
+          finishedAt: new Date(),
+          championId,
+          runnerUpId,
+        },
       });
 
       return {

@@ -37,7 +37,7 @@ export function TournamentHistoryPage() {
   const isLoading = detailsLoading || bracketLoading;
   const error = detailsError || bracketError;
 
-  const runnerUp = useMemo(() => {
+  const bracketRunnerUp = useMemo(() => {
     if (!bracket || bracket.totalRounds === 0) return null;
     const finalRound = bracket.rounds[bracket.totalRounds - 1];
     if (!finalRound || finalRound.matches.length !== 1) return null;
@@ -60,7 +60,17 @@ export function TournamentHistoryPage() {
 
   if (!bracket) return null;
 
-  const { tournament, rounds, totalRounds, champion } = bracket;
+  const { tournament, rounds, totalRounds, champion: bracketChampion } = bracket;
+  const champion =
+    details?.champion ??
+    (bracketChampion
+      ? { id: bracketChampion.id, name: bracketChampion.name }
+      : null);
+  const runnerUp =
+    details?.runnerUp ??
+    (bracketRunnerUp
+      ? { id: bracketRunnerUp.id, name: bracketRunnerUp.name }
+      : null);
   const hasFinancials = !!details && (details.totalCollected ?? 0) > 0;
 
   return (

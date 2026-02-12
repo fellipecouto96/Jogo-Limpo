@@ -35,6 +35,8 @@ model Player {
   matchesAsPlayer1 Match[] @relation("Player1Matches")
   matchesAsPlayer2 Match[] @relation("Player2Matches")
   matchesWon       Match[] @relation("WinnerMatches")
+  championOf       Tournament[] @relation("TournamentChampion")
+  runnerUpOf       Tournament[] @relation("TournamentRunnerUp")
 
   @@map("players")
 }
@@ -49,13 +51,17 @@ model Tournament {
   startedAt   DateTime?        @map("started_at")
   finishedAt  DateTime?        @map("finished_at")
 
-  totalCollected Decimal?       @map("total_collected")
-  prizePool      Decimal?       @map("prize_pool")
+  totalCollected Decimal? @map("total_collected")
+  prizePool      Decimal? @map("prize_pool")
 
   entryFee              Decimal? @map("entry_fee")
   organizerPercentage   Decimal? @map("organizer_percentage")
   firstPlacePercentage  Decimal? @map("first_place_percentage")
   secondPlacePercentage Decimal? @map("second_place_percentage")
+  championId            String?  @map("champion_id")
+  runnerUpId            String?  @map("runner_up_id")
+  champion              Player?  @relation("TournamentChampion", fields: [championId], references: [id], onDelete: SetNull)
+  runnerUp              Player?  @relation("TournamentRunnerUp", fields: [runnerUpId], references: [id], onDelete: SetNull)
 
   organizer Organizer @relation(fields: [organizerId], references: [id], onDelete: Restrict)
   rounds    Round[]
