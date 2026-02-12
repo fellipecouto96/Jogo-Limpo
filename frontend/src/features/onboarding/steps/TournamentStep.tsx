@@ -1,13 +1,17 @@
 interface TournamentStepProps {
   value: string;
+  prizePool?: number;
   onChange: (value: string) => void;
+  onPrizePoolChange: (value?: number) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
 export function TournamentStep({
   value,
+  prizePool,
   onChange,
+  onPrizePoolChange,
   onNext,
   onBack,
 }: TournamentStepProps) {
@@ -29,6 +33,29 @@ export function TournamentStep({
         autoFocus
         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white text-lg placeholder:text-gray-600 focus:outline-none focus:border-emerald-500 transition-colors"
       />
+
+      <div className="mt-6">
+        <label className="block text-sm text-gray-400 mb-2">
+          Premiacao (opcional)
+        </label>
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+            R$
+          </span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={prizePool ?? ''}
+            onChange={(e) => {
+              const v = e.target.value;
+              onPrizePoolChange(v === '' ? undefined : Number(v));
+            }}
+            placeholder="0"
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-12 pr-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500 transition-colors"
+          />
+        </div>
+      </div>
 
       <div className="mt-6 flex gap-3">
         <button

@@ -48,11 +48,11 @@ model Tournament {
   startedAt   DateTime?        @map("started_at")
   finishedAt  DateTime?        @map("finished_at")
 
+  prizePool   Decimal?         @map("prize_pool")
+
   organizer Organizer @relation(fields: [organizerId], references: [id], onDelete: Restrict)
   rounds    Round[]
   matches   Match[]
-
-  // Future: entryFee Decimal?, paymentRequired Boolean
 
   @@index([organizerId])
   @@index([status])

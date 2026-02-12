@@ -3,7 +3,10 @@ import { LandingPage } from './features/landing/LandingPage.tsx';
 import { LoginPage } from './features/auth/LoginPage.tsx';
 import { RegisterPage } from './features/auth/RegisterPage.tsx';
 import { ProtectedRoute } from './features/auth/ProtectedRoute.tsx';
-import { AppGate } from './features/app/AppGate.tsx';
+import { AppLayout } from './features/app/AppLayout.tsx';
+import { DashboardPage } from './features/app/DashboardPage.tsx';
+import { SettingsPage } from './features/app/SettingsPage.tsx';
+import { TournamentsPage } from './features/tournaments/TournamentsPage.tsx';
 import { OnboardingPage } from './features/onboarding/OnboardingPage.tsx';
 import { TournamentPublicView } from './features/tv/TournamentPublicView.tsx';
 
@@ -23,23 +26,20 @@ export function AppRouter() {
         element={<TournamentPublicView mode="mobile" />}
       />
 
-      {/* Protected routes */}
+      {/* Protected app shell */}
       <Route
         path="/app"
         element={
           <ProtectedRoute>
-            <AppGate />
+            <AppLayout />
           </ProtectedRoute>
         }
-      />
-      <Route
-        path="/onboarding"
-        element={
-          <ProtectedRoute>
-            <OnboardingPage />
-          </ProtectedRoute>
-        }
-      />
+      >
+        <Route index element={<DashboardPage />} />
+        <Route path="tournaments" element={<TournamentsPage />} />
+        <Route path="new" element={<OnboardingPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+      </Route>
     </Routes>
   );
 }

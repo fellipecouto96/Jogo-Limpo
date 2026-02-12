@@ -5,6 +5,7 @@ export interface OnboardingInput {
   organizerId: string;
   tournamentName: string;
   playerNames: string[];
+  prizePool?: number;
 }
 
 export interface OnboardingResult {
@@ -16,7 +17,7 @@ export interface OnboardingResult {
 export async function runOnboardingSetup(
   input: OnboardingInput
 ): Promise<OnboardingResult> {
-  const { organizerId, tournamentName, playerNames } = input;
+  const { organizerId, tournamentName, playerNames, prizePool } = input;
 
   if (!tournamentName.trim()) {
     throw new OnboardingError('Tournament name is required', 400);
@@ -31,6 +32,7 @@ export async function runOnboardingSetup(
         name: tournamentName.trim(),
         organizerId,
         status: 'OPEN',
+        prizePool: prizePool ?? null,
       },
     });
 

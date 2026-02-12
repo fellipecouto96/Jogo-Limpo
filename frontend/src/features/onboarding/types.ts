@@ -1,6 +1,7 @@
 export interface OnboardingData {
   tournamentName: string;
   playerNames: string[];
+  prizePool?: number;
 }
 
 export interface OnboardingResult {

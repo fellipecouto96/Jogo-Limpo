@@ -8,6 +8,7 @@ import { DrawError } from '../draw/draw.service.js';
 interface OnboardingBody {
   tournamentName: string;
   playerNames: string[];
+  prizePool?: number;
 }
 
 export async function setupOnboarding(
@@ -16,7 +17,7 @@ export async function setupOnboarding(
 ) {
   try {
     const organizerId = request.user.sub;
-    const { tournamentName, playerNames } = request.body;
+    const { tournamentName, playerNames, prizePool } = request.body;
 
     if (!Array.isArray(playerNames)) {
       return reply
@@ -28,6 +29,7 @@ export async function setupOnboarding(
       organizerId,
       tournamentName,
       playerNames,
+      prizePool,
     });
 
     return reply.status(201).send(result);

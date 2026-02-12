@@ -45,7 +45,7 @@ export function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
+    <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
       <div className="w-full max-w-md">
         {/* Progress */}
         <div className="flex gap-1.5 mb-10">
@@ -73,8 +73,11 @@ export function OnboardingPage() {
         {step === 0 && (
           <TournamentStep
             value={data.tournamentName}
+            prizePool={data.prizePool}
             onChange={(v) => setData({ ...data, tournamentName: v })}
+            onPrizePoolChange={(v) => setData({ ...data, prizePool: v })}
             onNext={() => setStep(1)}
+            onBack={() => navigate('/app')}
           />
         )}
 
