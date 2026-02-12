@@ -1,3 +1,4 @@
+import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '../../shared/database/prisma.js';
 
 export interface TournamentListItem {
@@ -39,4 +40,155 @@ export async function listTournaments(
       finishedAt: t.finishedAt?.toISOString() ?? null,
     };
   });
+}
+
+export interface TournamentDetail {
+  id: string;
+  name: string;
+  status: string;
+  playerCount: number;
+  organizerName: string;
+  drawSeed: string | null;
+  entryFee: number | null;
+  organizerPercentage: number | null;
+  firstPlacePercentage: number | null;
+  secondPlacePercentage: number | null;
+  prizePool: number | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+
+export async function getTournamentById(
+  tournamentId: string,
+  organizerId: string
+): Promise<TournamentDetail> {
+  const t = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    include: {
+      organizer: { select: { name: true } },
+      rounds: {
+        where: { roundNumber: 1 },
+        include: { _count: { select: { matches: true } } },
+      },
+    },
+  });
+
+  if (!t) {
+    throw new TournamentError('Torneio nao encontrado', 404);
+  }
+  if (t.organizerId !== organizerId) {
+    throw new TournamentError('Acesso negado', 403);
+  }
+
+  const playerCount = (t.rounds[0]?._count.matches ?? 0) * 2;
+
+  return {
+    id: t.id,
+    name: t.name,
+    status: t.status,
+    playerCount,
+    organizerName: t.organizer.name,
+    drawSeed: t.drawSeed,
+    entryFee: t.entryFee?.toNumber() ?? null,
+    organizerPercentage: t.organizerPercentage?.toNumber() ?? null,
+    firstPlacePercentage: t.firstPlacePercentage?.toNumber() ?? null,
+    secondPlacePercentage: t.secondPlacePercentage?.toNumber() ?? null,
+    prizePool: t.prizePool?.toNumber() ?? null,
+    createdAt: t.createdAt.toISOString(),
+    startedAt: t.startedAt?.toISOString() ?? null,
+    finishedAt: t.finishedAt?.toISOString() ?? null,
+  };
+}
+
+export interface FinancialsInput {
+  entryFee: number;
+  organizerPercentage: number;
+  firstPlacePercentage: number;
+  secondPlacePercentage: number;
+}
+
+export async function updateTournamentFinancials(
+  tournamentId: string,
+  organizerId: string,
+  data: FinancialsInput
+): Promise<TournamentDetail> {
+  const { entryFee, organizerPercentage, firstPlacePercentage, secondPlacePercentage } = data;
+
+  if (entryFee < 0) {
+    throw new TournamentError('Taxa de inscricao deve ser >= 0', 400);
+  }
+  if (organizerPercentage < 0 || organizerPercentage > 100) {
+    throw new TournamentError('Percentual do organizador deve ser entre 0 e 100', 400);
+  }
+  if (Math.abs(firstPlacePercentage + secondPlacePercentage - 100) > 0.01) {
+    throw new TournamentError('Percentuais de 1o e 2o lugar devem somar 100', 400);
+  }
+
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    include: {
+      rounds: {
+        where: { roundNumber: 1 },
+        include: { _count: { select: { matches: true } } },
+      },
+    },
+  });
+
+  if (!tournament) {
+    throw new TournamentError('Torneio nao encontrado', 404);
+  }
+  if (tournament.organizerId !== organizerId) {
+    throw new TournamentError('Acesso negado', 403);
+  }
+
+  const playerCount = (tournament.rounds[0]?._count.matches ?? 0) * 2;
+  const totalCollected = entryFee * playerCount;
+  const organizerCut = totalCollected * (organizerPercentage / 100);
+  const netPrize = totalCollected - organizerCut;
+
+  const updated = await prisma.tournament.update({
+    where: { id: tournamentId },
+    data: {
+      entryFee: new Decimal(entryFee),
+      organizerPercentage: new Decimal(organizerPercentage),
+      firstPlacePercentage: new Decimal(firstPlacePercentage),
+      secondPlacePercentage: new Decimal(secondPlacePercentage),
+      prizePool: new Decimal(netPrize),
+    },
+    include: {
+      organizer: { select: { name: true } },
+      rounds: {
+        where: { roundNumber: 1 },
+        include: { _count: { select: { matches: true } } },
+      },
+    },
+  });
+
+  return {
+    id: updated.id,
+    name: updated.name,
+    status: updated.status,
+    playerCount,
+    organizerName: updated.organizer.name,
+    drawSeed: updated.drawSeed,
+    entryFee: updated.entryFee?.toNumber() ?? null,
+    organizerPercentage: updated.organizerPercentage?.toNumber() ?? null,
+    firstPlacePercentage: updated.firstPlacePercentage?.toNumber() ?? null,
+    secondPlacePercentage: updated.secondPlacePercentage?.toNumber() ?? null,
+    prizePool: updated.prizePool?.toNumber() ?? null,
+    createdAt: updated.createdAt.toISOString(),
+    startedAt: updated.startedAt?.toISOString() ?? null,
+    finishedAt: updated.finishedAt?.toISOString() ?? null,
+  };
+}
+
+export class TournamentError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode: number
+  ) {
+    super(message);
+    this.name = 'TournamentError';
+  }
 }

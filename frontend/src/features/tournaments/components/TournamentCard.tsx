@@ -33,6 +33,14 @@ export function TournamentCard({ tournament }: TournamentCardProps) {
 
       {hasStarted ? (
         <div className="flex gap-2">
+          {tournament.status === 'RUNNING' && (
+            <Link
+              to={`/app/tournament/${tournament.id}`}
+              className="flex-1 text-center text-sm font-semibold py-2.5 rounded-lg bg-amber-600 text-white hover:bg-amber-500 transition-colors"
+            >
+              Gerenciar
+            </Link>
+          )}
           <Link
             to={`/tournament/${tournament.id}/tv`}
             className="flex-1 text-center text-sm font-semibold py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"

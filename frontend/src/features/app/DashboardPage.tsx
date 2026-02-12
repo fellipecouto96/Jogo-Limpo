@@ -91,12 +91,21 @@ export function DashboardPage() {
                             {formatDate(t.startedAt ?? t.createdAt)}
                           </td>
                           <td className="px-5 py-3.5 text-right">
-                            <Link
-                              to={`/tournament/${t.id}/tv`}
-                              className="text-emerald-400 hover:text-emerald-300 text-xs font-semibold uppercase tracking-wider transition-colors"
-                            >
-                              Ver
-                            </Link>
+                            {t.status === 'RUNNING' ? (
+                              <Link
+                                to={`/app/tournament/${t.id}`}
+                                className="text-amber-400 hover:text-amber-300 text-xs font-semibold uppercase tracking-wider transition-colors"
+                              >
+                                Gerenciar
+                              </Link>
+                            ) : (
+                              <Link
+                                to={`/tournament/${t.id}/tv`}
+                                className="text-emerald-400 hover:text-emerald-300 text-xs font-semibold uppercase tracking-wider transition-colors"
+                              >
+                                Ver
+                              </Link>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -161,10 +170,10 @@ export function DashboardPage() {
                           </td>
                           <td className="px-5 py-3.5 text-right">
                             <Link
-                              to={`/tournament/${t.id}/tv`}
+                              to={`/app/tournament/${t.id}/history`}
                               className="text-emerald-400 hover:text-emerald-300 text-xs font-semibold uppercase tracking-wider transition-colors"
                             >
-                              Ver
+                              Historico
                             </Link>
                           </td>
                         </tr>

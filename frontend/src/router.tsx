@@ -9,6 +9,9 @@ import { SettingsPage } from './features/app/SettingsPage.tsx';
 import { TournamentsPage } from './features/tournaments/TournamentsPage.tsx';
 import { OnboardingPage } from './features/onboarding/OnboardingPage.tsx';
 import { TournamentPublicView } from './features/tv/TournamentPublicView.tsx';
+import { ManageTournamentPage } from './features/manage/ManageTournamentPage.tsx';
+import { TournamentSettingsPage } from './features/manage/TournamentSettingsPage.tsx';
+import { TournamentHistoryPage } from './features/manage/TournamentHistoryPage.tsx';
 
 export function AppRouter() {
   return (
@@ -38,6 +41,9 @@ export function AppRouter() {
         <Route index element={<DashboardPage />} />
         <Route path="tournaments" element={<TournamentsPage />} />
         <Route path="new" element={<OnboardingPage />} />
+        <Route path="tournament/:tournamentId" element={<ManageTournamentPage />} />
+        <Route path="tournament/:tournamentId/settings" element={<TournamentSettingsPage />} />
+        <Route path="tournament/:tournamentId/history" element={<TournamentHistoryPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
