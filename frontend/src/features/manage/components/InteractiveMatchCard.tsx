@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { BracketMatch, BracketPlayer } from '../../tv/types.ts';
 import { useRecordResult } from '../useRecordResult.ts';
 
@@ -16,8 +16,12 @@ export function InteractiveMatchCard({
   onResultRecorded,
 }: InteractiveMatchCardProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const { recordResult, isSubmitting } = useRecordResult();
+  useEffect(() => {
+    setConfirming(false);
+  }, [selectedId]);
 
   // TBD slot
   if (!match) {
@@ -42,8 +46,13 @@ export function InteractiveMatchCard({
   }
 
   const isComplete = match.winner !== null;
-  const isInteractive =
-    !isComplete && tournamentStatus === 'RUNNING';
+  const isInteractive = !isComplete && tournamentStatus === 'RUNNING';
+  const selectedPlayer =
+    selectedId && selectedId === match.player1.id
+      ? match.player1
+      : selectedId && match.player2 && selectedId === match.player2.id
+        ? match.player2
+        : null;
 
   const handleConfirm = async () => {
     if (!selectedId) return;
@@ -51,6 +60,7 @@ export function InteractiveMatchCard({
     try {
       await recordResult(tournamentId, match.id, selectedId);
       setSelectedId(null);
+      setConfirming(false);
       onResultRecorded();
     } catch (err) {
       setInlineError(
@@ -83,12 +93,13 @@ export function InteractiveMatchCard({
   return (
     <div
       className={[
-        'rounded-lg p-3 min-w-48 border transition-colors',
+        'relative rounded-2xl p-4 min-w-48 border transition-all duration-500 ease-out',
         isInteractive
-          ? 'bg-gray-800 border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.15)]'
-          : 'bg-gray-800 border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.15)]',
+          ? 'bg-[#0C0A09]/80 border-amber-500/40 shadow-[0_25px_60px_rgba(0,0,0,0.55)] hover:shadow-[0_25px_70px_rgba(0,0,0,0.65)]'
+          : 'bg-[#0C0A09]/60 border-emerald-500/40 shadow-[0_10px_30px_rgba(0,0,0,0.45)]',
       ].join(' ')}
     >
+      <div className="pointer-events-none absolute inset-0 rounded-2xl border border-white/5" aria-hidden />
       <SelectableSlot
         player={match.player1}
         isSelected={selectedId === match.player1.id}
@@ -117,18 +128,48 @@ export function InteractiveMatchCard({
         <div className="py-1 px-2 text-gray-600 text-lg">TBD</div>
       )}
 
-      {selectedId && isInteractive && (
-        <button
-          onClick={handleConfirm}
-          disabled={isSubmitting}
-          className="mt-2 w-full text-sm font-semibold py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
-        >
-          {isSubmitting ? 'Salvando...' : 'Confirmar'}
-        </button>
+      {selectedPlayer && isInteractive && (
+        <div className="mt-3 space-y-2">
+          <button
+            onClick={() => setConfirming(true)}
+            disabled={isSubmitting}
+            className="w-full text-sm font-semibold py-2 rounded-lg bg-[#CA8A04] text-[#0C0A09] hover:bg-[#f2b019] disabled:bg-gray-700 disabled:text-gray-500 transition-all duration-300"
+          >
+            {isSubmitting ? 'Salvando...' : `Selecionar ${selectedPlayer.name}`}
+          </button>
+          <div
+            className={[
+              'overflow-hidden rounded-xl border border-amber-500/30 bg-[#1C1917]/80 transition-all duration-500',
+              confirming ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0',
+            ].join(' ')}
+          >
+            <div className="p-3 text-sm text-amber-100 flex flex-col gap-3">
+              <p className="font-semibold">
+                Confirmar {selectedPlayer.name} como vencedor?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleConfirm}
+                  disabled={isSubmitting}
+                  className="flex-1 rounded-lg bg-emerald-500/90 text-[#0C0A09] font-semibold py-2 hover:bg-emerald-400 transition-colors disabled:bg-gray-600"
+                >
+                  {isSubmitting ? 'Salvando...' : 'Confirmar'}
+                </button>
+                <button
+                  onClick={() => setConfirming(false)}
+                  disabled={isSubmitting}
+                  className="flex-1 rounded-lg border border-white/20 text-white font-semibold py-2 hover:bg-white/10 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {inlineError && (
-        <p className="mt-1 text-xs text-red-400">{inlineError}</p>
+        <p className="mt-2 text-xs text-red-400 animate-pulse">{inlineError}</p>
       )}
     </div>
   );
@@ -148,9 +189,9 @@ function ReadOnlySlot({
   }
 
   const classes = [
-    'py-1 px-2 text-lg font-medium rounded transition-colors',
-    isWinner && 'text-emerald-400 font-bold bg-emerald-500/10',
-    isEliminated && 'text-gray-500 line-through',
+    'py-1.5 px-3 text-lg font-semibold rounded-xl transition-colors bg-white/5',
+    isWinner && 'text-emerald-300 font-bold bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.35)]',
+    isEliminated && 'text-gray-500 line-through bg-transparent',
     !isWinner && !isEliminated && 'text-white',
   ]
     .filter(Boolean)
@@ -182,12 +223,12 @@ function SelectableSlot({
   onClick: () => void;
 }) {
   const classes = [
-    'w-full text-left py-1 px-2 text-lg font-medium rounded transition-colors',
-    isSelected && 'ring-2 ring-emerald-500 bg-emerald-500/20 text-emerald-400',
-    isDimmed && 'text-gray-500',
+    'w-full text-left py-2.5 px-3 text-lg font-semibold rounded-xl transition-all duration-300 border border-transparent',
+    isSelected &&
+      'border-emerald-400/70 bg-emerald-500/10 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.35)]',
+    isDimmed && 'text-gray-600',
     !isSelected && !isDimmed && 'text-white hover:bg-white/5',
-    disabled && 'cursor-not-allowed opacity-60',
-    !disabled && 'cursor-pointer',
+    disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
   ]
     .filter(Boolean)
     .join(' ');
@@ -198,6 +239,7 @@ function SelectableSlot({
       onClick={onClick}
       disabled={disabled}
       className={classes}
+      aria-pressed={isSelected}
     >
       {player.name}
     </button>

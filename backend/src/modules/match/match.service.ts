@@ -38,11 +38,26 @@ export async function recordMatchResult(
     if (!match || match.tournamentId !== tournamentId) {
       throw new MatchError('Partida nao encontrada', 404);
     }
+    const nextSlotPosition = Math.ceil(match.positionInBracket / 2);
+    const downstreamMatch = await tx.match.findFirst({
+      where: {
+        tournamentId,
+        positionInBracket: nextSlotPosition,
+        round: { roundNumber: match.round.roundNumber + 1 },
+      },
+      select: { id: true, winnerId: true, player1Id: true, player2Id: true },
+    });
     if (match.isBye) {
       throw new MatchError('Partidas com bye nao podem ser editadas', 409);
     }
     if (match.winnerId !== null) {
       throw new MatchError('Resultado ja registrado', 409);
+    }
+    if (downstreamMatch?.winnerId) {
+      throw new MatchError(
+        'A proxima rodada ja foi concluida para esta chave',
+        409
+      );
     }
 
     // 3. Validate winnerId
@@ -78,6 +93,11 @@ export async function recordMatchResult(
           roundNumber: match.round.roundNumber + 1,
         },
       },
+      include: {
+        matches: {
+          select: { id: true, winnerId: true, player1Id: true, player2Id: true },
+        },
+      },
     });
 
     if (!nextRound) {
@@ -96,6 +116,18 @@ export async function recordMatchResult(
     }
 
     // 7. Create next round matches from winners
+    if (nextRound.matches.length > 0) {
+      const hasProgress = nextRound.matches.some(
+        (m) => m.player1Id !== null || m.player2Id !== null || m.winnerId !== null
+      );
+      if (hasProgress) {
+        throw new MatchError(
+          'Proxima rodada ja foi iniciada. Resultados nao podem ser duplicados.',
+          409
+        );
+      }
+    }
+
     const completedMatches = await tx.match.findMany({
       where: { roundId: match.roundId },
       orderBy: { positionInBracket: 'asc' },

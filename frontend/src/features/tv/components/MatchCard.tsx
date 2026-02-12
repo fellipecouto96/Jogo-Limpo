@@ -7,7 +7,7 @@ interface MatchCardProps {
 export function MatchCard({ match }: MatchCardProps) {
   if (!match) {
     return (
-      <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 min-w-48">
+      <div className="bg-[#0C0A09]/70 border border-white/5 rounded-2xl p-4 min-w-48">
         <PlayerSlot player={null} isWinner={false} isEliminated={false} />
         <div className="border-t border-gray-700 my-1" />
         <PlayerSlot player={null} isWinner={false} isEliminated={false} />
@@ -17,7 +17,7 @@ export function MatchCard({ match }: MatchCardProps) {
 
   if (match.isBye) {
     return (
-      <div className="rounded-lg p-3 min-w-48 border bg-gray-800/50 border-gray-700">
+      <div className="rounded-2xl p-4 min-w-48 border border-amber-500/30 bg-[#0C0A09]/70 shadow-[0_20px_45px_rgba(0,0,0,0.5)]">
         <PlayerSlot player={match.player1} isWinner={true} isEliminated={false} />
         <div className="border-t border-gray-700 my-1" />
         <div className="py-1 px-2 text-gray-600 text-sm italic">BYE</div>
@@ -30,10 +30,10 @@ export function MatchCard({ match }: MatchCardProps) {
   return (
     <div
       className={[
-        'rounded-lg p-3 min-w-48 border transition-colors',
+        'rounded-2xl p-4 min-w-48 border transition-all duration-500',
         isComplete
-          ? 'bg-gray-800 border-gray-600'
-          : 'bg-gray-800 border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.15)]',
+          ? 'bg-[#0C0A09]/60 border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.45)]'
+          : 'bg-[#0C0A09]/80 border-emerald-500/40 shadow-[0_25px_60px_rgba(0,0,0,0.55)]',
       ].join(' ')}
     >
       <PlayerSlot
@@ -63,9 +63,10 @@ function PlayerSlot({ player, isWinner, isEliminated }: PlayerSlotProps) {
   }
 
   const classes = [
-    'py-1 px-2 text-lg font-medium rounded transition-colors',
-    isWinner && 'text-emerald-400 font-bold bg-emerald-500/10',
-    isEliminated && 'text-gray-500 line-through',
+    'py-1.5 px-3 text-lg font-semibold rounded-xl transition-all duration-300 bg-white/5',
+    isWinner &&
+      'text-emerald-300 font-bold bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.35)]',
+    isEliminated && 'text-gray-500 line-through bg-transparent',
     !isWinner && !isEliminated && 'text-white',
   ]
     .filter(Boolean)
