@@ -24,8 +24,9 @@ interface BracketMatch {
   id: string;
   positionInBracket: number;
   player1: { id: string; name: string };
-  player2: { id: string; name: string };
+  player2: { id: string; name: string } | null;
   winner: { id: string; name: string } | null;
+  isBye: boolean;
   finishedAt: string | null;
 }
 
@@ -65,10 +66,13 @@ export async function fetchBracket(
       id: match.id,
       positionInBracket: match.positionInBracket,
       player1: { id: match.player1.id, name: match.player1.name },
-      player2: { id: match.player2.id, name: match.player2.name },
+      player2: match.player2
+        ? { id: match.player2.id, name: match.player2.name }
+        : null,
       winner: match.winner
         ? { id: match.winner.id, name: match.winner.name }
         : null,
+      isBye: match.isBye,
       finishedAt: match.finishedAt?.toISOString() ?? null,
     })),
   }));

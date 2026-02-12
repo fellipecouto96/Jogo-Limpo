@@ -25,6 +25,11 @@ export interface DashboardSummary {
   }>;
 }
 
+function countPlayers(matches: { isBye: boolean }[]): number {
+  const byeCount = matches.filter((m) => m.isBye).length;
+  return matches.length * 2 - byeCount;
+}
+
 export async function getDashboardSummary(
   organizerId: string
 ): Promise<DashboardSummary> {
@@ -40,7 +45,7 @@ export async function getDashboardSummary(
       include: {
         rounds: {
           where: { roundNumber: 1 },
-          include: { _count: { select: { matches: true } } },
+          include: { matches: { select: { isBye: true } } },
         },
       },
     }),
@@ -88,18 +93,18 @@ export async function getDashboardSummary(
         UNION
         SELECT player2_id AS pid FROM matches
         WHERE tournament_id = ANY(${allTournamentIds})
+          AND player2_id IS NOT NULL
       ) sub`;
     totalPlayers = Number(playerCountResult[0].count);
   }
 
   const activeTournaments = activeTournamentsRaw.map((t) => {
-    const firstRound = t.rounds[0];
-    const playerCount = firstRound ? firstRound._count.matches * 2 : 0;
+    const matches = t.rounds[0]?.matches ?? [];
     return {
       id: t.id,
       name: t.name,
       status: t.status,
-      playerCount,
+      playerCount: countPlayers(matches),
       createdAt: t.createdAt.toISOString(),
       startedAt: t.startedAt?.toISOString() ?? null,
     };
@@ -108,7 +113,9 @@ export async function getDashboardSummary(
   const finishedTournaments = finishedTournamentsRaw.map((t) => {
     const totalRounds = t.rounds.length;
     const firstRound = t.rounds[0];
-    const playerCount = firstRound ? firstRound.matches.length * 2 : 0;
+    const playerCount = firstRound
+      ? countPlayers(firstRound.matches.map((m) => ({ isBye: m.isBye })))
+      : 0;
 
     let champion: { id: string; name: string } | null = null;
     let runnerUp: { id: string; name: string } | null = null;
@@ -122,11 +129,13 @@ export async function getDashboardSummary(
             id: finalMatch.winner.id,
             name: finalMatch.winner.name,
           };
-          const loser =
-            finalMatch.winner.id === finalMatch.player1.id
-              ? finalMatch.player2
-              : finalMatch.player1;
-          runnerUp = { id: loser.id, name: loser.name };
+          if (finalMatch.player2) {
+            const loser =
+              finalMatch.winner.id === finalMatch.player1.id
+                ? finalMatch.player2
+                : finalMatch.player1;
+            runnerUp = { id: loser.id, name: loser.name };
+          }
         }
       }
     }

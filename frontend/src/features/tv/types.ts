@@ -7,8 +7,9 @@ export interface BracketMatch {
   id: string;
   positionInBracket: number;
   player1: BracketPlayer;
-  player2: BracketPlayer;
+  player2: BracketPlayer | null;
   winner: BracketPlayer | null;
+  isBye: boolean;
   finishedAt: string | null;
 }
 

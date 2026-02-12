@@ -30,6 +30,17 @@ export function InteractiveMatchCard({
     );
   }
 
+  // Bye match — read-only, auto-advanced
+  if (match.isBye) {
+    return (
+      <div className="rounded-lg p-3 min-w-48 border bg-gray-800/50 border-gray-700">
+        <ReadOnlySlot player={match.player1} isWinner={true} isEliminated={false} />
+        <div className="border-t border-gray-700 my-1" />
+        <div className="py-1 px-2 text-gray-600 text-sm italic">BYE</div>
+      </div>
+    );
+  }
+
   const isComplete = match.winner !== null;
   const isInteractive =
     !isComplete && tournamentStatus === 'RUNNING';
@@ -61,8 +72,8 @@ export function InteractiveMatchCard({
         <div className="border-t border-gray-700 my-1" />
         <ReadOnlySlot
           player={match.player2}
-          isWinner={match.winner?.id === match.player2.id}
-          isEliminated={match.winner?.id !== match.player2.id}
+          isWinner={match.winner?.id === match.player2?.id}
+          isEliminated={match.winner?.id !== match.player2?.id}
         />
       </div>
     );
@@ -90,17 +101,21 @@ export function InteractiveMatchCard({
         }
       />
       <div className="border-t border-gray-700 my-1" />
-      <SelectableSlot
-        player={match.player2}
-        isSelected={selectedId === match.player2.id}
-        isDimmed={selectedId !== null && selectedId !== match.player2.id}
-        disabled={!isInteractive || isSubmitting}
-        onClick={() =>
-          setSelectedId(
-            selectedId === match.player2.id ? null : match.player2.id
-          )
-        }
-      />
+      {match.player2 ? (
+        <SelectableSlot
+          player={match.player2}
+          isSelected={selectedId === match.player2.id}
+          isDimmed={selectedId !== null && selectedId !== match.player2.id}
+          disabled={!isInteractive || isSubmitting}
+          onClick={() =>
+            setSelectedId(
+              selectedId === match.player2!.id ? null : match.player2!.id
+            )
+          }
+        />
+      ) : (
+        <div className="py-1 px-2 text-gray-600 text-lg">TBD</div>
+      )}
 
       {selectedId && isInteractive && (
         <button
@@ -124,10 +139,14 @@ function ReadOnlySlot({
   isWinner,
   isEliminated,
 }: {
-  player: BracketPlayer;
+  player: BracketPlayer | null;
   isWinner: boolean;
   isEliminated: boolean;
 }) {
+  if (!player) {
+    return <div className="py-1 px-2 text-gray-600 text-lg">TBD</div>;
+  }
+
   const classes = [
     'py-1 px-2 text-lg font-medium rounded transition-colors',
     isWinner && 'text-emerald-400 font-bold bg-emerald-500/10',

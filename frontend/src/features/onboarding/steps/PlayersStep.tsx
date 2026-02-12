@@ -7,10 +7,6 @@ interface PlayersStepProps {
   onBack: () => void;
 }
 
-function isPowerOfTwo(n: number): boolean {
-  return n > 0 && (n & (n - 1)) === 0;
-}
-
 export function PlayersStep({
   value,
   onChange,
@@ -31,20 +27,14 @@ export function PlayersStep({
     onChange(value.filter((_, i) => i !== index));
   };
 
-  const canProceed = value.length >= 2 && isPowerOfTwo(value.length);
-  const nextPowerOfTwo =
-    value.length < 2
-      ? 2
-      : isPowerOfTwo(value.length)
-        ? value.length
-        : Math.pow(2, Math.ceil(Math.log2(value.length)));
+  const canProceed = value.length >= 2;
 
   return (
     <div>
       <h2 className="font-display text-3xl text-white mb-2">Jogadores</h2>
       <p className="text-gray-400 mb-8">
-        Adicione os participantes. O total precisa ser potencia de 2 (2, 4,
-        8, 16...).
+        Adicione os participantes (minimo 2). Byes serao atribuidos
+        automaticamente se necessario.
       </p>
 
       <div className="flex gap-2 mb-4">
@@ -94,12 +84,6 @@ export function PlayersStep({
       <p className="text-sm text-gray-500 mb-6">
         {value.length} jogador{value.length !== 1 ? 'es' : ''} adicionado
         {value.length !== 1 ? 's' : ''}
-        {!canProceed && value.length > 0 && (
-          <span className="text-amber-400">
-            {' '}
-            &middot; Precisa de {nextPowerOfTwo} para continuar
-          </span>
-        )}
         {canProceed && (
           <span className="text-emerald-400"> &middot; Pronto!</span>
         )}

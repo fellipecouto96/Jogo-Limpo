@@ -38,6 +38,9 @@ export async function recordMatchResult(
     if (!match || match.tournamentId !== tournamentId) {
       throw new MatchError('Partida nao encontrada', 404);
     }
+    if (match.isBye) {
+      throw new MatchError('Partidas com bye nao podem ser editadas', 409);
+    }
     if (match.winnerId !== null) {
       throw new MatchError('Resultado ja registrado', 409);
     }

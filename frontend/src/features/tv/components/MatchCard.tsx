@@ -15,6 +15,16 @@ export function MatchCard({ match }: MatchCardProps) {
     );
   }
 
+  if (match.isBye) {
+    return (
+      <div className="rounded-lg p-3 min-w-48 border bg-gray-800/50 border-gray-700">
+        <PlayerSlot player={match.player1} isWinner={true} isEliminated={false} />
+        <div className="border-t border-gray-700 my-1" />
+        <div className="py-1 px-2 text-gray-600 text-sm italic">BYE</div>
+      </div>
+    );
+  }
+
   const isComplete = match.winner !== null;
 
   return (
@@ -34,8 +44,8 @@ export function MatchCard({ match }: MatchCardProps) {
       <div className="border-t border-gray-700 my-1" />
       <PlayerSlot
         player={match.player2}
-        isWinner={isComplete && match.winner?.id === match.player2.id}
-        isEliminated={isComplete && match.winner?.id !== match.player2.id}
+        isWinner={isComplete && match.winner?.id === match.player2?.id}
+        isEliminated={isComplete && match.winner?.id !== match.player2?.id}
       />
     </div>
   );

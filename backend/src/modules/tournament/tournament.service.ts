@@ -1,6 +1,12 @@
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '../../shared/database/prisma.js';
 
+/** Count real players from round 1 matches: normal matches have 2, bye matches have 1. */
+function countPlayers(matches: { isBye: boolean }[]): number {
+  const byeCount = matches.filter((m) => m.isBye).length;
+  return matches.length * 2 - byeCount;
+}
+
 export interface TournamentListItem {
   id: string;
   name: string;
@@ -22,19 +28,19 @@ export async function listTournaments(
       organizer: { select: { id: true, name: true } },
       rounds: {
         where: { roundNumber: 1 },
-        include: { _count: { select: { matches: true } } },
+        include: { matches: { select: { isBye: true } } },
       },
     },
   });
 
   return tournaments.map((t) => {
-    const firstRoundMatches = t.rounds[0]?._count.matches ?? 0;
+    const matches = t.rounds[0]?.matches ?? [];
     return {
       id: t.id,
       name: t.name,
       status: t.status,
       organizer: { id: t.organizer.id, name: t.organizer.name },
-      playerCount: firstRoundMatches * 2,
+      playerCount: countPlayers(matches),
       createdAt: t.createdAt.toISOString(),
       startedAt: t.startedAt?.toISOString() ?? null,
       finishedAt: t.finishedAt?.toISOString() ?? null,
@@ -69,7 +75,7 @@ export async function getTournamentById(
       organizer: { select: { name: true } },
       rounds: {
         where: { roundNumber: 1 },
-        include: { _count: { select: { matches: true } } },
+        include: { matches: { select: { isBye: true } } },
       },
     },
   });
@@ -81,7 +87,7 @@ export async function getTournamentById(
     throw new TournamentError('Acesso negado', 403);
   }
 
-  const playerCount = (t.rounds[0]?._count.matches ?? 0) * 2;
+  const playerCount = countPlayers(t.rounds[0]?.matches ?? []);
 
   return {
     id: t.id,
@@ -130,7 +136,7 @@ export async function updateTournamentFinancials(
     include: {
       rounds: {
         where: { roundNumber: 1 },
-        include: { _count: { select: { matches: true } } },
+        include: { matches: { select: { isBye: true } } },
       },
     },
   });
@@ -142,7 +148,7 @@ export async function updateTournamentFinancials(
     throw new TournamentError('Acesso negado', 403);
   }
 
-  const playerCount = (tournament.rounds[0]?._count.matches ?? 0) * 2;
+  const playerCount = countPlayers(tournament.rounds[0]?.matches ?? []);
   const totalCollected = entryFee * playerCount;
   const organizerCut = totalCollected * (organizerPercentage / 100);
   const netPrize = totalCollected - organizerCut;
@@ -160,7 +166,7 @@ export async function updateTournamentFinancials(
       organizer: { select: { name: true } },
       rounds: {
         where: { roundNumber: 1 },
-        include: { _count: { select: { matches: true } } },
+        include: { matches: { select: { isBye: true } } },
       },
     },
   });
