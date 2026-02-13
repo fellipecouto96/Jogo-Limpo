@@ -148,10 +148,6 @@ jobs:
             echo "Missing Vercel secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_BACKEND_PROJECT_ID." >&2
             exit 1
           fi
-          if [[ ! "$VERCEL_BACKEND_PROJECT_ID" =~ ^prj_[A-Za-z0-9]+$ ]]; then
-            echo "VERCEL_BACKEND_PROJECT_ID must be the real Vercel Project ID (example: prj_xxx), not the project name." >&2
-            exit 1
-          fi
           if [[ ! "$VERCEL_ORG_ID" =~ ^team_[A-Za-z0-9]+$ ]]; then
             echo "VERCEL_ORG_ID must be the real Team ID (example: team_xxx)." >&2
             exit 1
@@ -161,11 +157,35 @@ jobs:
             exit 1
           fi
 
+      - name: Resolve backend Vercel project ID
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          project_input="${VERCEL_BACKEND_PROJECT_ID:-}"
+
+          if [[ "$project_input" =~ ^prj_[A-Za-z0-9]+$ ]]; then
+            project_id="$project_input"
+          else
+            project_id="$(curl -fsS \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v9/projects/${project_input}?teamId=${VERCEL_ORG_ID}" \
+              | node -e 'let raw=""; process.stdin.on("data", (chunk) => raw += chunk); process.stdin.on("end", () => { const payload = JSON.parse(raw); if (!payload.id) { console.error("Could not resolve Vercel project ID from VERCEL_BACKEND_PROJECT_ID. Set it to prj_xxx or a valid project name/slug."); process.exit(1); } process.stdout.write(payload.id); });')"
+          fi
+
+          if [[ ! "$project_id" =~ ^prj_[A-Za-z0-9]+$ ]]; then
+            echo "Resolved Vercel project ID is invalid. Expected format prj_xxx." >&2
+            exit 1
+          fi
+
+          echo "VERCEL_PROJECT_ID=$project_id" >> "$GITHUB_ENV"
+
       - name: Prepare Vercel project file
         working-directory: backend
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           mkdir -p .vercel
@@ -181,7 +201,6 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
@@ -218,7 +237,6 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           vercel build --prod --token="$VERCEL_TOKEN"
@@ -228,7 +246,6 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
