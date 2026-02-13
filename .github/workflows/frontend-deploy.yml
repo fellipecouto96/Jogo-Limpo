@@ -135,6 +135,14 @@ jobs:
             exit 1
           fi
 
+      - name: Debug token fingerprint
+        run: |
+          set -euo pipefail
+          token_len="${#VERCEL_TOKEN}"
+          token_fp="$(printf '%s' "$VERCEL_TOKEN" | shasum -a 256 | cut -d ' ' -f 1 | cut -c1-12)"
+          echo "VERCEL_TOKEN_LENGTH=$token_len"
+          echo "VERCEL_TOKEN_FP12=$token_fp"
+
       - name: Validate Vercel token
         run: vercel whoami --token="$VERCEL_TOKEN"
 
