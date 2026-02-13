@@ -5,14 +5,14 @@ on:
     branches:
       - main
     paths:
-      - 'backend/**'
-      - '.github/workflows/backend-deploy.yml'
+      - "backend/**"
+      - ".github/workflows/backend-deploy.yml"
   pull_request:
     branches:
       - main
     paths:
-      - 'backend/**'
-      - '.github/workflows/backend-deploy.yml'
+      - "backend/**"
+      - ".github/workflows/backend-deploy.yml"
   workflow_dispatch:
 
 permissions:
@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
 
 jobs:
   quality:
@@ -76,6 +76,7 @@ jobs:
           if [ -z "$direct_url" ]; then
             direct_url="$db_url"
           fi
+
           {
             echo "DATABASE_URL=$db_url"
             echo "DIRECT_DATABASE_URL=$direct_url"
@@ -131,6 +132,7 @@ jobs:
           RAW_VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
           RAW_DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RAW_DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+          RAW_JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           set -euo pipefail
           normalize_secret() {
@@ -153,6 +155,7 @@ jobs:
           project_id="$(normalize_secret "${RAW_VERCEL_BACKEND_PROJECT_ID:-}")"
           database_url="$(normalize_secret "${RAW_DATABASE_URL:-}")"
           direct_database_url="$(normalize_secret "${RAW_DIRECT_DATABASE_URL:-}")"
+          jwt_secret="$(normalize_secret "${RAW_JWT_SECRET:-}")"
 
           org_id="$(printf '%s' "$org_id" | grep -oE 'team_[A-Za-z0-9]+' | head -n1 || true)"
           project_id="$(printf '%s' "$project_id" | grep -oE 'prj_[A-Za-z0-9]+' | head -n1 || true)"
@@ -163,9 +166,10 @@ jobs:
             echo "VERCEL_BACKEND_PROJECT_ID=$project_id"
             echo "DATABASE_URL=$database_url"
             echo "DIRECT_DATABASE_URL=$direct_database_url"
+            echo "JWT_SECRET=$jwt_secret"
           } >> "$GITHUB_ENV"
 
-      - name: Verify credentials and database secrets
+      - name: Verify credentials and backend secrets
         run: |
           set -euo pipefail
           if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_BACKEND_PROJECT_ID:-}" ]; then
@@ -174,6 +178,10 @@ jobs:
           fi
           if [ -z "${DIRECT_DATABASE_URL:-}" ] && [ -z "${DATABASE_URL:-}" ]; then
             echo "Missing database secret. Configure DIRECT_DATABASE_URL (required) or DATABASE_URL." >&2
+            exit 1
+          fi
+          if [ -z "${JWT_SECRET:-}" ]; then
+            echo "Missing JWT_SECRET secret." >&2
             exit 1
           fi
 
@@ -191,14 +199,10 @@ jobs:
 
       - name: Pull Vercel environment
         working-directory: backend
-        run: |
-          set -euo pipefail
-          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
 
       - name: Ensure backend env values for Vercel build
         working-directory: backend
-        env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           set -euo pipefail
           db_url="${DATABASE_URL:-}"
@@ -215,19 +219,13 @@ jobs:
           {
             echo "DATABASE_URL=$db_url"
             echo "DIRECT_DATABASE_URL=$direct_url"
-            if [ -n "${JWT_SECRET:-}" ]; then
-              echo "JWT_SECRET=$JWT_SECRET"
-            fi
+            echo "JWT_SECRET=$JWT_SECRET"
           } > "$env_file"
 
       - name: Build Vercel artifacts
         working-directory: backend
-        run: |
-          set -euo pipefail
-          vercel build --prod --token="$VERCEL_TOKEN"
+        run: vercel build --prod --token="$VERCEL_TOKEN"
 
       - name: Deploy to Vercel
         working-directory: backend
-        run: |
-          set -euo pipefail
-          vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"

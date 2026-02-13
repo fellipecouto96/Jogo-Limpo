@@ -5,16 +5,16 @@ on:
     branches:
       - main
     paths:
-      - '.github/workflows/**'
-      - 'backend/**'
-      - 'frontend/**'
+      - ".github/workflows/**"
+      - "backend/**"
+      - "frontend/**"
   pull_request:
     branches:
       - main
     paths:
-      - '.github/workflows/**'
-      - 'backend/**'
-      - 'frontend/**'
+      - ".github/workflows/**"
+      - "backend/**"
+      - "frontend/**"
   workflow_dispatch:
 
 permissions:
@@ -31,7 +31,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.22"
 
       - name: Install actionlint
         run: go install github.com/rhysd/actionlint/cmd/actionlint@latest
@@ -51,8 +51,8 @@ jobs:
           fi
           grep -Fq "VERCEL_FRONTEND_PROJECT_ID" .github/workflows/frontend-deploy.yml
           grep -Fq "VERCEL_BACKEND_PROJECT_ID" .github/workflows/backend-deploy.yml
-          grep -Fq 'prj_[A-Za-z0-9]+' .github/workflows/frontend-deploy.yml
-          grep -Fq 'prj_[A-Za-z0-9]+' .github/workflows/backend-deploy.yml
+          grep -Fq "VITE_API_URL" .github/workflows/frontend-deploy.yml
+          grep -Fq "JWT_SECRET" .github/workflows/backend-deploy.yml
           grep -Fq "environment: production" .github/workflows/frontend-deploy.yml
           grep -Fq "environment: production" .github/workflows/backend-deploy.yml
           grep -Fq '"build"' package.json

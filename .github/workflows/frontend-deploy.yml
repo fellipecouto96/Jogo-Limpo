@@ -5,14 +5,14 @@ on:
     branches:
       - main
     paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend-deploy.yml'
+      - "frontend/**"
+      - ".github/workflows/frontend-deploy.yml"
   pull_request:
     branches:
       - main
     paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend-deploy.yml'
+      - "frontend/**"
+      - ".github/workflows/frontend-deploy.yml"
   workflow_dispatch:
 
 permissions:
@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
 
 jobs:
   quality:
@@ -86,11 +86,12 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
 
-      - name: Normalize Vercel secrets
+      - name: Normalize deploy secrets
         env:
           RAW_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           RAW_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           RAW_VERCEL_FRONTEND_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
+          RAW_VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: |
           set -euo pipefail
           normalize_secret() {
@@ -111,6 +112,7 @@ jobs:
           token="$(normalize_secret "${RAW_VERCEL_TOKEN:-}")"
           org_id="$(normalize_secret "${RAW_VERCEL_ORG_ID:-}")"
           project_id="$(normalize_secret "${RAW_VERCEL_FRONTEND_PROJECT_ID:-}")"
+          api_url="$(normalize_secret "${RAW_VITE_API_URL:-}")"
 
           org_id="$(printf '%s' "$org_id" | grep -oE 'team_[A-Za-z0-9]+' | head -n1 || true)"
           project_id="$(printf '%s' "$project_id" | grep -oE 'prj_[A-Za-z0-9]+' | head -n1 || true)"
@@ -119,6 +121,7 @@ jobs:
             echo "VERCEL_TOKEN=$token"
             echo "VERCEL_ORG_ID=$org_id"
             echo "VERCEL_FRONTEND_PROJECT_ID=$project_id"
+            echo "VITE_API_URL=$api_url"
           } >> "$GITHUB_ENV"
 
       - name: Verify Vercel credentials
@@ -143,18 +146,23 @@ jobs:
 
       - name: Pull Vercel environment
         working-directory: frontend
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Ensure frontend env values for Vercel build
+        if: ${{ env.VITE_API_URL != '' }}
+        working-directory: frontend
         run: |
           set -euo pipefail
-          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          env_file=".vercel/.env.production.local"
+          mkdir -p .vercel
+          {
+            echo "VITE_API_URL=$VITE_API_URL"
+          } >> "$env_file"
 
       - name: Build Vercel artifacts
         working-directory: frontend
-        run: |
-          set -euo pipefail
-          vercel build --prod --token="$VERCEL_TOKEN"
+        run: vercel build --prod --token="$VERCEL_TOKEN"
 
       - name: Deploy to Vercel
         working-directory: frontend
-        run: |
-          set -euo pipefail
-          vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
