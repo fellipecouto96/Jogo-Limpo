@@ -171,8 +171,6 @@ jobs:
         working-directory: backend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
         run: vercel build --prod --token="${VERCEL_TOKEN}"
 
       - name: Deploy backend to Vercel
