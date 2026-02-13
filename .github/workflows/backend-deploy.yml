@@ -54,7 +54,16 @@ jobs:
           DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
         run: |
           set -euo pipefail
-          export DATABASE_URL="${DATABASE_URL:-$DIRECT_DATABASE_URL}"
+          db_url="${DATABASE_URL:-}"
+          direct_url="${DIRECT_DATABASE_URL:-}"
+          if [ -z "$db_url" ]; then
+            db_url='postgresql://postgres:postgres@localhost:5432/postgres?schema=public'
+          fi
+          if [ -z "$direct_url" ]; then
+            direct_url="$db_url"
+          fi
+          export DATABASE_URL="$db_url"
+          export DIRECT_DATABASE_URL="$direct_url"
           npx prisma generate
 
       - name: Lint
@@ -68,7 +77,16 @@ jobs:
           DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
         run: |
           set -euo pipefail
-          export DATABASE_URL="${DATABASE_URL:-$DIRECT_DATABASE_URL}"
+          db_url="${DATABASE_URL:-}"
+          direct_url="${DIRECT_DATABASE_URL:-}"
+          if [ -z "$db_url" ]; then
+            db_url='postgresql://postgres:postgres@localhost:5432/postgres?schema=public'
+          fi
+          if [ -z "$direct_url" ]; then
+            direct_url="$db_url"
+          fi
+          export DATABASE_URL="$db_url"
+          export DIRECT_DATABASE_URL="$direct_url"
           npm run test
 
       - name: Build
@@ -78,7 +96,16 @@ jobs:
           DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
         run: |
           set -euo pipefail
-          export DATABASE_URL="${DATABASE_URL:-$DIRECT_DATABASE_URL}"
+          db_url="${DATABASE_URL:-}"
+          direct_url="${DIRECT_DATABASE_URL:-}"
+          if [ -z "$db_url" ]; then
+            db_url='postgresql://postgres:postgres@localhost:5432/postgres?schema=public'
+          fi
+          if [ -z "$direct_url" ]; then
+            direct_url="$db_url"
+          fi
+          export DATABASE_URL="$db_url"
+          export DIRECT_DATABASE_URL="$direct_url"
           npm run build
 
   deploy:
@@ -165,14 +192,13 @@ jobs:
 
           env_file=".vercel/.env.production.local"
           mkdir -p .vercel
-          touch "$env_file"
           {
             echo "DATABASE_URL=$db_url"
             echo "DIRECT_DATABASE_URL=$direct_url"
             if [ -n "${JWT_SECRET:-}" ]; then
               echo "JWT_SECRET=$JWT_SECRET"
             fi
-          } >> "$env_file"
+          } > "$env_file"
 
       - name: Build Vercel artifacts
         working-directory: backend
