@@ -8,7 +8,16 @@ if [ "$#" -eq 0 ]; then
 fi
 
 db_url="${DATABASE_URL:-}"
-direct_url="${DIRECT_DATABASE_URL:-}"
+direct_url="${DIRECT_DATABASE_URL:-${DIRECT_URL:-}}"
+
+if [ -z "$db_url" ] && [ -z "$direct_url" ] && [ -f ".env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ".env"
+  set +a
+  db_url="${DATABASE_URL:-}"
+  direct_url="${DIRECT_DATABASE_URL:-${DIRECT_URL:-}}"
+fi
 
 if [ -z "$db_url" ] && [ -z "$direct_url" ]; then
   echo "DATABASE_URL or DIRECT_DATABASE_URL must be set." >&2

@@ -35,7 +35,13 @@ export function LoginPage() {
       login(data.token, data.organizer);
       navigate('/app');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      if (err instanceof TypeError) {
+        setError(
+          'Nao foi possivel conectar ao backend. Verifique a VITE_API_URL e se a API esta no ar.'
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      }
     } finally {
       setIsLoading(false);
     }

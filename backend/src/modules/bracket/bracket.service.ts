@@ -35,13 +35,24 @@ export async function fetchBracket(
 ): Promise<BracketResponse> {
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      startedAt: true,
+      finishedAt: true,
       rounds: {
         orderBy: { roundNumber: 'asc' },
-        include: {
+        select: {
+          id: true,
+          roundNumber: true,
           matches: {
             orderBy: { positionInBracket: 'asc' },
-            include: {
+            select: {
+              id: true,
+              positionInBracket: true,
+              isBye: true,
+              finishedAt: true,
               player1: { select: { id: true, name: true } },
               player2: { select: { id: true, name: true } },
               winner: { select: { id: true, name: true } },

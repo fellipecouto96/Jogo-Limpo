@@ -7,6 +7,13 @@ export interface RecordResultResponse {
   tournamentFinished: boolean;
 }
 
+export interface UndoLastResultResponse {
+  matchId: string;
+  winnerId: string;
+  roundNumber: number;
+  tournamentReopened: boolean;
+}
+
 export async function recordMatchResult(
   tournamentId: string,
   matchId: string,
@@ -159,6 +166,104 @@ export async function recordMatchResult(
       winnerId,
       roundComplete: true,
       tournamentFinished: false,
+    };
+  });
+}
+
+export async function undoLastMatchResult(
+  tournamentId: string,
+  organizerId: string
+): Promise<UndoLastResultResponse> {
+  return await prisma.$transaction(async (tx) => {
+    const tournament = await tx.tournament.findUnique({
+      where: { id: tournamentId },
+    });
+
+    if (!tournament) {
+      throw new MatchError('Torneio nao encontrado', 404);
+    }
+    if (tournament.organizerId !== organizerId) {
+      throw new MatchError('Acesso negado', 403);
+    }
+    if (tournament.status !== 'RUNNING' && tournament.status !== 'FINISHED') {
+      throw new MatchError('Torneio nao esta em andamento', 409);
+    }
+
+    const latestMatch = await tx.match.findFirst({
+      where: {
+        tournamentId,
+        winnerId: { not: null },
+        isBye: false,
+      },
+      include: { round: true },
+      orderBy: [{ finishedAt: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    if (!latestMatch || !latestMatch.winnerId) {
+      throw new MatchError('Nenhum resultado para desfazer', 409);
+    }
+
+    const nextRound = await tx.round.findUnique({
+      where: {
+        tournamentId_roundNumber: {
+          tournamentId,
+          roundNumber: latestMatch.round.roundNumber + 1,
+        },
+      },
+      include: {
+        matches: {
+          select: {
+            id: true,
+            winnerId: true,
+          },
+        },
+      },
+    });
+
+    if (nextRound) {
+      const hasResolvedMatch = nextRound.matches.some(
+        (nextMatch) => nextMatch.winnerId !== null
+      );
+      if (hasResolvedMatch) {
+        throw new MatchError(
+          'Nao e possivel desfazer: ja existem resultados na rodada seguinte',
+          409
+        );
+      }
+
+      if (nextRound.matches.length > 0) {
+        await tx.match.deleteMany({
+          where: { roundId: nextRound.id },
+        });
+      }
+    }
+
+    const tournamentReopened = tournament.status === 'FINISHED';
+    if (tournamentReopened) {
+      await tx.tournament.update({
+        where: { id: tournamentId },
+        data: {
+          status: 'RUNNING',
+          finishedAt: null,
+          championId: null,
+          runnerUpId: null,
+        },
+      });
+    }
+
+    await tx.match.update({
+      where: { id: latestMatch.id },
+      data: {
+        winnerId: null,
+        finishedAt: null,
+      },
+    });
+
+    return {
+      matchId: latestMatch.id,
+      winnerId: latestMatch.winnerId,
+      roundNumber: latestMatch.round.roundNumber,
+      tournamentReopened,
     };
   });
 }

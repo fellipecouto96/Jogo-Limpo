@@ -1,5 +1,9 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { recordMatchResult, MatchError } from './match.service.js';
+import {
+  recordMatchResult,
+  undoLastMatchResult,
+  MatchError,
+} from './match.service.js';
 
 interface MatchParams {
   tournamentId: string;
@@ -30,6 +34,23 @@ export async function updateMatchResult(
       organizerId
     );
 
+    return reply.send(result);
+  } catch (err) {
+    if (err instanceof MatchError) {
+      return reply.status(err.statusCode).send({ error: err.message });
+    }
+    throw err;
+  }
+}
+
+export async function postUndoLastMatchResult(
+  request: FastifyRequest<{ Params: { tournamentId: string } }>,
+  reply: FastifyReply
+) {
+  try {
+    const { tournamentId } = request.params;
+    const organizerId = request.user.sub;
+    const result = await undoLastMatchResult(tournamentId, organizerId);
     return reply.send(result);
   } catch (err) {
     if (err instanceof MatchError) {

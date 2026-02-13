@@ -1,7 +1,12 @@
 export interface OnboardingData {
   tournamentName: string;
   playerNames: string[];
-  prizePool?: number;
+  entryFee: string;
+  organizerPercentage: string;
+  championPercentage: string;
+  runnerUpPercentage: string;
+  thirdPlacePercentage: string;
+  thirdPlaceEnabled: boolean;
 }
 
 export interface OnboardingResult {

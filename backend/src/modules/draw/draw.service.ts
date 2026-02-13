@@ -27,6 +27,11 @@ export async function generateDraw(
 ): Promise<DrawResult> {
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
+    select: {
+      id: true,
+      status: true,
+      drawSeed: true,
+    },
   });
 
   if (!tournament) {

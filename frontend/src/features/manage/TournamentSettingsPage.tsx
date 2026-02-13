@@ -183,10 +183,11 @@ export function TournamentSettingsPage() {
     firstPct !== '' &&
     secondPct !== '' &&
     validationMessages.length === 0 &&
+    data?.status !== 'FINISHED' &&
     !isSubmitting;
 
   async function handleSave() {
-    if (!canSave) return;
+    if (!data || data.status === 'FINISHED' || !canSave) return;
     setSaved(false);
     try {
       await updateFinancials(tournamentId!, {
@@ -217,6 +218,8 @@ export function TournamentSettingsPage() {
 
   if (!data) return null;
 
+  const isTournamentFinished = data.status === 'FINISHED';
+
   return (
     <div className="max-w-5xl animate-[fadeIn_0.4s_ease-out]">
       <style>{`
@@ -246,6 +249,12 @@ export function TournamentSettingsPage() {
         </div>
       </div>
 
+      {isTournamentFinished && (
+        <p className="mb-6 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+          Torneio finalizado. Configurações de premiação estão bloqueadas.
+        </p>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         {/* Form panel */}
         <section className="relative overflow-hidden rounded-3xl border border-white/5 bg-gradient-to-br from-[#0b1120] via-[#0f172a] to-[#020617] p-6 lg:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
@@ -265,7 +274,10 @@ export function TournamentSettingsPage() {
             </p>
           </div>
 
-          <div className="relative mt-8 space-y-6">
+          <fieldset
+            disabled={isTournamentFinished}
+            className="relative mt-8 space-y-6 disabled:opacity-60"
+          >
             <fieldset className="space-y-3">
               <legend className="text-sm text-gray-300 uppercase tracking-widest font-semibold">
                 Receita
@@ -378,12 +390,16 @@ export function TournamentSettingsPage() {
 
             <button
               onClick={handleSave}
-              disabled={!canSave}
+              disabled={!canSave || isTournamentFinished}
               className="w-full py-4 rounded-2xl font-semibold text-base bg-emerald-500 text-gray-900 hover:bg-emerald-400 transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Salvando...' : 'Salvar configuracoes'}
+              {isTournamentFinished
+                ? 'Torneio finalizado'
+                : isSubmitting
+                  ? 'Salvando...'
+                  : 'Salvar configuracoes'}
             </button>
-          </div>
+          </fieldset>
         </section>
 
         {/* Preview column */}

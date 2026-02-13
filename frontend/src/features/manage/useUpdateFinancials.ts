@@ -5,8 +5,11 @@ import type { TournamentDetail } from './useTournamentDetails.ts';
 export interface FinancialsPayload {
   entryFee: number;
   organizerPercentage: number;
-  firstPlacePercentage: number;
-  secondPlacePercentage: number;
+  championPercentage?: number;
+  runnerUpPercentage?: number;
+  thirdPlacePercentage?: number | null;
+  firstPlacePercentage?: number;
+  secondPlacePercentage?: number;
 }
 
 interface UseUpdateFinancialsReturn {

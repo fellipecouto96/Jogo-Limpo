@@ -4,6 +4,7 @@
   "description": "Jogo Limpo - Backend API",
   "main": "dist/server.js",
   "scripts": {
+    "predev": "bash scripts/prisma-with-env.sh npx prisma generate",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",

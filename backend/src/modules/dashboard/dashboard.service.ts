@@ -2,25 +2,16 @@ import { prisma } from '../../shared/database/prisma.js';
 
 export interface DashboardSummary {
   metrics: {
-    totalTournaments: number;
-    totalPlayers: number;
-    totalPrizeDistributed: number;
+    totalCollectedThisMonth: number;
+    totalPrizePaid: number;
   };
-  activeTournaments: Array<{
+  tournaments: Array<{
     id: string;
     name: string;
     status: string;
     playerCount: number;
     createdAt: string;
     startedAt: string | null;
-  }>;
-  finishedTournaments: Array<{
-    id: string;
-    name: string;
-    champion: { id: string; name: string } | null;
-    runnerUp: { id: string; name: string } | null;
-    playerCount: number;
-    prizePool: number | null;
     finishedAt: string | null;
   }>;
 }
@@ -33,45 +24,47 @@ function countPlayers(matches: { isBye: boolean }[]): number {
 export async function getDashboardSummary(
   organizerId: string
 ): Promise<DashboardSummary> {
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const nextMonthStart = new Date(monthStart);
+  nextMonthStart.setMonth(nextMonthStart.getMonth() + 1);
+
   const [
-    activeTournamentsRaw,
-    finishedTournamentsRaw,
-    totalTournaments,
+    tournamentsRaw,
+    collectedAgg,
     prizeAgg,
   ] = await Promise.all([
     prisma.tournament.findMany({
-      where: { organizerId, status: { in: ['OPEN', 'RUNNING'] } },
+      where: { organizerId },
       orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        createdAt: true,
+        startedAt: true,
+        finishedAt: true,
         rounds: {
           where: { roundNumber: 1 },
-          include: { matches: { select: { isBye: true } } },
-        },
-      },
-    }),
-
-    prisma.tournament.findMany({
-      where: { organizerId, status: 'FINISHED' },
-      orderBy: { finishedAt: 'desc' },
-      include: {
-        champion: { select: { id: true, name: true } },
-        runnerUp: { select: { id: true, name: true } },
-        rounds: {
-          orderBy: { roundNumber: 'asc' },
-          include: {
-            matches: {
-              include: {
-                player1: { select: { id: true, name: true } },
-                player2: { select: { id: true, name: true } },
-                winner: { select: { id: true, name: true } },
-              },
-            },
+          select: {
+            matches: { select: { isBye: true } },
           },
         },
       },
     }),
 
-    prisma.tournament.count({ where: { organizerId } }),
+    prisma.tournament.aggregate({
+      where: {
+        organizerId,
+        createdAt: {
+          gte: monthStart,
+          lt: nextMonthStart,
+        },
+      },
+      _sum: { totalCollected: true },
+    }),
 
     prisma.tournament.aggregate({
       where: { organizerId, status: 'FINISHED' },
@@ -79,28 +72,7 @@ export async function getDashboardSummary(
     }),
   ]);
 
-  // Count distinct players across all organizer's first-round matches
-  const allTournamentIds = [
-    ...activeTournamentsRaw.map((t) => t.id),
-    ...finishedTournamentsRaw.map((t) => t.id),
-  ];
-
-  let totalPlayers = 0;
-  if (allTournamentIds.length > 0) {
-    const playerCountResult = await prisma.$queryRaw<
-      [{ count: bigint }]
-    >`SELECT COUNT(DISTINCT pid) as count FROM (
-        SELECT player1_id AS pid FROM matches
-        WHERE tournament_id = ANY(${allTournamentIds})
-        UNION
-        SELECT player2_id AS pid FROM matches
-        WHERE tournament_id = ANY(${allTournamentIds})
-          AND player2_id IS NOT NULL
-      ) sub`;
-    totalPlayers = Number(playerCountResult[0].count);
-  }
-
-  const activeTournaments = activeTournamentsRaw.map((t) => {
+  const tournaments = tournamentsRaw.map((t) => {
     const matches = t.rounds[0]?.matches ?? [];
     return {
       id: t.id,
@@ -109,65 +81,22 @@ export async function getDashboardSummary(
       playerCount: countPlayers(matches),
       createdAt: t.createdAt.toISOString(),
       startedAt: t.startedAt?.toISOString() ?? null,
-    };
-  });
-
-  const finishedTournaments = finishedTournamentsRaw.map((t) => {
-    const totalRounds = t.rounds.length;
-    const firstRound = t.rounds[0];
-    const playerCount = firstRound
-      ? countPlayers(firstRound.matches.map((m) => ({ isBye: m.isBye })))
-      : 0;
-
-    let champion: { id: string; name: string } | null = t.champion
-      ? { id: t.champion.id, name: t.champion.name }
-      : null;
-    let runnerUp: { id: string; name: string } | null = t.runnerUp
-      ? { id: t.runnerUp.id, name: t.runnerUp.name }
-      : null;
-
-    if (totalRounds > 0 && (!champion || !runnerUp)) {
-      const finalRound = t.rounds[totalRounds - 1];
-      if (finalRound.matches.length === 1) {
-        const finalMatch = finalRound.matches[0];
-        if (finalMatch.winner && !champion) {
-          champion = {
-            id: finalMatch.winner.id,
-            name: finalMatch.winner.name,
-          };
-        }
-        if (!runnerUp && finalMatch.player2) {
-          const loser =
-            finalMatch.winner?.id === finalMatch.player1.id
-              ? finalMatch.player2
-              : finalMatch.player1;
-          runnerUp = loser ? { id: loser.id, name: loser.name } : null;
-        }
-      }
-    }
-
-    return {
-      id: t.id,
-      name: t.name,
-      champion,
-      runnerUp,
-      playerCount,
-      prizePool: t.prizePool ? Number(t.prizePool) : null,
       finishedAt: t.finishedAt?.toISOString() ?? null,
     };
   });
 
-  const totalPrizeDistributed = prizeAgg._sum.prizePool
+  const totalPrizePaid = prizeAgg._sum.prizePool
     ? Number(prizeAgg._sum.prizePool)
+    : 0;
+  const totalCollectedThisMonth = collectedAgg._sum.totalCollected
+    ? Number(collectedAgg._sum.totalCollected)
     : 0;
 
   return {
     metrics: {
-      totalTournaments,
-      totalPlayers,
-      totalPrizeDistributed,
+      totalCollectedThisMonth,
+      totalPrizePaid,
     },
-    activeTournaments,
-    finishedTournaments,
+    tournaments,
   };
 }

@@ -1,4 +1,8 @@
-const API_BASE = import.meta.env.VITE_API_URL ?? 'https://jogo-limpo-backend-bvbfxjiw4-fellipe-coutos-projects.vercel.app';
+const API_BASE =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV
+    ? 'http://localhost:3333'
+    : 'https://jogo-limpo-backend-bvbfxjiw4-fellipe-coutos-projects.vercel.app');
 
 export function getApiUrl(path: string): string {
   return `${API_BASE}${path}`;

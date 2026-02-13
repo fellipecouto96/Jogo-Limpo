@@ -5,7 +5,6 @@ interface ManageBracketRoundProps {
   round: BracketRound;
   totalRounds: number;
   isLastRound: boolean;
-  tournamentId: string;
   tournamentStatus: string;
   onResultRecorded: () => void;
 }
@@ -14,7 +13,6 @@ export function ManageBracketRound({
   round,
   totalRounds,
   isLastRound,
-  tournamentId,
   tournamentStatus,
   onResultRecorded,
 }: ManageBracketRoundProps) {
@@ -39,12 +37,21 @@ export function ManageBracketRound({
           key={match?.id ?? `empty-${round.roundNumber}-${index}`}
           className="relative"
         >
-          <InteractiveMatchCard
-            match={match}
-            tournamentStatus={tournamentStatus}
-            tournamentId={tournamentId}
-            onResultRecorded={onResultRecorded}
-          />
+          {match ? (
+            <InteractiveMatchCard
+              match={match}
+              roundLabel={round.label}
+              tournamentStatus={tournamentStatus}
+              isBusy={false}
+              onSelectWinner={async () => {
+                await onResultRecorded();
+              }}
+            />
+          ) : (
+            <div className="w-full min-h-[128px] rounded-2xl border border-gray-800 bg-[#0b1120] px-4 py-6 text-sm text-gray-500">
+              Aguardando partida
+            </div>
+          )}
           {!isLastRound && (
             <div
               className="absolute top-1/2 -right-3 w-3 border-t-2 border-gray-600"

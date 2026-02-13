@@ -2,34 +2,23 @@ import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../../shared/api.ts';
 
 interface DashboardMetrics {
-  totalTournaments: number;
-  totalPlayers: number;
-  totalPrizeDistributed: number;
+  totalCollectedThisMonth: number;
+  totalPrizePaid: number;
 }
 
-interface ActiveTournament {
+interface DashboardTournament {
   id: string;
   name: string;
   status: string;
   playerCount: number;
   createdAt: string;
   startedAt: string | null;
-}
-
-interface FinishedTournament {
-  id: string;
-  name: string;
-  champion: { id: string; name: string } | null;
-  runnerUp: { id: string; name: string } | null;
-  playerCount: number;
-  prizePool: number | null;
   finishedAt: string | null;
 }
 
 export interface DashboardData {
   metrics: DashboardMetrics;
-  activeTournaments: ActiveTournament[];
-  finishedTournaments: FinishedTournament[];
+  tournaments: DashboardTournament[];
 }
 
 interface UseDashboardResult {
@@ -39,9 +28,8 @@ interface UseDashboardResult {
 }
 
 const emptyData: DashboardData = {
-  metrics: { totalTournaments: 0, totalPlayers: 0, totalPrizeDistributed: 0 },
-  activeTournaments: [],
-  finishedTournaments: [],
+  metrics: { totalCollectedThisMonth: 0, totalPrizePaid: 0 },
+  tournaments: [],
 };
 
 export function useDashboard(): UseDashboardResult {
@@ -53,13 +41,22 @@ export function useDashboard(): UseDashboardResult {
     try {
       const res = await apiFetch('/dashboard-summary');
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        const backendMessage =
+          (body as { error?: string }).error ??
+          `Nao foi possivel carregar o painel agora. (HTTP ${res.status})`;
+        throw new Error(backendMessage);
       }
       const json: DashboardData = await res.json();
       setData(json);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      const message = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(
+        message.startsWith('HTTP')
+          ? 'Nao foi possivel atualizar os indicadores agora.'
+          : message
+      );
       setData(emptyData);
     } finally {
       setIsLoading(false);

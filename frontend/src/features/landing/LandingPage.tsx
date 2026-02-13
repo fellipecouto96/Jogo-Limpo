@@ -1,178 +1,235 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
+const organizationPoints = [
+  'Sorteio transparente',
+  'Chave visível para todos',
+  'Histórico permanente',
+  'Registro de campeões',
+  'Gestão financeira organizada',
+  'Controle de múltiplos torneios',
+];
+
+const growthSignals = [
+  'Mais torneios em diferentes regiões',
+  'Mais jogadores disputando com frequência',
+  'Mais necessidade de padrão e organização',
+];
+
 export function LandingPage() {
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = 'Jogo Limpo | O novo padrão dos torneios de sinuca';
+    const previousDescription = upsertMetaTag(
+      'name',
+      'description',
+      'A nova fase dos torneios de sinuca começa agora. Organize com padrão profissional, sorteio transparente e gestão clara pelo celular.'
+    );
+
+    return () => {
+      document.title = previousTitle;
+      if (previousDescription === null) {
+        const created = document.querySelector('meta[name="description"]');
+        if (created) created.remove();
+      } else {
+        upsertMetaTag('name', 'description', previousDescription);
+      }
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-md border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="font-display text-xl tracking-tight">
-            Jogo Limpo
-          </span>
+    <div className="min-h-screen bg-[#0d1411] text-white">
+      <nav className="border-b border-white/10 bg-[#0d1411]">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
+          <span className="font-display text-2xl tracking-tight text-white">Jogo Limpo</span>
           <Link
             to="/login"
-            className="text-sm font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-white/20 px-4 text-sm font-semibold text-gray-100 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/50"
           >
             Entrar
           </Link>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="relative min-h-screen flex items-center justify-center px-6 pt-16 overflow-hidden">
-        {/* Radial glow */}
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] rounded-full opacity-20 blur-3xl pointer-events-none"
-          style={{
-            background:
-              'radial-gradient(ellipse, rgba(16,185,129,0.3) 0%, transparent 70%)',
-          }}
-          aria-hidden="true"
-        />
+      <main>
+        <section className="px-4 pb-12 pt-9 sm:px-6 sm:pt-12">
+          <div className="mx-auto grid w-full max-w-6xl gap-9 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+            <div>
+              <h1 className="font-display text-5xl leading-[1.02] tracking-tight text-white [text-wrap:balance] sm:text-6xl">
+                A nova fase dos torneios de sinuca começa agora.
+              </h1>
+              <p className="mt-5 max-w-2xl text-lg leading-snug text-gray-200 sm:text-xl">
+                Organize seu torneio com padrão profissional.
+                <br className="hidden sm:block" />
+                Sorteio transparente, chave pública e gestão clara pelo celular.
+              </p>
 
-        <div className="relative text-center max-w-3xl mx-auto">
-          <h1
-            className="font-display text-5xl sm:text-6xl md:text-7xl leading-tight tracking-tight animate-fade-in-up"
-          >
-            A infraestrutura oficial de sorteios para{' '}
-            <span className="text-emerald-400">sinuca amadora</span>
-          </h1>
+              <div className="mt-7 space-y-3 sm:max-w-sm">
+                <Link
+                  to="/register"
+                  className="inline-flex h-14 w-full items-center justify-center rounded-2xl bg-emerald-500 px-6 text-lg font-bold text-[#08120d] transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/60 [touch-action:manipulation]"
+                >
+                  Criar torneio no novo padrão
+                </Link>
+                <p className="text-sm text-gray-300">Comece gratuitamente.</p>
+              </div>
+            </div>
 
-          <p
-            className="mt-6 text-lg sm:text-xl text-gray-400 max-w-xl mx-auto leading-relaxed animate-fade-in-up"
-            style={{ animationDelay: '150ms' }}
-          >
-            Sorteios transparentes, chaves automaticas e modo TV para seu
-            torneio. Sem papel, sem desconfianca.
-          </p>
+            <InstitutionalPanel />
+          </div>
+        </section>
 
-          <div
-            className="mt-10 animate-fade-in-up"
-            style={{ animationDelay: '300ms' }}
-          >
+        <section className="border-y border-white/10 px-4 py-12 sm:px-6">
+          <div className="mx-auto w-full max-w-6xl">
+            <h2 className="font-display text-4xl tracking-tight text-white [text-wrap:balance] sm:text-5xl">
+              A sinuca amadora está crescendo.
+            </h2>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              {growthSignals.map((signal) => (
+                <p
+                  key={signal}
+                  className="rounded-xl border border-white/10 bg-[#111a16] px-4 py-4 text-base text-gray-100"
+                >
+                  {signal}
+                </p>
+              ))}
+            </div>
+            <p className="mt-6 text-2xl font-semibold text-emerald-300 sm:text-3xl">
+              A modalidade merece organização.
+            </p>
+          </div>
+        </section>
+
+        <section className="px-4 py-12 sm:px-6">
+          <div className="mx-auto w-full max-w-6xl">
+            <h2 className="font-display text-4xl tracking-tight text-white [text-wrap:balance] sm:text-5xl">
+              Organização profissional para torneios reais.
+            </h2>
+            <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+              {organizationPoints.map((item) => (
+                <li
+                  key={item}
+                  className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#111a16] px-4 py-4"
+                >
+                  <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-[#07110c]">
+                    ✓
+                  </span>
+                  <span className="text-base text-gray-100">{item}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-6 max-w-4xl text-lg text-gray-200">
+              Não é apenas sobre facilitar o dia. É sobre elevar o padrão de quem organiza torneios com seriedade.
+            </p>
+          </div>
+        </section>
+
+        <section className="border-y border-white/10 px-4 py-12 sm:px-6">
+          <div className="mx-auto w-full max-w-6xl rounded-2xl border border-emerald-400/30 bg-[#101b16] px-5 py-7 sm:px-7 sm:py-9">
+            <h2 className="font-display text-4xl tracking-tight text-white [text-wrap:balance] sm:text-5xl">
+              Seu torneio faz parte de algo maior.
+            </h2>
+            <p className="mt-5 max-w-4xl text-lg text-gray-100">
+              Estamos construindo a base para um circuito nacional mais organizado.
+            </p>
+            <p className="mt-3 max-w-4xl text-lg text-gray-200">
+              Hoje, mais clareza e controle no seu torneio. Amanhã, crescimento regional, histórico confiável e ranking estruturado.
+            </p>
+          </div>
+        </section>
+
+        <section className="px-4 py-12 sm:px-6">
+          <div className="mx-auto w-full max-w-6xl">
+            <h2 className="font-display text-4xl tracking-tight text-white [text-wrap:balance] sm:text-5xl">
+              Eleve o nível do seu próximo torneio.
+            </h2>
             <Link
               to="/register"
-              className="inline-block bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold text-lg px-8 py-4 rounded-xl transition-colors"
+              className="mt-6 inline-flex h-14 w-full items-center justify-center rounded-2xl bg-emerald-500 px-6 text-lg font-bold text-[#08120d] transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/60 [touch-action:manipulation] sm:w-auto"
             >
-              Criar meu primeiro torneio
+              Criar torneio agora
             </Link>
           </div>
+        </section>
+
+        <footer className="border-t border-white/10 px-4 py-8 text-center text-sm text-gray-400 sm:px-6">
+          Jogo Limpo
+        </footer>
+      </main>
+    </div>
+  );
+}
+
+function upsertMetaTag(
+  attribute: 'name' | 'property',
+  key: string,
+  content: string
+): string | null {
+  const selector = `meta[${attribute}="${key}"]`;
+  const existing = document.querySelector<HTMLMetaElement>(selector);
+  if (existing) {
+    const previous = existing.getAttribute('content');
+    existing.setAttribute('content', content);
+    return previous;
+  }
+
+  const created = document.createElement('meta');
+  created.setAttribute(attribute, key);
+  created.setAttribute('content', content);
+  document.head.appendChild(created);
+  return null;
+}
+
+function InstitutionalPanel() {
+  return (
+    <div className="rounded-2xl border border-white/15 bg-[#121b17] p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">
+        Padrão de organização
+      </p>
+
+      <div className="mt-4 rounded-xl border border-white/10 bg-[#0c120f] p-4">
+        <p className="text-sm font-semibold text-white">Painel da rodada</p>
+        <div className="mt-3 space-y-2">
+          <MiniMatch left="Mesa 1 - Rafa" right="Buiu" done />
+          <MiniMatch left="Mesa 2 - Carla" right="Lima" />
+          <MiniMatch left="Mesa 3 - Jonas" right="Neto" />
         </div>
-      </section>
+      </div>
 
-      {/* Problem */}
-      <section className="px-6 py-24 border-t border-white/5">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="font-display text-3xl sm:text-4xl text-center mb-16 tracking-tight">
-            O problema que todo organizador conhece
-          </h2>
-
-          <div className="grid gap-6 sm:grid-cols-3">
-            {[
-              {
-                icon: '\u2753',
-                title: 'Desconfianca no sorteio',
-                text: 'Sorteios manuais geram duvidas. Jogadores questionam a imparcialidade.',
-              },
-              {
-                icon: '\u{1F6AB}',
-                title: 'No-show alto',
-                text: 'Sem compromisso formal, jogadores desistem na ultima hora.',
-              },
-              {
-                icon: '\u{1F4AD}',
-                title: 'Zero historico',
-                text: 'Resultados se perdem. Ninguem sabe quem jogou contra quem.',
-              },
-            ].map((item) => (
-              <div
-                key={item.title}
-                className="bg-gray-900 border border-gray-800 rounded-xl p-6"
-              >
-                <div className="text-3xl mb-3" aria-hidden="true">
-                  {item.icon}
-                </div>
-                <h3 className="text-lg font-bold text-white mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  {item.text}
-                </p>
-              </div>
-            ))}
-          </div>
+      <div className="mt-3 rounded-xl border border-white/10 bg-[#0c120f] p-4">
+        <p className="text-sm font-semibold text-white">Resumo financeiro</p>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+          <Stat label="Arrecadação" value="R$ 640" />
+          <Stat label="Organizador" value="R$ 64" />
+          <Stat label="Premiação" value="R$ 576" />
         </div>
-      </section>
+      </div>
+    </div>
+  );
+}
 
-      {/* How it works */}
-      <section className="px-6 py-24 border-t border-white/5">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="font-display text-3xl sm:text-4xl text-center mb-16 tracking-tight">
-            Como funciona
-          </h2>
+function MiniMatch({
+  left,
+  right,
+  done = false,
+}: {
+  left: string;
+  right: string;
+  done?: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#121914] px-3 py-2">
+      <p className={done ? 'text-emerald-200' : 'text-gray-100'}>{left}</p>
+      <p className={done ? 'text-gray-500' : 'text-gray-300'}>{right}</p>
+    </div>
+  );
+}
 
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              {
-                step: '01',
-                title: 'Crie o torneio',
-                text: 'De um nome e registre quem organiza.',
-              },
-              {
-                step: '02',
-                title: 'Adicione jogadores',
-                text: 'Cadastre os participantes confirmados.',
-              },
-              {
-                step: '03',
-                title: 'Sorteie com transparencia',
-                text: 'Algoritmo deterministico. Seed publica. Auditavel.',
-              },
-              {
-                step: '04',
-                title: 'Exiba no modo TV',
-                text: 'Chaves ao vivo na tela do bar. Profissional.',
-              },
-            ].map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="text-emerald-500 font-bold text-sm tracking-widest mb-3">
-                  {item.step}
-                </div>
-                <h3 className="text-lg font-bold text-white mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  {item.text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="px-6 py-24 border-t border-white/5">
-        <div className="max-w-2xl mx-auto text-center">
-          <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-4">
-            Pronto para organizar{' '}
-            <span className="text-emerald-400">do jeito certo</span>?
-          </h2>
-          <p className="text-gray-400 mb-10">
-            Comece agora. E gratuito para seu primeiro torneio.
-          </p>
-          <Link
-            to="/app"
-            className="inline-block bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold text-lg px-8 py-4 rounded-xl transition-colors"
-          >
-            Criar meu primeiro torneio
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="px-6 py-8 border-t border-white/5 text-center text-gray-600 text-sm">
-        Jogo Limpo &mdash; Se nao esta no Jogo Limpo, nao e oficial.
-      </footer>
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#121914] p-2">
+      <p className="text-[11px] text-gray-400">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-emerald-100">{value}</p>
     </div>
   );
 }
