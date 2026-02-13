@@ -160,7 +160,7 @@ jobs:
           {
             echo "VERCEL_TOKEN=$token"
             echo "VERCEL_ORG_ID=$org_id"
-            echo "VERCEL_PROJECT_ID=$project_id"
+            echo "VERCEL_BACKEND_PROJECT_ID=$project_id"
             echo "DATABASE_URL=$database_url"
             echo "DIRECT_DATABASE_URL=$direct_database_url"
           } >> "$GITHUB_ENV"
@@ -168,7 +168,7 @@ jobs:
       - name: Verify credentials and database secrets
         run: |
           set -euo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
+          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_BACKEND_PROJECT_ID:-}" ]; then
             echo "Missing Vercel secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_BACKEND_PROJECT_ID." >&2
             exit 1
           fi
@@ -184,7 +184,7 @@ jobs:
           mkdir -p .vercel
           cat <<EOF > .vercel/project.json
           {
-            "projectId": "$VERCEL_PROJECT_ID",
+            "projectId": "$VERCEL_BACKEND_PROJECT_ID",
             "orgId": "$VERCEL_ORG_ID"
           }
           EOF
