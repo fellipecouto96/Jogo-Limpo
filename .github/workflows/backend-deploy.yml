@@ -47,24 +47,43 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      - name: Prisma generate
-        working-directory: backend
+      - name: Prepare database environment
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+          RAW_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RAW_DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
         run: |
           set -euo pipefail
-          db_url="${DATABASE_URL:-}"
-          direct_url="${DIRECT_DATABASE_URL:-}"
+          normalize_secret() {
+            local value="${1-}"
+            value="${value//$'\r'/}"
+            value="${value//$'\n'/}"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+              value="${value:1:${#value}-2}"
+            fi
+            if [[ "$value" == \'*\' && "$value" == *\' ]]; then
+              value="${value:1:${#value}-2}"
+            fi
+            printf '%s' "$value"
+          }
+
+          db_url="$(normalize_secret "${RAW_DATABASE_URL:-}")"
+          direct_url="$(normalize_secret "${RAW_DIRECT_DATABASE_URL:-}")"
           if [ -z "$db_url" ]; then
             db_url='postgresql://postgres:postgres@localhost:5432/postgres?schema=public'
           fi
           if [ -z "$direct_url" ]; then
             direct_url="$db_url"
           fi
-          export DATABASE_URL="$db_url"
-          export DIRECT_DATABASE_URL="$direct_url"
-          npx prisma generate
+          {
+            echo "DATABASE_URL=$db_url"
+            echo "DIRECT_DATABASE_URL=$direct_url"
+          } >> "$GITHUB_ENV"
+
+      - name: Prisma generate
+        working-directory: backend
+        run: npx prisma generate
 
       - name: Lint
         working-directory: backend
@@ -72,41 +91,11 @@ jobs:
 
       - name: Test
         working-directory: backend
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: |
-          set -euo pipefail
-          db_url="${DATABASE_URL:-}"
-          direct_url="${DIRECT_DATABASE_URL:-}"
-          if [ -z "$db_url" ]; then
-            db_url='postgresql://postgres:postgres@localhost:5432/postgres?schema=public'
-          fi
-          if [ -z "$direct_url" ]; then
-            direct_url="$db_url"
-          fi
-          export DATABASE_URL="$db_url"
-          export DIRECT_DATABASE_URL="$direct_url"
-          npm run test
+        run: npm run test
 
       - name: Build
         working-directory: backend
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: |
-          set -euo pipefail
-          db_url="${DATABASE_URL:-}"
-          direct_url="${DIRECT_DATABASE_URL:-}"
-          if [ -z "$db_url" ]; then
-            db_url='postgresql://postgres:postgres@localhost:5432/postgres?schema=public'
-          fi
-          if [ -z "$direct_url" ]; then
-            direct_url="$db_url"
-          fi
-          export DATABASE_URL="$db_url"
-          export DIRECT_DATABASE_URL="$direct_url"
-          npm run build
+        run: npm run build
 
   deploy:
     name: Backend Deploy
@@ -161,14 +150,17 @@ jobs:
 
           token="$(normalize_secret "${RAW_VERCEL_TOKEN:-}")"
           org_id="$(normalize_secret "${RAW_VERCEL_ORG_ID:-}")"
-          project_input="$(normalize_secret "${RAW_VERCEL_BACKEND_PROJECT_ID:-}")"
+          project_id="$(normalize_secret "${RAW_VERCEL_BACKEND_PROJECT_ID:-}")"
           database_url="$(normalize_secret "${RAW_DATABASE_URL:-}")"
           direct_database_url="$(normalize_secret "${RAW_DIRECT_DATABASE_URL:-}")"
+
+          org_id="$(printf '%s' "$org_id" | grep -oE 'team_[A-Za-z0-9]+' | head -n1 || true)"
+          project_id="$(printf '%s' "$project_id" | grep -oE 'prj_[A-Za-z0-9]+' | head -n1 || true)"
 
           {
             echo "VERCEL_TOKEN=$token"
             echo "VERCEL_ORG_ID=$org_id"
-            echo "VERCEL_BACKEND_PROJECT_ID=$project_input"
+            echo "VERCEL_PROJECT_ID=$project_id"
             echo "DATABASE_URL=$database_url"
             echo "DIRECT_DATABASE_URL=$direct_database_url"
           } >> "$GITHUB_ENV"
@@ -176,7 +168,7 @@ jobs:
       - name: Verify credentials and database secrets
         run: |
           set -euo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_BACKEND_PROJECT_ID:-}" ]; then
+          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
             echo "Missing Vercel secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_BACKEND_PROJECT_ID." >&2
             exit 1
           fi
@@ -184,27 +176,6 @@ jobs:
             echo "Missing database secret. Configure DIRECT_DATABASE_URL (required) or DATABASE_URL." >&2
             exit 1
           fi
-
-      - name: Resolve backend Vercel project ID
-        run: |
-          set -euo pipefail
-          project_input="${VERCEL_BACKEND_PROJECT_ID:-}"
-
-          if [[ "$project_input" =~ ^prj_[A-Za-z0-9]+$ ]]; then
-            project_id="$project_input"
-          else
-            project_id="$(curl -fsS \
-              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v9/projects/${project_input}?teamId=${VERCEL_ORG_ID}" \
-              | node -e 'let raw=""; process.stdin.on("data", (chunk) => raw += chunk); process.stdin.on("end", () => { const payload = JSON.parse(raw); if (!payload.id) { console.error("Could not resolve Vercel project ID from VERCEL_BACKEND_PROJECT_ID. Set it to prj_xxx or a valid project name/slug."); process.exit(1); } process.stdout.write(payload.id); });')"
-          fi
-
-          if [[ ! "$project_id" =~ ^prj_[A-Za-z0-9]+$ ]]; then
-            echo "Resolved Vercel project ID is invalid. Expected format prj_xxx." >&2
-            exit 1
-          fi
-
-          echo "VERCEL_PROJECT_ID=$project_id" >> "$GITHUB_ENV"
 
       - name: Prepare Vercel project file
         working-directory: backend
