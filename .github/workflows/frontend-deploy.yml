@@ -88,7 +88,6 @@ jobs:
       - name: Normalize deploy secrets
         env:
           RAW_VERCEL_TOKEN_SECRET: ${{ secrets.VERCEL_TOKEN }}
-          RAW_VERCEL_TOKEN_VAR: ${{ vars.VERCEL_TOKEN }}
           RAW_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID }}
           RAW_VERCEL_FRONTEND_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID || vars.VERCEL_FRONTEND_PROJECT_ID }}
           RAW_VITE_API_URL: ${{ secrets.VITE_API_URL || vars.VITE_API_URL }}
@@ -114,11 +113,7 @@ jobs:
           }
 
           token_secret="$(normalize_secret "${RAW_VERCEL_TOKEN_SECRET:-}")"
-          token_var="$(normalize_secret "${RAW_VERCEL_TOKEN_VAR:-}")"
-          token="$(sanitize_id "$token_secret")"
-          if [ -z "$token" ]; then
-            token="$(sanitize_id "$token_var")"
-          fi
+          token="$token_secret"
 
           org_id="$(sanitize_id "$(normalize_secret "${RAW_VERCEL_ORG_ID:-}")")"
           project_id="$(sanitize_id "$(normalize_secret "${RAW_VERCEL_FRONTEND_PROJECT_ID:-}")")"
