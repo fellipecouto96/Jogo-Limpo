@@ -11,8 +11,6 @@ on:
 
 env:
   NODE_VERSION: '20'
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
 jobs:
   pr-checks:
@@ -115,29 +113,104 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
 
-      - name: Verify Vercel credentials
+      - name: Verify backend Vercel credentials
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: |
           set -euo pipefail
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "Missing Vercel secrets. Ensure VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID are configured." >&2
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_BACKEND_PROJECT_ID" ]; then
+            echo "Missing backend Vercel secrets. Ensure VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_BACKEND_PROJECT_ID are configured." >&2
             exit 1
           fi
 
-      - name: Pull Vercel environment
+      - name: Prepare backend Vercel project file
+        working-directory: backend
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p .vercel
+          cat <<EOF > .vercel/project.json
+          {
+            "projectId": "$VERCEL_BACKEND_PROJECT_ID",
+            "orgId": "$VERCEL_ORG_ID"
+          }
+          EOF
 
-      - name: Build Vercel artifacts
+      - name: Pull backend Vercel environment
+        working-directory: backend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          export VERCEL_TOKEN="$VERCEL_TOKEN"
+          vercel pull --yes --environment=production
 
-      - name: Deploy to Vercel
+      - name: Build backend Vercel artifacts
+        working-directory: backend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          export VERCEL_TOKEN="$VERCEL_TOKEN"
+          vercel build --prod
+
+      - name: Deploy backend to Vercel
+        working-directory: backend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          export VERCEL_TOKEN="$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod
+
+      - name: Verify frontend Vercel credentials
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_FRONTEND_PROJECT_ID" ]; then
+            echo "Missing frontend Vercel secrets. Ensure VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_FRONTEND_PROJECT_ID are configured." >&2
+            exit 1
+          fi
+
+      - name: Prepare frontend Vercel project file
+        working-directory: frontend
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p .vercel
+          cat <<EOF > .vercel/project.json
+          {
+            "projectId": "$VERCEL_FRONTEND_PROJECT_ID",
+            "orgId": "$VERCEL_ORG_ID"
+          }
+          EOF
+
+      - name: Pull frontend Vercel environment
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          export VERCEL_TOKEN="$VERCEL_TOKEN"
+          vercel pull --yes --environment=production
+
+      - name: Build frontend Vercel artifacts
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          export VERCEL_TOKEN="$VERCEL_TOKEN"
+          vercel build --prod
+
+      - name: Deploy frontend to Vercel
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          export VERCEL_TOKEN="$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod
