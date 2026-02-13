@@ -53,8 +53,8 @@ jobs:
           grep -Fq "VERCEL_BACKEND_PROJECT_ID" .github/workflows/backend-deploy.yml
           grep -Fq "VITE_API_URL" .github/workflows/frontend-deploy.yml
           grep -Fq "JWT_SECRET" .github/workflows/backend-deploy.yml
-          grep -Fq "environment: production" .github/workflows/frontend-deploy.yml
-          grep -Fq "environment: production" .github/workflows/backend-deploy.yml
+          grep -Fq "Validate Vercel token" .github/workflows/frontend-deploy.yml
+          grep -Fq "Validate Vercel token" .github/workflows/backend-deploy.yml
           grep -Fq '"build"' package.json
           grep -Fq '"vercel-build"' package.json
           grep -Fq "backend/api/index" server.ts

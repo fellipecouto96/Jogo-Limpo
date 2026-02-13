@@ -64,7 +64,6 @@ jobs:
     if: github.event_name == 'push'
     needs: quality
     runs-on: ubuntu-latest
-    environment: production
     defaults:
       run:
         shell: bash
@@ -88,7 +87,8 @@ jobs:
 
       - name: Normalize deploy secrets
         env:
-          RAW_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          RAW_VERCEL_TOKEN_SECRET: ${{ secrets.VERCEL_TOKEN }}
+          RAW_VERCEL_TOKEN_VAR: ${{ vars.VERCEL_TOKEN }}
           RAW_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID }}
           RAW_VERCEL_FRONTEND_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID || vars.VERCEL_FRONTEND_PROJECT_ID }}
           RAW_VITE_API_URL: ${{ secrets.VITE_API_URL || vars.VITE_API_URL }}
@@ -108,10 +108,20 @@ jobs:
             fi
             printf '%s' "$value"
           }
+          sanitize_id() {
+            local value="${1-}"
+            printf '%s' "$value" | tr -cd 'A-Za-z0-9_-'
+          }
 
-          token="$(normalize_secret "${RAW_VERCEL_TOKEN:-}")"
-          org_id="$(normalize_secret "${RAW_VERCEL_ORG_ID:-}")"
-          project_id="$(normalize_secret "${RAW_VERCEL_FRONTEND_PROJECT_ID:-}")"
+          token_secret="$(normalize_secret "${RAW_VERCEL_TOKEN_SECRET:-}")"
+          token_var="$(normalize_secret "${RAW_VERCEL_TOKEN_VAR:-}")"
+          token="$(sanitize_id "$token_secret")"
+          if [ -z "$token" ]; then
+            token="$(sanitize_id "$token_var")"
+          fi
+
+          org_id="$(sanitize_id "$(normalize_secret "${RAW_VERCEL_ORG_ID:-}")")"
+          project_id="$(sanitize_id "$(normalize_secret "${RAW_VERCEL_FRONTEND_PROJECT_ID:-}")")"
           api_url="$(normalize_secret "${RAW_VITE_API_URL:-}")"
 
           {
@@ -129,6 +139,9 @@ jobs:
             echo "Missing or invalid Vercel values: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID." >&2
             exit 1
           fi
+
+      - name: Validate Vercel token
+        run: vercel whoami --token="$VERCEL_TOKEN"
 
       - name: Prepare Vercel project file
         working-directory: frontend

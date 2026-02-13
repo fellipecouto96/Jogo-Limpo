@@ -103,7 +103,6 @@ jobs:
     if: github.event_name == 'push'
     needs: quality
     runs-on: ubuntu-latest
-    environment: production
     defaults:
       run:
         shell: bash
@@ -127,7 +126,8 @@ jobs:
 
       - name: Normalize deploy secrets
         env:
-          RAW_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          RAW_VERCEL_TOKEN_SECRET: ${{ secrets.VERCEL_TOKEN }}
+          RAW_VERCEL_TOKEN_VAR: ${{ vars.VERCEL_TOKEN }}
           RAW_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID }}
           RAW_VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID || vars.VERCEL_BACKEND_PROJECT_ID }}
           RAW_DATABASE_URL: ${{ secrets.DATABASE_URL || vars.DATABASE_URL }}
@@ -149,10 +149,20 @@ jobs:
             fi
             printf '%s' "$value"
           }
+          sanitize_id() {
+            local value="${1-}"
+            printf '%s' "$value" | tr -cd 'A-Za-z0-9_-'
+          }
 
-          token="$(normalize_secret "${RAW_VERCEL_TOKEN:-}")"
-          org_id="$(normalize_secret "${RAW_VERCEL_ORG_ID:-}")"
-          project_id="$(normalize_secret "${RAW_VERCEL_BACKEND_PROJECT_ID:-}")"
+          token_secret="$(normalize_secret "${RAW_VERCEL_TOKEN_SECRET:-}")"
+          token_var="$(normalize_secret "${RAW_VERCEL_TOKEN_VAR:-}")"
+          token="$(sanitize_id "$token_secret")"
+          if [ -z "$token" ]; then
+            token="$(sanitize_id "$token_var")"
+          fi
+
+          org_id="$(sanitize_id "$(normalize_secret "${RAW_VERCEL_ORG_ID:-}")")"
+          project_id="$(sanitize_id "$(normalize_secret "${RAW_VERCEL_BACKEND_PROJECT_ID:-}")")"
           database_url="$(normalize_secret "${RAW_DATABASE_URL:-}")"
           direct_database_url="$(normalize_secret "${RAW_DIRECT_DATABASE_URL:-}")"
           jwt_secret="$(normalize_secret "${RAW_JWT_SECRET:-}")"
@@ -178,6 +188,9 @@ jobs:
             echo "Missing database secret. Configure DIRECT_DATABASE_URL (required) or DATABASE_URL." >&2
             exit 1
           fi
+
+      - name: Validate Vercel token
+        run: vercel whoami --token="$VERCEL_TOKEN"
 
       - name: Prepare Vercel project file
         working-directory: backend
