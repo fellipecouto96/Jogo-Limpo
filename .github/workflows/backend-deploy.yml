@@ -103,6 +103,13 @@ jobs:
     if: github.event_name == 'push'
     needs: quality
     runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
     defaults:
       run:
         shell: bash
@@ -124,108 +131,17 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
 
-      - name: Normalize deploy secrets
-        env:
-          RAW_VERCEL_TOKEN_SECRET: ${{ secrets.VERCEL_TOKEN_CICD || secrets.VERCEL_TOKEN }}
-          RAW_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID }}
-          RAW_VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID || vars.VERCEL_BACKEND_PROJECT_ID }}
-          RAW_DATABASE_URL: ${{ secrets.DATABASE_URL || vars.DATABASE_URL }}
-          RAW_DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL || vars.DIRECT_DATABASE_URL }}
-          RAW_JWT_SECRET: ${{ secrets.JWT_SECRET || vars.JWT_SECRET }}
-        run: |
-          set -euo pipefail
-          normalize_secret() {
-            local value="${1-}"
-            value="${value//$'\r'/}"
-            value="${value//$'\n'/}"
-            value="${value#"${value%%[![:space:]]*}"}"
-            value="${value%"${value##*[![:space:]]}"}"
-            if [[ "$value" == \"*\" && "$value" == *\" ]]; then
-              value="${value:1:${#value}-2}"
-            fi
-            if [[ "$value" == \'*\' && "$value" == *\' ]]; then
-              value="${value:1:${#value}-2}"
-            fi
-            printf '%s' "$value"
-          }
-          sanitize_id() {
-            local value="${1-}"
-            printf '%s' "$value" | tr -cd 'A-Za-z0-9_-'
-          }
-
-          token_secret="$(normalize_secret "${RAW_VERCEL_TOKEN_SECRET:-}")"
-          token="$token_secret"
-
-          org_id="$(sanitize_id "$(normalize_secret "${RAW_VERCEL_ORG_ID:-}")")"
-          project_id="$(sanitize_id "$(normalize_secret "${RAW_VERCEL_BACKEND_PROJECT_ID:-}")")"
-          database_url="$(normalize_secret "${RAW_DATABASE_URL:-}")"
-          direct_database_url="$(normalize_secret "${RAW_DIRECT_DATABASE_URL:-}")"
-          jwt_secret="$(normalize_secret "${RAW_JWT_SECRET:-}")"
-
-          {
-            echo "VERCEL_TOKEN=$token"
-            echo "VERCEL_ORG_ID=$org_id"
-            echo "VERCEL_BACKEND_PROJECT_ID=$project_id"
-            echo "VERCEL_PROJECT_ID=$project_id"
-            echo "DATABASE_URL=$database_url"
-            echo "DIRECT_DATABASE_URL=$direct_database_url"
-            echo "JWT_SECRET=$jwt_secret"
-          } >> "$GITHUB_ENV"
-
       - name: Verify credentials and backend secrets
         run: |
           set -euo pipefail
           if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
-            echo "Missing Vercel values: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID." >&2
+            echo "Missing required secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_BACKEND_PROJECT_ID." >&2
             exit 1
           fi
           if [ -z "${DIRECT_DATABASE_URL:-}" ] && [ -z "${DATABASE_URL:-}" ]; then
             echo "Missing database secret. Configure DIRECT_DATABASE_URL (required) or DATABASE_URL." >&2
             exit 1
           fi
-
-      - name: Debug token fingerprint
-        run: |
-          set -euo pipefail
-          token_len="${#VERCEL_TOKEN}"
-          token_fp="$(printf '%s' "$VERCEL_TOKEN" | shasum -a 256 | cut -d ' ' -f 1 | cut -c1-12)"
-          echo "VERCEL_TOKEN_LENGTH=$token_len"
-          echo "VERCEL_TOKEN_FP12=$token_fp"
-
-      - name: Validate Vercel token
-        env:
-          VERCEL_TOKEN_DIRECT: ${{ secrets.VERCEL_TOKEN_CICD || secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          normalize_secret() {
-            local value="${1-}"
-            value="${value//$'\r'/}"
-            value="${value//$'\n'/}"
-            value="${value#"${value%%[![:space:]]*}"}"
-            value="${value%"${value##*[![:space:]]}"}"
-            if [[ "$value" == \"*\" && "$value" == *\" ]]; then
-              value="${value:1:${#value}-2}"
-            fi
-            if [[ "$value" == \'*\' && "$value" == *\' ]]; then
-              value="${value:1:${#value}-2}"
-            fi
-            printf '%s' "$value"
-          }
-
-          token_from_env="${VERCEL_TOKEN:-}"
-          token_direct="$(normalize_secret "${VERCEL_TOKEN_DIRECT:-}")"
-          fp_env="$(printf '%s' "$token_from_env" | shasum -a 256 | cut -d ' ' -f 1 | cut -c1-12)"
-          fp_direct="$(printf '%s' "$token_direct" | shasum -a 256 | cut -d ' ' -f 1 | cut -c1-12)"
-          echo "TOKEN_ENV_LEN=${#token_from_env} TOKEN_ENV_FP12=$fp_env"
-          echo "TOKEN_DIRECT_LEN=${#token_direct} TOKEN_DIRECT_FP12=$fp_direct"
-
-          if [ -z "$token_direct" ]; then
-            echo "VERCEL_TOKEN_DIRECT is empty. Check secrets VERCEL_TOKEN_CICD/VERCEL_TOKEN." >&2
-            exit 1
-          fi
-
-          echo "VERCEL_TOKEN=$token_direct" >> "$GITHUB_ENV"
-          vercel whoami --token="$token_direct"
 
       - name: Prepare Vercel project file
         working-directory: backend
@@ -234,7 +150,7 @@ jobs:
           mkdir -p .vercel
           cat <<EOF > .vercel/project.json
           {
-            "projectId": "$VERCEL_BACKEND_PROJECT_ID",
+            "projectId": "$VERCEL_PROJECT_ID",
             "orgId": "$VERCEL_ORG_ID"
           }
           EOF
