@@ -193,7 +193,39 @@ jobs:
           echo "VERCEL_TOKEN_FP12=$token_fp"
 
       - name: Validate Vercel token
-        run: vercel whoami --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN_DIRECT: ${{ secrets.VERCEL_TOKEN_CICD || secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          normalize_secret() {
+            local value="${1-}"
+            value="${value//$'\r'/}"
+            value="${value//$'\n'/}"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+              value="${value:1:${#value}-2}"
+            fi
+            if [[ "$value" == \'*\' && "$value" == *\' ]]; then
+              value="${value:1:${#value}-2}"
+            fi
+            printf '%s' "$value"
+          }
+
+          token_from_env="${VERCEL_TOKEN:-}"
+          token_direct="$(normalize_secret "${VERCEL_TOKEN_DIRECT:-}")"
+          fp_env="$(printf '%s' "$token_from_env" | shasum -a 256 | cut -d ' ' -f 1 | cut -c1-12)"
+          fp_direct="$(printf '%s' "$token_direct" | shasum -a 256 | cut -d ' ' -f 1 | cut -c1-12)"
+          echo "TOKEN_ENV_LEN=${#token_from_env} TOKEN_ENV_FP12=$fp_env"
+          echo "TOKEN_DIRECT_LEN=${#token_direct} TOKEN_DIRECT_FP12=$fp_direct"
+
+          if [ -z "$token_direct" ]; then
+            echo "VERCEL_TOKEN_DIRECT is empty. Check secrets VERCEL_TOKEN_CICD/VERCEL_TOKEN." >&2
+            exit 1
+          fi
+
+          echo "VERCEL_TOKEN=$token_direct" >> "$GITHUB_ENV"
+          vercel whoami --token="$token_direct"
 
       - name: Prepare Vercel project file
         working-directory: backend
