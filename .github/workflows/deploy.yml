@@ -1,233 +1,45 @@
-name: CI/CD
+name: Pipeline Guardrails
 
 on:
   push:
     branches:
       - main
+    paths:
+      - '.github/workflows/**'
+      - 'backend/**'
+      - 'frontend/**'
   pull_request:
     branches:
       - main
+    paths:
+      - '.github/workflows/**'
+      - 'backend/**'
+      - 'frontend/**'
   workflow_dispatch:
 
-env:
-  NODE_VERSION: '20'
+permissions:
+  contents: read
 
 jobs:
-  pr-checks:
-    if: github.event_name == 'pull_request'
+  workflow-tests:
+    name: Workflow Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/package-lock.json
+      - name: Lint GitHub Actions workflows
+        uses: rhysd/actionlint@v1
 
-      - name: Install backend dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Lint frontend
-        working-directory: frontend
-        run: npm run lint
-
-      - name: Run backend tests
-        working-directory: backend
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: npm run test
-
-  deploy:
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    environment: production
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/package-lock.json
-
-      - name: Install backend dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Lint frontend
-        working-directory: frontend
-        run: npm run lint
-
-      - name: Run backend tests
-        working-directory: backend
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: npm run test
-
-      - name: Prisma generate
-        working-directory: backend
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: npm run db:generate
-
-      - name: Build backend
-        working-directory: backend
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: npm run build
-
-      - name: Build frontend
-        working-directory: frontend
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-        run: npm run build
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Verify backend Vercel credentials
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+      - name: Validate CI/CD invariants
         run: |
           set -euo pipefail
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_BACKEND_PROJECT_ID" ]; then
-            echo "Missing backend Vercel secrets. Ensure VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_BACKEND_PROJECT_ID are configured." >&2
+          if rg -n 'env\("DIRECT_URL"\)|secrets\.DIRECT_URL|DIRECT_URL:' .github/workflows/frontend-deploy.yml .github/workflows/backend-deploy.yml backend/prisma/schema.prisma; then
+            echo "Deprecated DIRECT_URL found. Use DIRECT_DATABASE_URL." >&2
             exit 1
           fi
-
-      - name: Prepare backend Vercel project file
-        working-directory: backend
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
-        run: |
-          set -euo pipefail
-          mkdir -p .vercel
-          cat <<EOF > .vercel/project.json
-          {
-            "projectId": "$VERCEL_BACKEND_PROJECT_ID",
-            "orgId": "$VERCEL_ORG_ID"
-          }
-          EOF
-
-      - name: Pull backend Vercel environment
-        working-directory: backend
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          export VERCEL_TOKEN="$VERCEL_TOKEN"
-          vercel pull --yes --environment=production --token="${VERCEL_TOKEN}"
-
-      - name: Inject backend env vars
-        working-directory: backend
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        run: |
-          set -euo pipefail
-          mkdir -p .vercel
-          env_file=".vercel/.env.production.local"
-          touch "$env_file"
-          {
-            echo "DATABASE_URL=$DATABASE_URL"
-            echo "DIRECT_DATABASE_URL=$DIRECT_DATABASE_URL"
-            if [ -n "${JWT_SECRET:-}" ]; then
-              echo "JWT_SECRET=$JWT_SECRET"
-            fi
-          } >> "$env_file"
-
-      - name: Build backend Vercel artifacts
-        working-directory: backend
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: vercel build --prod --token="${VERCEL_TOKEN}"
-
-      - name: Deploy backend to Vercel
-        working-directory: backend
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          export VERCEL_TOKEN="$VERCEL_TOKEN"
-          vercel deploy --prebuilt --prod
-
-      - name: Verify frontend Vercel credentials
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_FRONTEND_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
-        run: |
-          set -euo pipefail
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_FRONTEND_PROJECT_ID" ]; then
-            echo "Missing frontend Vercel secrets. Ensure VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_FRONTEND_PROJECT_ID are configured." >&2
-            exit 1
-          fi
-
-      - name: Prepare frontend Vercel project file
-        working-directory: frontend
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_FRONTEND_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
-        run: |
-          set -euo pipefail
-          mkdir -p .vercel
-          cat <<EOF > .vercel/project.json
-          {
-            "projectId": "$VERCEL_FRONTEND_PROJECT_ID",
-            "orgId": "$VERCEL_ORG_ID"
-          }
-          EOF
-
-      - name: Pull frontend Vercel environment
-        working-directory: frontend
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          export VERCEL_TOKEN="$VERCEL_TOKEN"
-          vercel pull --yes --environment=production --token="${VERCEL_TOKEN}"
-
-      - name: Build frontend Vercel artifacts
-        working-directory: frontend
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          export VERCEL_TOKEN="$VERCEL_TOKEN"
-          vercel build --prod
-
-      - name: Deploy frontend to Vercel
-        working-directory: frontend
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          export VERCEL_TOKEN="$VERCEL_TOKEN"
-          vercel deploy --prebuilt --prod
+          rg -n "VERCEL_FRONTEND_PROJECT_ID" .github/workflows/frontend-deploy.yml >/dev/null
+          rg -n "VERCEL_BACKEND_PROJECT_ID" .github/workflows/backend-deploy.yml >/dev/null
+          rg -n "environment: production" .github/workflows/frontend-deploy.yml >/dev/null
+          rg -n "environment: production" .github/workflows/backend-deploy.yml >/dev/null
+          echo "Workflow invariants validated."

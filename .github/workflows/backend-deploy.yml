@@ -6,24 +6,34 @@ on:
       - main
     paths:
       - 'backend/**'
+      - '.github/workflows/backend-deploy.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'backend/**'
+      - '.github/workflows/backend-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-cicd-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   NODE_VERSION: '20'
 
 jobs:
-  pr-checks:
-    if: github.event_name == 'pull_request'
+  quality:
+    name: Backend Quality
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -42,7 +52,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: npx prisma generate
+        run: |
+          set -euo pipefail
+          export DATABASE_URL="${DATABASE_URL:-$DIRECT_DATABASE_URL}"
+          npx prisma generate
 
       - name: Lint
         working-directory: backend
@@ -53,73 +66,90 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: npm run test
-
-  deploy:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Prisma generate
-        working-directory: backend
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: npx prisma generate
-
-      - name: Lint
-        working-directory: backend
-        run: npm run lint --if-present
-
-      - name: Test
-        working-directory: backend
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: npm run test
+        run: |
+          set -euo pipefail
+          export DATABASE_URL="${DATABASE_URL:-$DIRECT_DATABASE_URL}"
+          npm run test
 
       - name: Build
         working-directory: backend
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: npm run build
+        run: |
+          set -euo pipefail
+          export DATABASE_URL="${DATABASE_URL:-$DIRECT_DATABASE_URL}"
+          npm run build
+
+  deploy:
+    name: Backend Deploy
+    if: github.event_name == 'push'
+    needs: quality
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
 
       - name: Install Vercel CLI
         run: npm install -g vercel
 
-      - name: Verify Vercel credentials
+      - name: Verify credentials and database secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
         run: |
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_BACKEND_PROJECT_ID" ] || [ -z "$VERCEL_ORG_ID" ]; then
-            echo "Missing Vercel secrets. Ensure VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_BACKEND_PROJECT_ID are configured." >&2
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_BACKEND_PROJECT_ID:-}" ]; then
+            echo "Missing Vercel secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_BACKEND_PROJECT_ID." >&2
+            exit 1
+          fi
+          if [ -z "${DIRECT_DATABASE_URL:-}" ] && [ -z "${DATABASE_URL:-}" ]; then
+            echo "Missing database secret. Configure DIRECT_DATABASE_URL (required) or DATABASE_URL." >&2
             exit 1
           fi
 
-      - name: Pull Vercel env
+      - name: Prepare Vercel project file
         working-directory: backend
-        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p .vercel
+          cat <<EOF > .vercel/project.json
+          {
+            "projectId": "$VERCEL_BACKEND_PROJECT_ID",
+            "orgId": "$VERCEL_ORG_ID"
+          }
+          EOF
 
-      - name: Inject required env vars
+      - name: Pull Vercel environment
+        working-directory: backend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Ensure backend env values for Vercel build
         working-directory: backend
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -127,24 +157,35 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           set -euo pipefail
-          mkdir -p .vercel
+          db_url="${DATABASE_URL:-}"
+          direct_url="${DIRECT_DATABASE_URL:-}"
+          if [ -z "$db_url" ]; then
+            db_url="$direct_url"
+          fi
+
           env_file=".vercel/.env.production.local"
+          mkdir -p .vercel
           touch "$env_file"
           {
-            echo "DATABASE_URL=$DATABASE_URL"
-            echo "DIRECT_DATABASE_URL=$DIRECT_DATABASE_URL"
+            echo "DATABASE_URL=$db_url"
+            echo "DIRECT_DATABASE_URL=$direct_url"
             if [ -n "${JWT_SECRET:-}" ]; then
               echo "JWT_SECRET=$JWT_SECRET"
             fi
           } >> "$env_file"
 
-      - name: Build Vercel artifact
+      - name: Build Vercel artifacts
         working-directory: backend
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
-        run: vercel build --prod --token="$VERCEL_TOKEN"
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          vercel build --prod --token="$VERCEL_TOKEN"
 
       - name: Deploy to Vercel
         working-directory: backend
-        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
