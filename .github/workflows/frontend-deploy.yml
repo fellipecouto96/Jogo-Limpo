@@ -118,14 +118,15 @@ jobs:
             echo "VERCEL_TOKEN=$token"
             echo "VERCEL_ORG_ID=$org_id"
             echo "VERCEL_FRONTEND_PROJECT_ID=$project_id"
+            echo "VERCEL_PROJECT_ID=$project_id"
             echo "VITE_API_URL=$api_url"
           } >> "$GITHUB_ENV"
 
       - name: Verify Vercel credentials
         run: |
           set -euo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_FRONTEND_PROJECT_ID:-}" ]; then
-            echo "Missing or invalid Vercel secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_FRONTEND_PROJECT_ID." >&2
+          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
+            echo "Missing or invalid Vercel values: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID." >&2
             exit 1
           fi
 

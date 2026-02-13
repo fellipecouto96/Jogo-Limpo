@@ -161,6 +161,7 @@ jobs:
             echo "VERCEL_TOKEN=$token"
             echo "VERCEL_ORG_ID=$org_id"
             echo "VERCEL_BACKEND_PROJECT_ID=$project_id"
+            echo "VERCEL_PROJECT_ID=$project_id"
             echo "DATABASE_URL=$database_url"
             echo "DIRECT_DATABASE_URL=$direct_database_url"
             echo "JWT_SECRET=$jwt_secret"
@@ -169,16 +170,12 @@ jobs:
       - name: Verify credentials and backend secrets
         run: |
           set -euo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_BACKEND_PROJECT_ID:-}" ]; then
-            echo "Missing Vercel secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_BACKEND_PROJECT_ID." >&2
+          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
+            echo "Missing Vercel values: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID." >&2
             exit 1
           fi
           if [ -z "${DIRECT_DATABASE_URL:-}" ] && [ -z "${DATABASE_URL:-}" ]; then
             echo "Missing database secret. Configure DIRECT_DATABASE_URL (required) or DATABASE_URL." >&2
-            exit 1
-          fi
-          if [ -z "${JWT_SECRET:-}" ]; then
-            echo "Missing JWT_SECRET secret." >&2
             exit 1
           fi
 
@@ -213,11 +210,14 @@ jobs:
 
           env_file=".vercel/.env.production.local"
           mkdir -p .vercel
-          {
-            echo "DATABASE_URL=$db_url"
-            echo "DIRECT_DATABASE_URL=$direct_url"
-            echo "JWT_SECRET=$JWT_SECRET"
-          } > "$env_file"
+          touch "$env_file"
+
+          tmp_file="$(mktemp)"
+          grep -Ev '^(DATABASE_URL|DIRECT_DATABASE_URL|JWT_SECRET)=' "$env_file" > "$tmp_file" || true
+          [ -n "$db_url" ] && echo "DATABASE_URL=$db_url" >> "$tmp_file"
+          [ -n "$direct_url" ] && echo "DIRECT_DATABASE_URL=$direct_url" >> "$tmp_file"
+          [ -n "${JWT_SECRET:-}" ] && echo "JWT_SECRET=$JWT_SECRET" >> "$tmp_file"
+          mv "$tmp_file" "$env_file"
 
       - name: Build Vercel artifacts
         working-directory: backend
