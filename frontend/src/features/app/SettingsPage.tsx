@@ -1,4 +1,4 @@
-import { useAuth } from '../auth/AuthContext.tsx';
+import { useAuth } from '../auth/useAuth.ts';
 
 export function SettingsPage() {
   const { organizer } = useAuth();

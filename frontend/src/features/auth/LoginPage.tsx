@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext.tsx';
+import { useAuth } from './useAuth.ts';
 import type { AuthResponse } from './types.ts';
 import { getApiUrl } from '../../shared/api.ts';
 

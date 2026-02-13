@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext.tsx';
+import { useAuth } from '../auth/useAuth.ts';
 import { useDashboard } from './useDashboard.ts';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 

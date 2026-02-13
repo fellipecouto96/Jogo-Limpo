@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTournamentDetails } from './useTournamentDetails.ts';
 import { useUpdateFinancials } from './useUpdateFinancials.ts';
@@ -21,20 +21,105 @@ export function TournamentSettingsPage() {
   const { data, error: loadError, isLoading, refetch } = useTournamentDetails(tournamentId!);
   const { updateFinancials, isSubmitting, error: submitError } = useUpdateFinancials();
 
-  const [entryFee, setEntryFee] = useState('');
-  const [organizerPct, setOrganizerPct] = useState('');
-  const [firstPct, setFirstPct] = useState('70');
-  const [secondPct, setSecondPct] = useState('30');
+  type FieldState = { value: string; sourceId: string | null };
+
+  const [entryFeeState, setEntryFeeState] = useState<FieldState>({
+    value: '',
+    sourceId: null,
+  });
+  const [organizerPctState, setOrganizerPctState] = useState<FieldState>({
+    value: '',
+    sourceId: null,
+  });
+  const [firstPctState, setFirstPctState] = useState<FieldState>({
+    value: '70',
+    sourceId: null,
+  });
+  const [secondPctState, setSecondPctState] = useState<FieldState>({
+    value: '30',
+    sourceId: null,
+  });
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    if (data) {
-      setEntryFee(data.entryFee != null ? String(data.entryFee) : '');
-      setOrganizerPct(data.organizerPercentage != null ? String(data.organizerPercentage) : '');
-      setFirstPct(data.firstPlacePercentage != null ? String(data.firstPlacePercentage) : '70');
-      setSecondPct(data.secondPlacePercentage != null ? String(data.secondPlacePercentage) : '30');
+  const tournamentKey = data?.id ?? null;
+  const entryFeeValue = data?.entryFee;
+  const organizerPercentageValue = data?.organizerPercentage;
+  const firstPlacePercentageValue = data?.firstPlacePercentage;
+  const secondPlacePercentageValue = data?.secondPlacePercentage;
+  const hasDetails = data != null;
+
+  const serverDefaults = useMemo(() => {
+    if (!hasDetails || !tournamentKey) return null;
+    return {
+      entryFee: entryFeeValue != null ? String(entryFeeValue) : '',
+      organizerPercentage:
+        organizerPercentageValue != null ? String(organizerPercentageValue) : '',
+      firstPlacePercentage:
+        firstPlacePercentageValue != null ? String(firstPlacePercentageValue) : '70',
+      secondPlacePercentage:
+        secondPlacePercentageValue != null ? String(secondPlacePercentageValue) : '30',
+    };
+  }, [
+    hasDetails,
+    tournamentKey,
+    entryFeeValue,
+    organizerPercentageValue,
+    firstPlacePercentageValue,
+    secondPlacePercentageValue,
+  ]);
+
+  const entryFee =
+    entryFeeState.sourceId === tournamentKey
+      ? entryFeeState.value
+      : serverDefaults?.entryFee ?? '';
+  const organizerPct =
+    organizerPctState.sourceId === tournamentKey
+      ? organizerPctState.value
+      : serverDefaults?.organizerPercentage ?? '';
+  const firstPct =
+    firstPctState.sourceId === tournamentKey
+      ? firstPctState.value
+      : serverDefaults?.firstPlacePercentage ?? '70';
+  const secondPct =
+    secondPctState.sourceId === tournamentKey
+      ? secondPctState.value
+      : serverDefaults?.secondPlacePercentage ?? '30';
+
+  const handleEntryFeeChange = (value: string) => {
+    setEntryFeeState({ value, sourceId: tournamentKey });
+    setSaved(false);
+  };
+
+  const handleOrganizerPctChange = (value: string) => {
+    setOrganizerPctState({ value, sourceId: tournamentKey });
+    setSaved(false);
+  };
+
+  const handleFirstPctChange = (value: string) => {
+    setFirstPctState({ value, sourceId: tournamentKey });
+    setSaved(false);
+
+    const num = parseFloat(value);
+    if (!isNaN(num) && num >= 0 && num <= 100) {
+      const remaining = Math.max(100 - num, 0);
+      setSecondPctState({
+        value: String(Math.round(remaining * 100) / 100),
+        sourceId: tournamentKey,
+      });
     }
-  }, [data]);
+  };
+
+  const handleSecondPctChange = (value: string) => {
+    setSecondPctState({ value, sourceId: tournamentKey });
+    setSaved(false);
+  };
+
+  const resetFieldOverrides = () => {
+    setEntryFeeState({ value: '', sourceId: null });
+    setOrganizerPctState({ value: '', sourceId: null });
+    setFirstPctState({ value: '70', sourceId: null });
+    setSecondPctState({ value: '30', sourceId: null });
+  };
 
   const playerCount = data?.playerCount ?? 0;
 
@@ -112,17 +197,9 @@ export function TournamentSettingsPage() {
       });
       setSaved(true);
       await refetch();
+      resetFieldOverrides();
     } catch {
       // handled upstream
-    }
-  }
-
-  function handleFirstPctChange(value: string) {
-    setFirstPct(value);
-    const num = parseFloat(value);
-    if (!isNaN(num) && num >= 0 && num <= 100) {
-      const remaining = Math.max(100 - num, 0);
-      setSecondPct(String(Math.round(remaining * 100) / 100));
     }
   }
 
@@ -205,7 +282,7 @@ export function TournamentSettingsPage() {
                   min="0"
                   step="0.01"
                   value={entryFee}
-                  onChange={(e) => setEntryFee(e.target.value)}
+                  onChange={(e) => handleEntryFeeChange(e.target.value)}
                   placeholder="0,00"
                   className="flex-1 bg-transparent text-white text-lg font-semibold focus:outline-none"
                 />
@@ -223,7 +300,7 @@ export function TournamentSettingsPage() {
                   max="100"
                   step="0.1"
                   value={organizerPct}
-                  onChange={(e) => setOrganizerPct(e.target.value)}
+                  onChange={(e) => handleOrganizerPctChange(e.target.value)}
                   placeholder="0"
                   className="flex-1 bg-transparent text-white text-lg font-semibold focus:outline-none"
                 />
@@ -271,7 +348,7 @@ export function TournamentSettingsPage() {
                       max="100"
                       step="0.5"
                       value={secondPct}
-                      onChange={(e) => setSecondPct(e.target.value)}
+                      onChange={(e) => handleSecondPctChange(e.target.value)}
                       className="flex-1 bg-transparent text-white text-lg font-semibold focus:outline-none"
                     />
                     <span className="text-gray-500 text-xs font-semibold tracking-[0.4em] uppercase">

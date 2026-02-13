@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { BracketMatch, BracketPlayer } from '../../tv/types.ts';
 import { useRecordResult } from '../useRecordResult.ts';
 
@@ -19,9 +19,16 @@ export function InteractiveMatchCard({
   const [confirming, setConfirming] = useState(false);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const { recordResult, isSubmitting } = useRecordResult();
-  useEffect(() => {
-    setConfirming(false);
-  }, [selectedId]);
+
+  const toggleSelection = (playerId: string) => {
+    setSelectedId((current) => {
+      const next = current === playerId ? null : playerId;
+      if (next !== current) {
+        setConfirming(false);
+      }
+      return next;
+    });
+  };
 
   // TBD slot
   if (!match) {
@@ -105,11 +112,7 @@ export function InteractiveMatchCard({
         isSelected={selectedId === match.player1.id}
         isDimmed={selectedId !== null && selectedId !== match.player1.id}
         disabled={!isInteractive || isSubmitting}
-        onClick={() =>
-          setSelectedId(
-            selectedId === match.player1.id ? null : match.player1.id
-          )
-        }
+        onClick={() => toggleSelection(match.player1.id)}
       />
       <div className="border-t border-gray-700 my-1" />
       {match.player2 ? (
@@ -118,11 +121,7 @@ export function InteractiveMatchCard({
           isSelected={selectedId === match.player2.id}
           isDimmed={selectedId !== null && selectedId !== match.player2.id}
           disabled={!isInteractive || isSubmitting}
-          onClick={() =>
-            setSelectedId(
-              selectedId === match.player2!.id ? null : match.player2!.id
-            )
-          }
+          onClick={() => toggleSelection(match.player2!.id)}
         />
       ) : (
         <div className="py-1 px-2 text-gray-600 text-lg">TBD</div>

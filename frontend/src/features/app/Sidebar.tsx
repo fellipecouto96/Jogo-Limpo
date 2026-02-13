@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext.tsx';
+import { useAuth } from '../auth/useAuth.ts';
 
 interface SidebarProps {
   open: boolean;
