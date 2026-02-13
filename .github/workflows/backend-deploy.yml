@@ -136,7 +136,9 @@ jobs:
         working-directory: backend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+        run: |
+          export VERCEL_TOKEN="$VERCEL_TOKEN"
+          vercel pull --yes --environment=production
 
       - name: Build Vercel artifact
         working-directory: backend
@@ -144,10 +146,14 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: vercel build --prod --token="$VERCEL_TOKEN"
+        run: |
+          export VERCEL_TOKEN="$VERCEL_TOKEN"
+          vercel build --prod
 
       - name: Deploy to Vercel
         working-directory: backend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        run: |
+          export VERCEL_TOKEN="$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod
