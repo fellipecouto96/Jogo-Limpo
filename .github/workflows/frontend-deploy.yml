@@ -97,18 +97,26 @@ jobs:
             echo "Missing Vercel secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_FRONTEND_PROJECT_ID." >&2
             exit 1
           fi
+          if [[ ! "$VERCEL_FRONTEND_PROJECT_ID" =~ ^prj_[A-Za-z0-9]+$ ]]; then
+            echo "VERCEL_FRONTEND_PROJECT_ID must be the real Vercel Project ID (example: prj_xxx), not the project name." >&2
+            exit 1
+          fi
+          if [[ ! "$VERCEL_ORG_ID" =~ ^team_[A-Za-z0-9]+$ ]]; then
+            echo "VERCEL_ORG_ID must be the real Team ID (example: team_xxx)." >&2
+            exit 1
+          fi
 
       - name: Prepare Vercel project file
         working-directory: frontend
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_FRONTEND_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           mkdir -p .vercel
           cat <<EOF > .vercel/project.json
           {
-            "projectId": "$VERCEL_FRONTEND_PROJECT_ID",
+            "projectId": "$VERCEL_PROJECT_ID",
             "orgId": "$VERCEL_ORG_ID"
           }
           EOF
@@ -117,6 +125,8 @@ jobs:
         working-directory: frontend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
@@ -125,6 +135,8 @@ jobs:
         working-directory: frontend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           vercel build --prod --token="$VERCEL_TOKEN"
@@ -133,6 +145,8 @@ jobs:
         working-directory: frontend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"

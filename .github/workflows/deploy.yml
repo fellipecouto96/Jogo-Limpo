@@ -51,6 +51,8 @@ jobs:
           fi
           grep -Fq "VERCEL_FRONTEND_PROJECT_ID" .github/workflows/frontend-deploy.yml
           grep -Fq "VERCEL_BACKEND_PROJECT_ID" .github/workflows/backend-deploy.yml
+          grep -Fq 'prj_[A-Za-z0-9]+' .github/workflows/frontend-deploy.yml
+          grep -Fq 'prj_[A-Za-z0-9]+' .github/workflows/backend-deploy.yml
           grep -Fq "environment: production" .github/workflows/frontend-deploy.yml
           grep -Fq "environment: production" .github/workflows/backend-deploy.yml
           grep -Fq '"build"' package.json
