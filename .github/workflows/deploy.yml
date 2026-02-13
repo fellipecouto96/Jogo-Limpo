@@ -53,4 +53,6 @@ jobs:
           grep -Fq "VERCEL_BACKEND_PROJECT_ID" .github/workflows/backend-deploy.yml
           grep -Fq "environment: production" .github/workflows/frontend-deploy.yml
           grep -Fq "environment: production" .github/workflows/backend-deploy.yml
+          grep -Fq '"build"' package.json
+          grep -Fq '"vercel-build"' package.json
           echo "Workflow invariants validated."
