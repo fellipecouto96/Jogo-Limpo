@@ -135,7 +135,7 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
 
-      - name: Verify and normalize credentials and database secrets
+      - name: Verify credentials and database secrets
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -148,45 +148,24 @@ jobs:
             echo "Missing Vercel secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_BACKEND_PROJECT_ID." >&2
             exit 1
           fi
-
-          project_id="$(printf '%s' "$VERCEL_BACKEND_PROJECT_ID" | tr -d '\r\n' | xargs)"
-          org_id="$(printf '%s' "$VERCEL_ORG_ID" | tr -d '\r\n' | xargs)"
-          project_id="${project_id%\"}"
-          project_id="${project_id#\"}"
-          project_id="${project_id%\'}"
-          project_id="${project_id#\'}"
-          org_id="${org_id%\"}"
-          org_id="${org_id#\"}"
-          org_id="${org_id%\'}"
-          org_id="${org_id#\'}"
-
-          case "$project_id" in
-            prj_*) ;;
-            *)
+          if [[ ! "$VERCEL_BACKEND_PROJECT_ID" =~ ^prj_[A-Za-z0-9]+$ ]]; then
             echo "VERCEL_BACKEND_PROJECT_ID must be the real Vercel Project ID (example: prj_xxx), not the project name." >&2
             exit 1
-            ;;
-          esac
-          case "$org_id" in
-            team_*) ;;
-            *)
+          fi
+          if [[ ! "$VERCEL_ORG_ID" =~ ^team_[A-Za-z0-9]+$ ]]; then
             echo "VERCEL_ORG_ID must be the real Team ID (example: team_xxx)." >&2
             exit 1
-            ;;
-          esac
+          fi
           if [ -z "${DIRECT_DATABASE_URL:-}" ] && [ -z "${DATABASE_URL:-}" ]; then
             echo "Missing database secret. Configure DIRECT_DATABASE_URL (required) or DATABASE_URL." >&2
             exit 1
           fi
 
-          echo "VERCEL_PROJECT_ID=$project_id" >> "$GITHUB_ENV"
-          echo "VERCEL_ORG_ID=$org_id" >> "$GITHUB_ENV"
-
       - name: Prepare Vercel project file
         working-directory: backend
         env:
-          VERCEL_ORG_ID: ${{ env.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           mkdir -p .vercel
@@ -201,8 +180,8 @@ jobs:
         working-directory: backend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ env.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
@@ -238,8 +217,8 @@ jobs:
         working-directory: backend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ env.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           vercel build --prod --token="$VERCEL_TOKEN"
@@ -248,8 +227,8 @@ jobs:
         working-directory: backend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ env.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: |
           set -euo pipefail
           vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
