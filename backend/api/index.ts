@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { buildApp } from '../src/app.js';
 
+// Vercel Serverless Function Handler
+
 type App = Awaited<ReturnType<typeof buildApp>>;
 
 let app: App | null = null;

@@ -1,4 +1,11 @@
 {
+  "buildCommand": "npx prisma generate && npx prisma db push",
+  "builds": [
+    {
+      "src": "api/index.ts",
+      "use": "@vercel/node"
+    }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/api" }
   ]
