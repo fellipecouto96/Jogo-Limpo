@@ -126,7 +126,7 @@ jobs:
 
       - name: Normalize deploy secrets
         env:
-          RAW_VERCEL_TOKEN_SECRET: ${{ secrets.VERCEL_TOKEN }}
+          RAW_VERCEL_TOKEN_SECRET: ${{ secrets.VERCEL_TOKEN_CICD || secrets.VERCEL_TOKEN }}
           RAW_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID }}
           RAW_VERCEL_BACKEND_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID || vars.VERCEL_BACKEND_PROJECT_ID }}
           RAW_DATABASE_URL: ${{ secrets.DATABASE_URL || vars.DATABASE_URL }}
