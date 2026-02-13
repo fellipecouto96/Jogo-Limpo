@@ -119,6 +119,25 @@ jobs:
         working-directory: backend
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
 
+      - name: Inject required env vars
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p .vercel
+          env_file=".vercel/.env.production.local"
+          touch "$env_file"
+          {
+            echo "DATABASE_URL=$DATABASE_URL"
+            echo "DIRECT_DATABASE_URL=$DIRECT_DATABASE_URL"
+            if [ -n "${JWT_SECRET:-}" ]; then
+              echo "JWT_SECRET=$JWT_SECRET"
+            fi
+          } >> "$env_file"
+
       - name: Build Vercel artifact
         working-directory: backend
         env:
