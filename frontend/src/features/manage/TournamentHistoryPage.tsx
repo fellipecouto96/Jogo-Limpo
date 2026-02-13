@@ -73,8 +73,6 @@ export function TournamentHistoryPage() {
     (computedRunnerUp
       ? { id: computedRunnerUp.id, name: computedRunnerUp.name }
       : null);
-  const hasFinancials = !!details && (details.totalCollected ?? 0) > 0;
-
   return (
     <div className="animate-[fadeIn_0.4s_ease-out] space-y-8">
       <style>{`
