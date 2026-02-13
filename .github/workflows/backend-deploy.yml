@@ -189,6 +189,9 @@ jobs:
           if [ -z "$db_url" ]; then
             db_url="$direct_url"
           fi
+          if [ -z "$direct_url" ]; then
+            direct_url="$db_url"
+          fi
 
           env_file=".vercel/.env.production.local"
           mkdir -p .vercel

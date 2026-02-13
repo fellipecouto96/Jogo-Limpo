@@ -56,4 +56,6 @@ jobs:
           grep -Fq '"build"' package.json
           grep -Fq '"vercel-build"' package.json
           grep -Fq "backend/api/index" server.ts
+          grep -Fq "prisma-with-env.sh" backend/package.json
+          test -f backend/scripts/prisma-with-env.sh
           echo "Workflow invariants validated."
