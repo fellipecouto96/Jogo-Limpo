@@ -37,7 +37,10 @@ jobs:
         run: go install github.com/rhysd/actionlint/cmd/actionlint@latest
 
       - name: Lint GitHub Actions workflows
-        run: $(go env GOPATH)/bin/actionlint
+        run: |
+          set -euo pipefail
+          actionlint_bin="$(go env GOPATH)/bin/actionlint"
+          "$actionlint_bin"
 
       - name: Validate CI/CD invariants
         run: |
