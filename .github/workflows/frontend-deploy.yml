@@ -89,7 +89,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
         run: |
           set -euo pipefail
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_PROJECT_ID" ] || [ -z "$VERCEL_ORG_ID" ]; then
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_FRONTEND_PROJECT_ID" ] || [ -z "$VERCEL_ORG_ID" ]; then
             echo "Missing Vercel secrets. Ensure VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_FRONTEND_PROJECT_ID are configured." >&2
             exit 1
           fi
@@ -104,7 +104,7 @@ jobs:
           mkdir -p .vercel
           cat <<EOF > .vercel/project.json
           {
-            "projectId": "$VERCEL_PROJECT_ID",
+            "projectId": "$VERCEL_FRONTEND_PROJECT_ID",
             "orgId": "$VERCEL_ORG_ID"
           }
           EOF

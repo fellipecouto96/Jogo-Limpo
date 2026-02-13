@@ -110,7 +110,7 @@ jobs:
 
       - name: Verify Vercel credentials
         run: |
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_PROJECT_ID" ] || [ -z "$VERCEL_ORG_ID" ]; then
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_BACKEND_PROJECT_ID" ] || [ -z "$VERCEL_ORG_ID" ]; then
             echo "Missing Vercel secrets. Ensure VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_BACKEND_PROJECT_ID are configured." >&2
             exit 1
           fi
