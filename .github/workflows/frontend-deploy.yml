@@ -89,9 +89,9 @@ jobs:
       - name: Normalize deploy secrets
         env:
           RAW_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          RAW_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          RAW_VERCEL_FRONTEND_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
-          RAW_VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          RAW_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID }}
+          RAW_VERCEL_FRONTEND_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID || vars.VERCEL_FRONTEND_PROJECT_ID }}
+          RAW_VITE_API_URL: ${{ secrets.VITE_API_URL || vars.VITE_API_URL }}
         run: |
           set -euo pipefail
           normalize_secret() {
@@ -113,9 +113,6 @@ jobs:
           org_id="$(normalize_secret "${RAW_VERCEL_ORG_ID:-}")"
           project_id="$(normalize_secret "${RAW_VERCEL_FRONTEND_PROJECT_ID:-}")"
           api_url="$(normalize_secret "${RAW_VITE_API_URL:-}")"
-
-          org_id="$(printf '%s' "$org_id" | grep -oE 'team_[A-Za-z0-9]+' | head -n1 || true)"
-          project_id="$(printf '%s' "$project_id" | grep -oE 'prj_[A-Za-z0-9]+' | head -n1 || true)"
 
           {
             echo "VERCEL_TOKEN=$token"
