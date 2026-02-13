@@ -1,9 +1,8 @@
 {
+  "private": true,
+  "name": "jogo-limpo-monorepo",
   "scripts": {
-    "build": "npm --prefix frontend ci && npm --prefix frontend run build && rm -rf dist && cp -R frontend/dist dist",
-    "vercel-build": "npm --prefix backend ci && npm --prefix backend run vercel-build"
-  },
-  "dependencies": {
-    "docker": "^1.0.0"
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
   }
 }
