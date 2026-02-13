@@ -45,12 +45,12 @@ jobs:
       - name: Validate CI/CD invariants
         run: |
           set -euo pipefail
-          if rg -n 'env\("DIRECT_URL"\)|secrets\.DIRECT_URL|DIRECT_URL:' .github/workflows/frontend-deploy.yml .github/workflows/backend-deploy.yml backend/prisma/schema.prisma; then
+          if grep -En 'env\("DIRECT_URL"\)|secrets\.DIRECT_URL|DIRECT_URL:' .github/workflows/frontend-deploy.yml .github/workflows/backend-deploy.yml backend/prisma/schema.prisma; then
             echo "Deprecated DIRECT_URL found. Use DIRECT_DATABASE_URL." >&2
             exit 1
           fi
-          rg -n "VERCEL_FRONTEND_PROJECT_ID" .github/workflows/frontend-deploy.yml >/dev/null
-          rg -n "VERCEL_BACKEND_PROJECT_ID" .github/workflows/backend-deploy.yml >/dev/null
-          rg -n "environment: production" .github/workflows/frontend-deploy.yml >/dev/null
-          rg -n "environment: production" .github/workflows/backend-deploy.yml >/dev/null
+          grep -Fq "VERCEL_FRONTEND_PROJECT_ID" .github/workflows/frontend-deploy.yml
+          grep -Fq "VERCEL_BACKEND_PROJECT_ID" .github/workflows/backend-deploy.yml
+          grep -Fq "environment: production" .github/workflows/frontend-deploy.yml
+          grep -Fq "environment: production" .github/workflows/backend-deploy.yml
           echo "Workflow invariants validated."
