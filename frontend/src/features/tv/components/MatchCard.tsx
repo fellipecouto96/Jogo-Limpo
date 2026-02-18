@@ -26,6 +26,7 @@ export function MatchCard({ match }: MatchCardProps) {
   }
 
   const isComplete = match.winner !== null;
+  const hasScores = match.player1Score !== null && match.player2Score !== null;
 
   return (
     <div
@@ -38,14 +39,18 @@ export function MatchCard({ match }: MatchCardProps) {
     >
       <PlayerSlot
         player={match.player1}
+        score={match.player1Score}
         isWinner={isComplete && match.winner?.id === match.player1.id}
         isEliminated={isComplete && match.winner?.id !== match.player1.id}
+        showScore={hasScores}
       />
       <div className="border-t border-gray-700 my-1" />
       <PlayerSlot
         player={match.player2}
+        score={match.player2Score}
         isWinner={isComplete && match.winner?.id === match.player2?.id}
         isEliminated={isComplete && match.winner?.id !== match.player2?.id}
+        showScore={hasScores}
       />
     </div>
   );
@@ -53,20 +58,22 @@ export function MatchCard({ match }: MatchCardProps) {
 
 interface PlayerSlotProps {
   player: BracketPlayer | null;
+  score?: number | null;
   isWinner: boolean;
   isEliminated: boolean;
+  showScore?: boolean;
 }
 
-function PlayerSlot({ player, isWinner, isEliminated }: PlayerSlotProps) {
+function PlayerSlot({ player, score, isWinner, isEliminated, showScore = false }: PlayerSlotProps) {
   if (!player) {
     return <div className="py-1 px-2 text-gray-600 text-lg">TBD</div>;
   }
 
   const classes = [
-    'py-1.5 px-3 text-lg font-semibold rounded-xl transition-all duration-300 bg-white/5',
+    'py-1.5 px-3 text-lg font-semibold rounded-xl transition-all duration-300 bg-white/5 flex items-center justify-between gap-2',
     isWinner &&
       'text-emerald-300 font-bold bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.35)]',
-    isEliminated && 'text-gray-500 line-through bg-transparent',
+    isEliminated && 'text-gray-500 bg-transparent',
     !isWinner && !isEliminated && 'text-white',
   ]
     .filter(Boolean)
@@ -74,12 +81,19 @@ function PlayerSlot({ player, isWinner, isEliminated }: PlayerSlotProps) {
 
   return (
     <div className={classes}>
-      {isWinner && (
-        <span className="mr-1" aria-label="vencedor">
-          &#9654;
+      <span className={isEliminated ? 'line-through' : ''}>
+        {isWinner && (
+          <span className="mr-1" aria-label="vencedor">
+            &#9654;
+          </span>
+        )}
+        {player.name}
+      </span>
+      {showScore && score !== null && (
+        <span className={`text-xl font-bold tabular-nums ${isWinner ? 'text-emerald-400' : 'text-gray-500'}`}>
+          {score}
         </span>
       )}
-      {player.name}
     </div>
   );
 }

@@ -99,6 +99,8 @@ model Match {
   player1Id         String    @map("player1_id")
   player2Id         String?   @map("player2_id")
   winnerId          String?   @map("winner_id")
+  player1Score      Int?      @map("player1_score")
+  player2Score      Int?      @map("player2_score")
   isBye             Boolean   @default(false) @map("is_bye")
   positionInBracket Int       @map("position_in_bracket")
   createdAt         DateTime  @default(now()) @map("created_at")

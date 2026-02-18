@@ -51,7 +51,7 @@ export function ManageTournamentPage() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const matchRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const previousStatusRef = useRef<string | null>(null);
-  const { recordResult } = useRecordResult();
+  const { recordResult, updateScore } = useRecordResult();
   const players = useMemo(
     () => extractTournamentPlayers(data?.rounds ?? []),
     [data?.rounds]
@@ -243,7 +243,9 @@ export function ManageTournamentPage() {
   async function handleSelectWinner(
     entry: OrderedMatch,
     winnerId: string,
-    winnerName: string
+    winnerName: string,
+    player1Score?: number,
+    player2Score?: number
   ) {
     if (pendingMatchId || isUndoingLastAction) return;
 
@@ -251,8 +253,11 @@ export function ManageTournamentPage() {
     setActionError(null);
     setFeedback(null);
     try {
-      await recordResult(tournamentId!, entry.match.id, winnerId);
-      setLastActionLabel(`${winnerName} venceu`);
+      await recordResult(tournamentId!, entry.match.id, winnerId, player1Score, player2Score);
+      const scoreLabel = player1Score !== undefined && player2Score !== undefined
+        ? ` (${player1Score} x ${player2Score})`
+        : '';
+      setLastActionLabel(`${winnerName} venceu${scoreLabel}`);
       setScrollFromMatch({
         roundNumber: entry.roundNumber,
         positionInBracket: entry.match.positionInBracket,
@@ -260,6 +265,23 @@ export function ManageTournamentPage() {
       await Promise.all([refetch(), refetchDetails()]);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Erro ao registrar resultado');
+    } finally {
+      setPendingMatchId(null);
+    }
+  }
+
+  async function handleUpdateScore(matchId: string, player1Score: number, player2Score: number) {
+    if (pendingMatchId || isUndoingLastAction) return;
+
+    setPendingMatchId(matchId);
+    setActionError(null);
+    setFeedback(null);
+    try {
+      await updateScore(tournamentId!, matchId, player1Score, player2Score);
+      setFeedback(`Placar atualizado: ${player1Score} x ${player2Score}`);
+      await Promise.all([refetch(), refetchDetails()]);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Erro ao atualizar placar');
     } finally {
       setPendingMatchId(null);
     }
@@ -565,9 +587,10 @@ export function ManageTournamentPage() {
                           roundLabel={round.label}
                           tournamentStatus={tournament.status}
                           isBusy={pendingMatchId !== null || isUndoingLastAction}
-                          onSelectWinner={(winnerId, winnerName) =>
-                            handleSelectWinner(entry, winnerId, winnerName)
+                          onSelectWinner={(winnerId, winnerName, score1, score2) =>
+                            handleSelectWinner(entry, winnerId, winnerName, score1, score2)
                           }
+                          onUpdateScore={handleUpdateScore}
                         />
                       </div>
                     );

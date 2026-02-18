@@ -26,6 +26,8 @@ interface BracketMatch {
   player1: { id: string; name: string };
   player2: { id: string; name: string } | null;
   winner: { id: string; name: string } | null;
+  player1Score: number | null;
+  player2Score: number | null;
   isBye: boolean;
   finishedAt: string | null;
 }
@@ -53,6 +55,8 @@ export async function fetchBracket(
               positionInBracket: true,
               isBye: true,
               finishedAt: true,
+              player1Score: true,
+              player2Score: true,
               player1: { select: { id: true, name: true } },
               player2: { select: { id: true, name: true } },
               winner: { select: { id: true, name: true } },
@@ -83,6 +87,8 @@ export async function fetchBracket(
       winner: match.winner
         ? { id: match.winner.id, name: match.winner.name }
         : null,
+      player1Score: match.player1Score,
+      player2Score: match.player2Score,
       isBye: match.isBye,
       finishedAt: match.finishedAt?.toISOString() ?? null,
     })),
