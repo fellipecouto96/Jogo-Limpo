@@ -277,7 +277,7 @@ describe('data integrity constraints', () => {
   });
 
   it('running tournament is editable', () => {
-    const status = 'RUNNING';
+    const status: string = 'RUNNING';
     const canEdit = status !== 'FINISHED';
     expect(canEdit).toBe(true);
   });
