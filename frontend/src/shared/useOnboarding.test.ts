@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import React from 'react';
 import { useOnboarding } from './useOnboarding.ts';
 
 // Mock useAuth to return a consistent organizer
