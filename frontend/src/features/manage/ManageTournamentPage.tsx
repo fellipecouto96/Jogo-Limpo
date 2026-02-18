@@ -115,7 +115,7 @@ export function ManageTournamentPage() {
     setFeedback(null);
 
     if (!seed) {
-      setActionError('Seed ainda nao disponivel para este torneio.');
+      setActionError('Seed ainda não disponível para este torneio.');
       return;
     }
 
@@ -123,7 +123,7 @@ export function ManageTournamentPage() {
       await navigator.clipboard.writeText(seed);
       setFeedback('Seed copiada para a area de transferencia.');
     } catch {
-      setActionError('Nao foi possivel copiar a seed.');
+      setActionError('Não foi possível copiar a seed.');
     }
   }
 
@@ -167,7 +167,7 @@ export function ManageTournamentPage() {
       await navigator.clipboard.writeText(message);
       setFeedback('Resultado copiado para compartilhamento.');
     } catch {
-      setActionError('Nao foi possivel compartilhar o resultado.');
+      setActionError('Não foi possível compartilhar o resultado.');
     }
   }
 
@@ -179,7 +179,7 @@ export function ManageTournamentPage() {
 
     const nextName = (playerDrafts[player.id] ?? '').trim();
     if (!nextName) {
-      setPlayerError('Nome do jogador nao pode ficar vazio.');
+      setPlayerError('Nome do jogador não pode ficar vazio.');
       return;
     }
 
@@ -540,7 +540,7 @@ export function ManageTournamentPage() {
 
       {/* Live operation */}
       {totalRounds > 0 && (
-        <section className="space-y-4 pb-24">
+        <section className="space-y-4 pb-32">
           <div className="rounded-2xl border border-gray-800 bg-[#0b1120] p-4">
             <p className="mb-3 text-sm font-semibold text-gray-200">
               {completedCount} de {totalCount} partidas concluídas
@@ -628,7 +628,7 @@ export function ManageTournamentPage() {
             </p>
             <div className="mb-4 rounded-xl border border-gray-700 bg-gray-950 px-4 py-3">
               <p className="break-all text-sm text-gray-100">
-                {details?.drawSeed ?? 'Seed nao disponivel'}
+                {details?.drawSeed ?? 'Seed não disponível'}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">

@@ -326,12 +326,12 @@ export function TournamentSettingsPage() {
         </Link>
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-400/70 mb-1">
-            Finance Suite
+            Configuração de premiação
           </p>
           <h1 className="font-display text-4xl text-white tracking-tight">
             {data.name}
           </h1>
-          <p className="text-gray-500 text-sm">Configuracoes financeiras do torneio</p>
+          <p className="text-gray-500 text-sm">Defina como dividir o prêmio</p>
         </div>
       </div>
 
@@ -350,10 +350,10 @@ export function TournamentSettingsPage() {
           </div>
           <div className="relative">
             <p className="text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold">
-              Parametros
+              Parâmetros
             </p>
             <h2 className="text-2xl text-white font-semibold mt-2">
-              Ajuste as regras de cobrança
+              Ajuste as regras de premiação
             </h2>
             <p className="text-sm text-gray-400 mt-1">
               {playerCount} jogador{playerCount === 1 ? '' : 'es'} inscritos
@@ -369,7 +369,7 @@ export function TournamentSettingsPage() {
                 Receita
               </legend>
               <label className="block text-sm text-gray-400 mb-1">
-                Taxa de inscricao
+                Taxa de inscrição
               </label>
               <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-emerald-500/60 transition">
                 <span className="text-gray-500 text-xs font-semibold tracking-[0.4em] uppercase">
@@ -389,7 +389,7 @@ export function TournamentSettingsPage() {
 
             <fieldset className="space-y-3">
               <legend className="text-sm text-gray-300 uppercase tracking-widest font-semibold">
-                Corte do organizador
+                Sua comissão
               </legend>
               <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-emerald-500/60 transition">
                 <input
@@ -407,13 +407,13 @@ export function TournamentSettingsPage() {
                 </span>
               </div>
               <p className="text-xs text-gray-500">
-                Este valor e deduzido antes da distribuicao dos premios.
+                Este valor é deduzido antes da distribuição dos prêmios.
               </p>
             </fieldset>
 
             <fieldset className="space-y-4">
               <legend className="text-sm text-gray-300 uppercase tracking-widest font-semibold">
-                Divisao de premios
+                Divisão de prêmios
               </legend>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-emerald-500/60 transition">
@@ -537,7 +537,7 @@ export function TournamentSettingsPage() {
               <p className="text-red-400 text-sm">{submitError}</p>
             )}
             {saved && (
-              <p className="text-emerald-400 text-sm">Configuracoes salvas com sucesso!</p>
+              <p className="text-emerald-400 text-sm">Configurações salvas com sucesso!</p>
             )}
 
             <button
@@ -549,7 +549,7 @@ export function TournamentSettingsPage() {
                 ? 'Torneio finalizado'
                 : isSubmitting
                   ? 'Salvando...'
-                  : 'Salvar configuracoes'}
+                  : 'Salvar configurações'}
             </button>
           </fieldset>
         </section>
@@ -563,7 +563,7 @@ export function TournamentSettingsPage() {
                   Preview
                 </p>
                 <h3 className="text-xl text-white font-semibold">
-                  Simulacao em tempo real
+                  Simulação em tempo real
                 </h3>
               </div>
               <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
@@ -585,7 +585,7 @@ export function TournamentSettingsPage() {
               />
               <hr className="border-white/5" />
               <PreviewRow
-                label="Premiacao liquida"
+                label="Premiação líquida"
                 value={formatCurrency(preview.prizePool)}
                 accent="text-emerald-300"
               />
@@ -624,7 +624,7 @@ export function TournamentSettingsPage() {
                 <p className="text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold">
                   Valores atuais
                 </p>
-                <h3 className="text-lg text-white font-semibold">Configuracao aplicada</h3>
+                <h3 className="text-lg text-white font-semibold">Configuração aplicada</h3>
               </div>
               <span className="text-xs text-gray-500">
                 Status: <span className="text-gray-300">{data.status}</span>
@@ -634,7 +634,7 @@ export function TournamentSettingsPage() {
               <dl className="space-y-3 text-sm">
                 <SummaryRow label="Total arrecadado" value={formatCurrency(savedSnapshot.totalCollected)} />
                 <SummaryRow label="Organizador" value={formatCurrency(savedSnapshot.organizerAmount)} />
-                <SummaryRow label="Premiacao" value={formatCurrency(savedSnapshot.prizePool)} />
+                <SummaryRow label="Premiação" value={formatCurrency(savedSnapshot.prizePool)} />
                 <SummaryRow label="1º lugar" value={formatCurrency(savedSnapshot.firstPlace)} />
                 <SummaryRow label="2º lugar" value={formatCurrency(savedSnapshot.secondPlace)} />
                 {savedSnapshot.thirdPlace > 0 && (
@@ -646,7 +646,7 @@ export function TournamentSettingsPage() {
               </dl>
             ) : (
               <p className="text-sm text-gray-500">
-                Nenhuma configuracao aplicada ainda. Salve para gerar o resumo oficial.
+                Nenhuma configuração aplicada ainda. Salve para gerar o resumo oficial.
               </p>
             )}
           </div>

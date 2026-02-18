@@ -64,14 +64,13 @@ export function LandingPage() {
                 Sorteio transparente, chave pública e gestão clara pelo celular.
               </p>
 
-              <div className="mt-7 space-y-3 sm:max-w-sm">
+              <div className="mt-7 sm:max-w-sm">
                 <Link
                   to="/register"
                   className="inline-flex h-14 w-full items-center justify-center rounded-2xl bg-emerald-500 px-6 text-lg font-bold text-[#08120d] transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/60 [touch-action:manipulation]"
                 >
-                  Criar torneio no novo padrão
+                  Criar meu torneio grátis
                 </Link>
-                <p className="text-sm text-gray-300">Comece gratuitamente.</p>
               </div>
             </div>
 
@@ -82,7 +81,7 @@ export function LandingPage() {
         <section className="border-y border-white/10 px-4 py-12 sm:px-6">
           <div className="mx-auto w-full max-w-6xl">
             <h2 className="font-display text-4xl tracking-tight text-white [text-wrap:balance] sm:text-5xl">
-              A sinuca amadora está crescendo.
+              Seus torneios merecem organização.
             </h2>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
               {growthSignals.map((signal) => (

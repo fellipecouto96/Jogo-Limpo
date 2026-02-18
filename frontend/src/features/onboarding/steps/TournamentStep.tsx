@@ -36,7 +36,7 @@ export function TournamentStep({
 
       <div className="mt-6">
         <label className="block text-sm text-gray-400 mb-2">
-          Premiacao (opcional)
+          Premiação (opcional)
         </label>
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">

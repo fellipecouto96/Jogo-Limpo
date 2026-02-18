@@ -10,9 +10,9 @@ export function DashboardPage() {
   return (
     <div>
       <h1 className="font-display text-3xl text-white mb-1">
-        Ola, {organizer?.name}
+        Olá, {organizer?.name}
       </h1>
-      <p className="text-gray-400 mb-8">Bem-vindo ao Jogo Limpo.</p>
+      <p className="text-gray-400 mb-8">Seu painel de torneios.</p>
 
       {isLoading && (
         <p className="text-gray-500 text-sm">Carregando...</p>
@@ -26,18 +26,18 @@ export function DashboardPage() {
         <>
           <div className="grid gap-4 sm:grid-cols-2 mb-8">
             <MetricCard
-              label="Total arrecadado no mes"
+              label="Total arrecadado no mês"
               value={formatCurrency(data.metrics.totalCollectedThisMonth)}
             />
             <MetricCard
-              label="Total pago em premios"
+              label="Total pago em prêmios"
               value={formatCurrency(data.metrics.totalPrizePaid)}
             />
           </div>
 
           <section>
             <h2 className="font-display text-xl text-white mb-4">
-              Lista de torneios
+              Seus torneios
             </h2>
             {data.tournaments.length === 0 ? (
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
@@ -72,10 +72,10 @@ export function DashboardPage() {
                       />
                     </div>
                     <Link
-                      to={`/app/tournament/${t.id}/history`}
+                      to={t.status === 'RUNNING' ? `/app/tournament/${t.id}` : `/app/tournament/${t.id}/history`}
                       className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-gray-950 transition hover:bg-emerald-400"
                     >
-                      Ver detalhes
+                      {t.status === 'RUNNING' ? 'Gerenciar' : t.status === 'FINISHED' ? 'Ver resultado' : 'Ver detalhes'}
                     </Link>
                   </article>
                 ))}

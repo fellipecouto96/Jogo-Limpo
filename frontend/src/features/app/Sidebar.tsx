@@ -13,7 +13,7 @@ const NAV_ITEMS = [
 ];
 
 const BOTTOM_ITEMS = [
-  { label: 'Configuracoes', path: '/app/settings', icon: GearIcon },
+  { label: 'Configurações', path: '/app/settings', icon: GearIcon },
 ];
 
 export function Sidebar({ open, onClose }: SidebarProps) {

@@ -44,7 +44,7 @@ export function useDashboard(): UseDashboardResult {
         const body = await res.json().catch(() => ({}));
         const backendMessage =
           (body as { error?: string }).error ??
-          `Nao foi possivel carregar o painel agora. (HTTP ${res.status})`;
+          `Não foi possível carregar o painel agora. (HTTP ${res.status})`;
         throw new Error(backendMessage);
       }
       const json: DashboardData = await res.json();
@@ -54,7 +54,7 @@ export function useDashboard(): UseDashboardResult {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(
         message.startsWith('HTTP')
-          ? 'Nao foi possivel atualizar os indicadores agora.'
+          ? 'Não foi possível atualizar os indicadores agora.'
           : message
       );
       setData(emptyData);

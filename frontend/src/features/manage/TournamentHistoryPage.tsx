@@ -96,7 +96,7 @@ export function TournamentHistoryPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-emerald-300 font-semibold">
-              Relatorio oficial
+              Relatório oficial
             </p>
             <h1 className="font-display text-4xl text-white tracking-tight mt-2">
               {tournament.name}
@@ -110,7 +110,7 @@ export function TournamentHistoryPage() {
       </header>
 
       {/* Section 1 – Basic Info */}
-      <SectionCard title="Informacoes basicas" subtitle="Visao geral do torneio" accent="amber">
+      <SectionCard title="Informações básicas" subtitle="Visão geral do torneio" accent="amber">
         <div className="grid gap-4 min-[500px]:grid-cols-2 lg:grid-cols-4">
           <InfoStat label="Organizador" value={details?.organizerName ?? '—'} />
           <InfoStat label="Data" value={formatDateRange(tournament.startedAt, tournament.finishedAt)} />
@@ -123,13 +123,13 @@ export function TournamentHistoryPage() {
       <SectionCard title="Resultados" subtitle="Resumo esportivo e chave completa" accent="emerald">
         <div className="grid gap-4 lg:grid-cols-3">
           <ResultTile
-            label="Campeao"
+            label="Campeão"
             value={champion?.name ?? '—'}
             highlight
             helper={details?.firstPlacePrize != null ? formatCurrency(details.firstPlacePrize) : undefined}
           />
           <ResultTile
-            label="Vice-campeao"
+            label="Vice-campeão"
             value={runnerUp?.name ?? '—'}
             helper={
               details?.secondPlacePrize != null
@@ -165,15 +165,15 @@ export function TournamentHistoryPage() {
       </SectionCard>
 
       {/* Section 3 – Financial Summary */}
-      <SectionCard title="Resumo financeiro" subtitle="Distribuicao oficial e transparencia" accent="gold">
+      <SectionCard title="Resumo financeiro" subtitle="Distribuição oficial e transparência" accent="gold">
         <div className="grid gap-4 min-[500px]:grid-cols-2 lg:grid-cols-3">
-          <InfoStat label="Taxa de inscricao" value={formatCurrency(details?.entryFee ?? 0)} />
+          <InfoStat label="Taxa de inscrição" value={formatCurrency(details?.entryFee ?? 0)} />
           <InfoStat label="Total arrecadado" value={formatCurrency(details?.totalCollected ?? 0)} />
           <InfoStat
             label={`Organizador (${details?.organizerPercentage ?? 0}%)`}
             value={formatCurrency(details?.organizerAmount ?? 0)}
           />
-          <InfoStat label="Premiacao liquida" value={formatCurrency(details?.prizePool ?? 0)} />
+          <InfoStat label="Premiação líquida" value={formatCurrency(details?.prizePool ?? 0)} />
           <InfoStat
             label={`1º lugar (${details?.firstPlacePercentage ?? 0}%)`}
             value={formatCurrency(details?.firstPlacePrize ?? 0)}
@@ -182,11 +182,23 @@ export function TournamentHistoryPage() {
             label={`2º lugar (${details?.secondPlacePercentage ?? 0}%)`}
             value={formatCurrency(details?.secondPlacePrize ?? 0)}
           />
+          {(details?.thirdPlacePrize ?? 0) > 0 && (
+            <InfoStat
+              label={`3º lugar (${details?.thirdPlacePercentage ?? 0}%)`}
+              value={formatCurrency(details?.thirdPlacePrize ?? 0)}
+            />
+          )}
+          {(details?.fourthPlacePrize ?? 0) > 0 && (
+            <InfoStat
+              label={`4º lugar (${details?.fourthPlacePercentage ?? 0}%)`}
+              value={formatCurrency(details?.fourthPlacePrize ?? 0)}
+            />
+          )}
         </div>
       </SectionCard>
 
       {/* Section 4 – Transparency */}
-      <SectionCard title="Transparencia" subtitle="Auditoria do sorteio" accent="slate">
+      <SectionCard title="Transparência" subtitle="Auditoria do sorteio" accent="slate">
         <div className="grid gap-4 min-[500px]:grid-cols-2">
           <KeyValue label="Seed utilizado" value={details?.drawSeed ?? '—'} />
           <KeyValue label="Gerado em" value={formatDateTime(details?.startedAt)} />
@@ -272,7 +284,7 @@ function FinalMatchCard({ match }: { match: BracketMatch | null }) {
     : 'Sem dados';
   const result = match?.winner
     ? `${match.winner.name} venceu`
-    : 'Resultado nao registrado';
+    : 'Resultado não registrado';
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 text-gray-100">
       <p className="text-[11px] uppercase tracking-[0.4em] opacity-70 font-semibold">
@@ -281,7 +293,11 @@ function FinalMatchCard({ match }: { match: BracketMatch | null }) {
       <p className="text-lg font-semibold mt-2">{matchup}</p>
       <p className="text-sm text-gray-300 mt-1">{result}</p>
       <p className="text-xs text-gray-500 mt-3">Placar final</p>
-      <p className="text-xl font-semibold text-white">Indisponivel</p>
+      <p className="text-xl font-semibold text-white">
+        {match && match.player1Score !== null && match.player2Score !== null
+          ? `${match.player1Score} × ${match.player2Score}`
+          : 'Não registrado'}
+      </p>
       {match?.finishedAt && (
         <p className="text-xs text-gray-500 mt-2">
           Disputada em {formatDateTime(match.finishedAt)}

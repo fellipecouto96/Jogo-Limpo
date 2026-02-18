@@ -5,7 +5,7 @@ export function SettingsPage() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl text-white mb-1">Configuracoes</h1>
+      <h1 className="font-display text-3xl text-white mb-1">Configurações</h1>
       <p className="text-gray-400 mb-8">Gerencie sua conta de organizador.</p>
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-lg">

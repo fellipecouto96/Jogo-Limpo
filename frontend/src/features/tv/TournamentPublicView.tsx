@@ -23,7 +23,7 @@ export function TournamentPublicView({ mode }: TournamentPublicViewProps) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <p className="text-red-400 text-2xl">
-          {error ?? 'Torneio nao encontrado'}
+          {error ?? 'Torneio não encontrado'}
         </p>
       </div>
     );

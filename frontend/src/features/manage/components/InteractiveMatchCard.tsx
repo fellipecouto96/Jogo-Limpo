@@ -20,7 +20,6 @@ export function InteractiveMatchCard({
   onUpdateScore,
 }: InteractiveMatchCardProps) {
   const [showScoreInput, setShowScoreInput] = useState(false);
-  const [pendingWinner, setPendingWinner] = useState<{ id: string; name: string } | null>(null);
 
   const isBye = match.isBye;
   const isComplete = Boolean(match.winner) || isBye;
@@ -55,29 +54,11 @@ export function InteractiveMatchCard({
 
   const handlePlayerClick = (playerId: string, playerName: string) => {
     if (!canInteract) return;
-    setPendingWinner({ id: playerId, name: playerName });
-    setShowScoreInput(true);
-  };
-
-  const handleConfirmWithScore = (score1: number, score2: number) => {
-    if (pendingWinner) {
-      onSelectWinner(pendingWinner.id, pendingWinner.name, score1, score2);
-    }
-    setShowScoreInput(false);
-    setPendingWinner(null);
-  };
-
-  const handleConfirmWithoutScore = () => {
-    if (pendingWinner) {
-      onSelectWinner(pendingWinner.id, pendingWinner.name);
-    }
-    setShowScoreInput(false);
-    setPendingWinner(null);
+    onSelectWinner(playerId, playerName);
   };
 
   const handleEditScore = () => {
     setShowScoreInput(true);
-    setPendingWinner(null);
   };
 
   const handleUpdateScore = (score1: number, score2: number) => {
@@ -87,64 +68,23 @@ export function InteractiveMatchCard({
     setShowScoreInput(false);
   };
 
-  if (showScoreInput && match.player2) {
-    const isEditMode = Boolean(match.winner) && !pendingWinner;
-    
-    if (isEditMode) {
-      return (
-        <article className={rootClasses}>
-          <header className="flex items-center justify-between border-b border-gray-800 px-4 py-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-300">
-              Editar Placar
-            </p>
-          </header>
-          <ScoreInput
-            player1Name={match.player1.name}
-            player2Name={match.player2.name}
-            initialScore1={match.player1Score ?? 0}
-            initialScore2={match.player2Score ?? 0}
-            onConfirm={handleUpdateScore}
-            onCancel={() => setShowScoreInput(false)}
-            disabled={isBusy}
-          />
-        </article>
-      );
-    }
-
+  if (showScoreInput && match.player2 && match.winner) {
     return (
       <article className={rootClasses}>
         <header className="flex items-center justify-between border-b border-gray-800 px-4 py-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
-            Confirmar: {pendingWinner?.name}
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-300">
+            {hasScores ? 'Editar placar' : 'Adicionar placar'}
           </p>
         </header>
-        
-        <div className="p-4 space-y-4">
-          <button
-            type="button"
-            onClick={handleConfirmWithoutScore}
-            disabled={isBusy}
-            className="w-full py-4 px-4 rounded-xl bg-emerald-600 text-white font-semibold text-lg
-                       active:bg-emerald-500 disabled:opacity-50 transition-colors"
-          >
-            Confirmar sem placar
-          </button>
-
-          <div className="text-center text-sm text-gray-400">ou adicione o placar:</div>
-
-          <ScoreInput
-            player1Name={match.player1.name}
-            player2Name={match.player2.name}
-            initialScore1={pendingWinner?.id === match.player1.id ? 1 : 0}
-            initialScore2={pendingWinner?.id === match.player2.id ? 1 : 0}
-            onConfirm={handleConfirmWithScore}
-            onCancel={() => {
-              setShowScoreInput(false);
-              setPendingWinner(null);
-            }}
-            disabled={isBusy}
-          />
-        </div>
+        <ScoreInput
+          player1Name={match.player1.name}
+          player2Name={match.player2.name}
+          initialScore1={match.player1Score ?? (match.winner.id === match.player1.id ? 1 : 0)}
+          initialScore2={match.player2Score ?? (match.winner.id === match.player2.id ? 1 : 0)}
+          onConfirm={handleUpdateScore}
+          onCancel={() => setShowScoreInput(false)}
+          disabled={isBusy}
+        />
       </article>
     );
   }
@@ -179,7 +119,7 @@ export function InteractiveMatchCard({
           />
         ) : (
           <div className="flex min-h-[60px] items-center px-4 text-base font-semibold text-gray-500">
-            Aguardando adversario
+            Aguardando adversário
           </div>
         )}
       </div>
@@ -196,8 +136,8 @@ export function InteractiveMatchCard({
             type="button"
             onClick={handleEditScore}
             disabled={isBusy}
-            className="w-full py-2 text-xs font-medium text-gray-400 hover:text-emerald-400 
-                       transition-colors disabled:opacity-50"
+            className="w-full py-2.5 text-sm font-semibold text-emerald-400 hover:text-emerald-300 
+                       transition-colors disabled:opacity-50 [touch-action:manipulation]"
           >
             {hasScores ? 'Editar placar' : 'Adicionar placar'}
           </button>
