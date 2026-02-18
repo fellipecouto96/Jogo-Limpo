@@ -5,6 +5,7 @@ export interface FinancialSnapshot {
   championPrize: number;
   runnerUpPrize: number;
   thirdPlacePrize: number;
+  fourthPlacePrize: number;
   firstPlacePrize: number;
   secondPlacePrize: number;
 }
@@ -16,6 +17,7 @@ export interface FinancialCalculationInput {
   championPercentage?: number;
   runnerUpPercentage?: number;
   thirdPlacePercentage?: number;
+  fourthPlacePercentage?: number;
   firstPlacePercentage?: number;
   secondPlacePercentage?: number;
 }
@@ -32,6 +34,7 @@ export function calculateFinancials(input: FinancialCalculationInput): Financial
     championPercentage,
     runnerUpPercentage,
     thirdPlacePercentage,
+    fourthPlacePercentage,
     firstPlacePercentage,
     secondPlacePercentage,
   } = input;
@@ -39,6 +42,7 @@ export function calculateFinancials(input: FinancialCalculationInput): Financial
   const safeChampionPercentage = championPercentage ?? firstPlacePercentage ?? 70;
   const safeRunnerUpPercentage = runnerUpPercentage ?? secondPlacePercentage ?? 30;
   const safeThirdPlacePercentage = thirdPlacePercentage ?? 0;
+  const safeFourthPlacePercentage = fourthPlacePercentage ?? 0;
 
   const safePlayerCount = Math.max(playerCount, 0);
   const totalCollected = roundCurrency(entryFee * safePlayerCount);
@@ -47,6 +51,7 @@ export function calculateFinancials(input: FinancialCalculationInput): Financial
   const championPrize = roundCurrency(prizePool * (safeChampionPercentage / 100));
   const runnerUpPrize = roundCurrency(prizePool * (safeRunnerUpPercentage / 100));
   const thirdPlacePrize = roundCurrency(prizePool * (safeThirdPlacePercentage / 100));
+  const fourthPlacePrize = roundCurrency(prizePool * (safeFourthPlacePercentage / 100));
 
   return {
     totalCollected,
@@ -55,6 +60,7 @@ export function calculateFinancials(input: FinancialCalculationInput): Financial
     championPrize,
     runnerUpPrize,
     thirdPlacePrize,
+    fourthPlacePrize,
     firstPlacePrize: championPrize,
     secondPlacePrize: runnerUpPrize,
   };

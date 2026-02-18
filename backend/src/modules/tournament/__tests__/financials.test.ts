@@ -17,6 +17,7 @@ describe('calculateFinancials', () => {
     expect(result.championPrize).toBe(257.04);
     expect(result.runnerUpPrize).toBe(110.16);
     expect(result.thirdPlacePrize).toBe(0);
+    expect(result.fourthPlacePrize).toBe(0);
     expect(result.firstPlacePrize).toBe(257.04);
     expect(result.secondPlacePrize).toBe(110.16);
   });
@@ -37,6 +38,7 @@ describe('calculateFinancials', () => {
       championPrize: 0,
       runnerUpPrize: 0,
       thirdPlacePrize: 0,
+      fourthPlacePrize: 0,
       firstPlacePrize: 0,
       secondPlacePrize: 0,
     });
@@ -58,5 +60,35 @@ describe('calculateFinancials', () => {
     expect(result.championPrize).toBe(108);
     expect(result.runnerUpPrize).toBe(45);
     expect(result.thirdPlacePrize).toBe(27);
+    expect(result.fourthPlacePrize).toBe(0);
+  });
+
+  it('supports four-position prize split', () => {
+    const result = calculateFinancials({
+      entryFee: 50,
+      playerCount: 16,
+      organizerPercentage: 10,
+      championPercentage: 50,
+      runnerUpPercentage: 25,
+      thirdPlacePercentage: 15,
+      fourthPlacePercentage: 10,
+    });
+
+    // totalCollected = 50 * 16 = 800
+    expect(result.totalCollected).toBe(800);
+    // organizerAmount = 800 * 0.10 = 80
+    expect(result.organizerAmount).toBe(80);
+    // prizePool = 800 - 80 = 720
+    expect(result.prizePool).toBe(720);
+    // championPrize = 720 * 0.50 = 360
+    expect(result.championPrize).toBe(360);
+    // runnerUpPrize = 720 * 0.25 = 180
+    expect(result.runnerUpPrize).toBe(180);
+    // thirdPlacePrize = 720 * 0.15 = 108
+    expect(result.thirdPlacePrize).toBe(108);
+    // fourthPlacePrize = 720 * 0.10 = 72
+    expect(result.fourthPlacePrize).toBe(72);
+    expect(result.firstPlacePrize).toBe(360);
+    expect(result.secondPlacePrize).toBe(180);
   });
 });

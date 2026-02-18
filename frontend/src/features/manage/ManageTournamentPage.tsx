@@ -135,6 +135,8 @@ export function ManageTournamentPage() {
     const runnerUpName = details?.runnerUp?.name ?? runnerUpFallback ?? 'Vice-campeao';
     const championAmount = details?.championPrize ?? details?.firstPlacePrize ?? null;
     const runnerUpAmount = details?.runnerUpPrize ?? details?.secondPlacePrize ?? null;
+    const thirdPlaceAmount = details?.thirdPlacePrize ?? null;
+    const fourthPlaceAmount = details?.fourthPlacePrize ?? null;
     const shareUrl = `${window.location.origin}/tournament/${tournamentId}/tv`;
     const lines = [
       `Resultado oficial - ${data?.tournament.name ?? 'Torneio'}`,
@@ -142,6 +144,8 @@ export function ManageTournamentPage() {
       `Vice: ${runnerUpName}`,
       championAmount != null ? `Premio do campeao: ${formatCurrency(championAmount)}` : null,
       runnerUpAmount != null ? `Premio do vice: ${formatCurrency(runnerUpAmount)}` : null,
+      thirdPlaceAmount != null && thirdPlaceAmount > 0 ? `Premio do 3o lugar: ${formatCurrency(thirdPlaceAmount)}` : null,
+      fourthPlaceAmount != null && fourthPlaceAmount > 0 ? `Premio do 4o lugar: ${formatCurrency(fourthPlaceAmount)}` : null,
       `Acompanhe: ${shareUrl}`,
     ].filter(Boolean) as string[];
     const message = lines.join('\n');
@@ -502,6 +506,8 @@ export function ManageTournamentPage() {
             totalPrize={details?.prizePool ?? details?.calculatedPrizePool ?? null}
             championPrize={details?.championPrize ?? details?.firstPlacePrize ?? null}
             runnerUpPrize={details?.runnerUpPrize ?? details?.secondPlacePrize ?? null}
+            thirdPlacePrize={details?.thirdPlacePrize ?? null}
+            fourthPlacePrize={details?.fourthPlacePrize ?? null}
             tournamentId={tournamentId!}
             isCelebrating={isChampionshipCelebrating}
             onShare={handleShareResult}
@@ -727,6 +733,8 @@ function ChampionshipClosureScreen({
   totalPrize,
   championPrize,
   runnerUpPrize,
+  thirdPlacePrize,
+  fourthPlacePrize,
   tournamentId,
   isCelebrating,
   onShare,
@@ -742,6 +750,8 @@ function ChampionshipClosureScreen({
   totalPrize: number | null;
   championPrize: number | null;
   runnerUpPrize: number | null;
+  thirdPlacePrize: number | null;
+  fourthPlacePrize: number | null;
   tournamentId: string;
   isCelebrating: boolean;
   onShare: () => Promise<void>;
@@ -843,6 +853,20 @@ function ChampionshipClosureScreen({
             value={runnerUpPrize}
             accent="slate"
           />
+          {thirdPlacePrize != null && thirdPlacePrize > 0 && (
+            <PrizeHighlightCard
+              title="Valor do 3º lugar"
+              value={thirdPlacePrize}
+              accent="amber"
+            />
+          )}
+          {fourthPlacePrize != null && fourthPlacePrize > 0 && (
+            <PrizeHighlightCard
+              title="Valor do 4º lugar"
+              value={fourthPlacePrize}
+              accent="slate"
+            />
+          )}
         </div>
 
         <div className="mt-5 rounded-2xl border border-gray-700 bg-[#0b1120] p-4">
@@ -870,6 +894,18 @@ function ChampionshipClosureScreen({
               label="Valor do vice"
               value={formatCurrency(runnerUpPrize)}
             />
+            {thirdPlacePrize != null && thirdPlacePrize > 0 && (
+              <SummaryLine
+                label="Valor do 3º lugar"
+                value={formatCurrency(thirdPlacePrize)}
+              />
+            )}
+            {fourthPlacePrize != null && fourthPlacePrize > 0 && (
+              <SummaryLine
+                label="Valor do 4º lugar"
+                value={formatCurrency(fourthPlacePrize)}
+              />
+            )}
           </div>
         </div>
 
@@ -908,12 +944,14 @@ function PrizeHighlightCard({
 }: {
   title: string;
   value: number | null;
-  accent: 'emerald' | 'slate';
+  accent: 'emerald' | 'slate' | 'amber';
 }) {
   const tone =
     accent === 'emerald'
       ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
-      : 'border-gray-600 bg-[#111827] text-gray-100';
+      : accent === 'amber'
+        ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+        : 'border-gray-600 bg-[#111827] text-gray-100';
 
   return (
     <div className={`rounded-xl border p-4 ${tone}`}>

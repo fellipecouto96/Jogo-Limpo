@@ -8,6 +8,7 @@ export interface FinancialsPayload {
   championPercentage?: number;
   runnerUpPercentage?: number;
   thirdPlacePercentage?: number | null;
+  fourthPlacePercentage?: number | null;
   firstPlacePercentage?: number;
   secondPlacePercentage?: number;
 }

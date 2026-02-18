@@ -11,6 +11,7 @@ function countPlayers(matches: { isBye: boolean }[]): number {
 const DEFAULT_CHAMPION_PERCENTAGE = 70;
 const DEFAULT_RUNNER_UP_PERCENTAGE = 30;
 const DEFAULT_THIRD_PLACE_PERCENTAGE = 0;
+const DEFAULT_FOURTH_PLACE_PERCENTAGE = 0;
 
 function decimalToNumber(value: Decimal | null | undefined): number | null {
   return value != null ? value.toNumber() : null;
@@ -20,6 +21,7 @@ function resolveStoredPercentages(tournament: {
   championPercentage: Decimal | null;
   runnerUpPercentage: Decimal | null;
   thirdPlacePercentage: Decimal | null;
+  fourthPlacePercentage?: Decimal | null;
   firstPlacePercentage: Decimal | null;
   secondPlacePercentage: Decimal | null;
 }) {
@@ -34,11 +36,17 @@ function resolveStoredPercentages(tournament: {
     (championPercentage != null || runnerUpPercentage != null
       ? DEFAULT_THIRD_PLACE_PERCENTAGE
       : null);
+  const fourthPlacePercentage =
+    decimalToNumber(tournament.fourthPlacePercentage ?? null) ??
+    (championPercentage != null || runnerUpPercentage != null
+      ? DEFAULT_FOURTH_PLACE_PERCENTAGE
+      : null);
 
   return {
     championPercentage,
     runnerUpPercentage,
     thirdPlacePercentage,
+    fourthPlacePercentage,
   };
 }
 
@@ -101,6 +109,7 @@ export interface TournamentDetail {
   championPercentage: number | null;
   runnerUpPercentage: number | null;
   thirdPlacePercentage: number | null;
+  fourthPlacePercentage: number | null;
   firstPlacePercentage: number | null;
   secondPlacePercentage: number | null;
   calculatedPrizePool: number | null;
@@ -111,6 +120,7 @@ export interface TournamentDetail {
   championPrize: number | null;
   runnerUpPrize: number | null;
   thirdPlacePrize: number | null;
+  fourthPlacePrize: number | null;
   firstPlacePrize: number | null;
   secondPlacePrize: number | null;
   champion: { id: string; name: string } | null;
@@ -137,6 +147,7 @@ export async function getTournamentById(
       championPercentage: true,
       runnerUpPercentage: true,
       thirdPlacePercentage: true,
+      fourthPlacePercentage: true,
       firstPlacePercentage: true,
       secondPlacePercentage: true,
       calculatedPrizePool: true,
@@ -172,7 +183,8 @@ export async function getTournamentById(
     organizerPercentage != null &&
     percentages.championPercentage != null &&
     percentages.runnerUpPercentage != null &&
-    percentages.thirdPlacePercentage != null
+    percentages.thirdPlacePercentage != null &&
+    percentages.fourthPlacePercentage != null
       ? calculateFinancials({
           entryFee,
           playerCount,
@@ -180,6 +192,7 @@ export async function getTournamentById(
           championPercentage: percentages.championPercentage,
           runnerUpPercentage: percentages.runnerUpPercentage,
           thirdPlacePercentage: percentages.thirdPlacePercentage,
+          fourthPlacePercentage: percentages.fourthPlacePercentage,
         })
       : null;
 
@@ -195,6 +208,7 @@ export async function getTournamentById(
     championPercentage: percentages.championPercentage,
     runnerUpPercentage: percentages.runnerUpPercentage,
     thirdPlacePercentage: percentages.thirdPlacePercentage,
+    fourthPlacePercentage: percentages.fourthPlacePercentage,
     firstPlacePercentage:
       percentages.championPercentage ??
       decimalToNumber(t.firstPlacePercentage),
@@ -238,6 +252,11 @@ export async function getTournamentById(
       (t.prizePool && percentages.thirdPlacePercentage != null
         ? (t.prizePool.toNumber() * percentages.thirdPlacePercentage) / 100
         : null),
+    fourthPlacePrize:
+      snapshot?.fourthPlacePrize ??
+      (t.prizePool && percentages.fourthPlacePercentage != null
+        ? (t.prizePool.toNumber() * percentages.fourthPlacePercentage) / 100
+        : null),
     firstPlacePrize:
       snapshot?.championPrize ??
       (t.prizePool && percentages.championPercentage != null
@@ -266,6 +285,7 @@ export interface FinancialsInput {
   championPercentage?: number;
   runnerUpPercentage?: number;
   thirdPlacePercentage?: number | null;
+  fourthPlacePercentage?: number | null;
   firstPlacePercentage?: number;
   secondPlacePercentage?: number;
 }
@@ -277,6 +297,8 @@ function resolveFinancialInputPercentages(data: FinancialsInput) {
     data.runnerUpPercentage ?? data.secondPlacePercentage;
   const thirdPlacePercentage =
     data.thirdPlacePercentage ?? DEFAULT_THIRD_PLACE_PERCENTAGE;
+  const fourthPlacePercentage =
+    data.fourthPlacePercentage ?? DEFAULT_FOURTH_PLACE_PERCENTAGE;
 
   if (championPercentage == null || runnerUpPercentage == null) {
     throw new TournamentError(
@@ -289,6 +311,7 @@ function resolveFinancialInputPercentages(data: FinancialsInput) {
     championPercentage,
     runnerUpPercentage,
     thirdPlacePercentage,
+    fourthPlacePercentage,
   };
 }
 
@@ -298,6 +321,7 @@ function validatePercentages(data: FinancialsInput) {
     championPercentage,
     runnerUpPercentage,
     thirdPlacePercentage,
+    fourthPlacePercentage,
   } = resolveFinancialInputPercentages(data);
 
   if (organizerPercentage < 0 || organizerPercentage > 100) {
@@ -312,13 +336,16 @@ function validatePercentages(data: FinancialsInput) {
   if (thirdPlacePercentage < 0 || thirdPlacePercentage > 100) {
     throw new TournamentError('Percentual do 3o lugar deve ser entre 0 e 100', 400);
   }
+  if (fourthPlacePercentage < 0 || fourthPlacePercentage > 100) {
+    throw new TournamentError('Percentual do 4o lugar deve ser entre 0 e 100', 400);
+  }
   if (
     Math.abs(
-      championPercentage + runnerUpPercentage + thirdPlacePercentage - 100
+      championPercentage + runnerUpPercentage + thirdPlacePercentage + fourthPlacePercentage - 100
     ) > 0.01
   ) {
     throw new TournamentError(
-      'Percentuais de campeao, vice e terceiro devem somar 100',
+      'Percentuais de campeao, vice, terceiro e quarto devem somar 100',
       400
     );
   }
@@ -334,6 +361,7 @@ export async function updateTournamentFinancials(
     championPercentage,
     runnerUpPercentage,
     thirdPlacePercentage,
+    fourthPlacePercentage,
   } = resolveFinancialInputPercentages(data);
 
   if (entryFee < 0) {
@@ -371,6 +399,7 @@ export async function updateTournamentFinancials(
     championPercentage,
     runnerUpPercentage,
     thirdPlacePercentage,
+    fourthPlacePercentage,
   });
 
   const updated = await prisma.tournament.update({
@@ -381,6 +410,7 @@ export async function updateTournamentFinancials(
       championPercentage: new Decimal(championPercentage),
       runnerUpPercentage: new Decimal(runnerUpPercentage),
       thirdPlacePercentage: new Decimal(thirdPlacePercentage),
+      fourthPlacePercentage: new Decimal(fourthPlacePercentage),
       firstPlacePercentage: new Decimal(championPercentage),
       secondPlacePercentage: new Decimal(runnerUpPercentage),
       totalCollected: new Decimal(snapshot.totalCollected),
@@ -398,6 +428,7 @@ export async function updateTournamentFinancials(
       championPercentage: true,
       runnerUpPercentage: true,
       thirdPlacePercentage: true,
+      fourthPlacePercentage: true,
       firstPlacePercentage: true,
       secondPlacePercentage: true,
       calculatedPrizePool: true,
@@ -434,6 +465,7 @@ export async function updateTournamentFinancials(
       updated.secondPlacePercentage?.toNumber() ??
       null,
     thirdPlacePercentage: updated.thirdPlacePercentage?.toNumber() ?? null,
+    fourthPlacePercentage: updated.fourthPlacePercentage?.toNumber() ?? null,
     firstPlacePercentage:
       updated.championPercentage?.toNumber() ??
       updated.firstPlacePercentage?.toNumber() ??
@@ -452,6 +484,7 @@ export async function updateTournamentFinancials(
     championPrize: snapshot.championPrize,
     runnerUpPrize: snapshot.runnerUpPrize,
     thirdPlacePrize: snapshot.thirdPlacePrize,
+    fourthPlacePrize: snapshot.fourthPlacePrize,
     firstPlacePrize: snapshot.firstPlacePrize,
     secondPlacePrize: snapshot.secondPlacePrize,
     champion: updated.champion

@@ -13,6 +13,7 @@ export interface TournamentDetail {
   championPercentage: number | null;
   runnerUpPercentage: number | null;
   thirdPlacePercentage: number | null;
+  fourthPlacePercentage: number | null;
   firstPlacePercentage: number | null;
   secondPlacePercentage: number | null;
   calculatedPrizePool: number | null;
@@ -23,6 +24,7 @@ export interface TournamentDetail {
   championPrize: number | null;
   runnerUpPrize: number | null;
   thirdPlacePrize: number | null;
+  fourthPlacePrize: number | null;
   firstPlacePrize: number | null;
   secondPlacePrize: number | null;
   champion: { id: string; name: string } | null;

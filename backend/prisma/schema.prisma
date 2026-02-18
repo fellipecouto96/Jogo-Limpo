@@ -61,6 +61,7 @@ model Tournament {
   championPercentage    Decimal? @map("champion_percentage")
   runnerUpPercentage    Decimal? @map("runner_up_percentage")
   thirdPlacePercentage  Decimal? @map("third_place_percentage")
+  fourthPlacePercentage Decimal? @map("fourth_place_percentage")
   calculatedPrizePool   Decimal? @map("calculated_prize_pool")
   calculatedOrganizerAmount Decimal? @map("calculated_organizer_amount")
   championId            String?  @map("champion_id")

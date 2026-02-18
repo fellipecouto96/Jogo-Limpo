@@ -10,6 +10,7 @@ const DEFAULT_ORGANIZER_PERCENTAGE = 10;
 const DEFAULT_CHAMPION_PERCENTAGE = 70;
 const DEFAULT_RUNNER_UP_PERCENTAGE = 30;
 const DEFAULT_THIRD_PLACE_PERCENTAGE = 0;
+const DEFAULT_FOURTH_PLACE_PERCENTAGE = 0;
 type FlowStep = 0 | 1;
 
 interface FinancialPreview {
@@ -19,6 +20,7 @@ interface FinancialPreview {
   championAmount: number;
   runnerUpAmount: number;
   thirdPlaceAmount: number;
+  fourthPlaceAmount: number;
 }
 
 function roundCurrency(value: number): number {
@@ -71,6 +73,7 @@ function calculatePreview(input: {
   championPercentage: number;
   runnerUpPercentage: number;
   thirdPlacePercentage: number;
+  fourthPlacePercentage: number;
 }): FinancialPreview {
   const totalCollected = roundCurrency(input.entryFee * Math.max(0, input.playerCount));
   const organizerAmount = roundCurrency(totalCollected * (input.organizerPercentage / 100));
@@ -83,6 +86,7 @@ function calculatePreview(input: {
     championAmount: roundCurrency(prizePool * (input.championPercentage / 100)),
     runnerUpAmount: roundCurrency(prizePool * (input.runnerUpPercentage / 100)),
     thirdPlaceAmount: roundCurrency(prizePool * (input.thirdPlacePercentage / 100)),
+    fourthPlaceAmount: roundCurrency(prizePool * (input.fourthPlacePercentage / 100)),
   };
 }
 
@@ -98,6 +102,8 @@ export function OnboardingPage() {
     runnerUpPercentage: String(DEFAULT_RUNNER_UP_PERCENTAGE),
     thirdPlacePercentage: String(DEFAULT_THIRD_PLACE_PERCENTAGE),
     thirdPlaceEnabled: false,
+    fourthPlacePercentage: String(DEFAULT_FOURTH_PLACE_PERCENTAGE),
+    fourthPlaceEnabled: false,
   });
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [playerInput, setPlayerInput] = useState('');
@@ -122,11 +128,15 @@ export function OnboardingPage() {
   const thirdPlacePercentageValue = data.thirdPlaceEnabled
     ? parsePercentage(data.thirdPlacePercentage)
     : 0;
+  const fourthPlacePercentageValue = data.fourthPlaceEnabled
+    ? parsePercentage(data.fourthPlacePercentage)
+    : 0;
 
   const percentageSum =
     (championPercentageValue ?? 0) +
     (runnerUpPercentageValue ?? 0) +
-    (typeof thirdPlacePercentageValue === 'number' ? thirdPlacePercentageValue : 0);
+    (typeof thirdPlacePercentageValue === 'number' ? thirdPlacePercentageValue : 0) +
+    (typeof fourthPlacePercentageValue === 'number' ? fourthPlacePercentageValue : 0);
 
   const percentageSumValid = Math.abs(percentageSum - 100) < 0.01;
 
@@ -143,10 +153,14 @@ export function OnboardingPage() {
   if (data.thirdPlaceEnabled && thirdPlacePercentageValue == null) {
     prizeValidationMessages.push('Defina um percentual válido para o 3º lugar (0 a 100).');
   }
+  if (data.fourthPlaceEnabled && fourthPlacePercentageValue == null) {
+    prizeValidationMessages.push('Defina um percentual válido para o 4º lugar (0 a 100).');
+  }
   if (
     championPercentageValue != null &&
     runnerUpPercentageValue != null &&
     thirdPlacePercentageValue != null &&
+    fourthPlacePercentageValue != null &&
     !percentageSumValid
   ) {
     prizeValidationMessages.push(
@@ -159,6 +173,7 @@ export function OnboardingPage() {
     championPercentageValue != null &&
     runnerUpPercentageValue != null &&
     thirdPlacePercentageValue != null &&
+    fourthPlacePercentageValue != null &&
     percentageSumValid;
 
   const preview = calculatePreview({
@@ -168,6 +183,7 @@ export function OnboardingPage() {
     championPercentage: championPercentageValue ?? 0,
     runnerUpPercentage: runnerUpPercentageValue ?? 0,
     thirdPlacePercentage: thirdPlacePercentageValue ?? 0,
+    fourthPlacePercentage: fourthPlacePercentageValue ?? 0,
   });
 
   const canContinue =
@@ -225,6 +241,8 @@ export function OnboardingPage() {
     const safeRunnerUpPercentage = runnerUpPercentageValue ?? DEFAULT_RUNNER_UP_PERCENTAGE;
     const safeThirdPlacePercentage =
       thirdPlacePercentageValue ?? DEFAULT_THIRD_PLACE_PERCENTAGE;
+    const safeFourthPlacePercentage =
+      fourthPlacePercentageValue ?? DEFAULT_FOURTH_PLACE_PERCENTAGE;
 
     setIsSubmitting(true);
     setError(null);
@@ -239,6 +257,7 @@ export function OnboardingPage() {
           championPercentage: safeChampionPercentage,
           runnerUpPercentage: safeRunnerUpPercentage,
           thirdPlacePercentage: safeThirdPlacePercentage,
+          fourthPlacePercentage: safeFourthPlacePercentage,
           firstPlacePercentage: safeChampionPercentage,
           secondPlacePercentage: safeRunnerUpPercentage,
         }),
@@ -440,6 +459,34 @@ export function OnboardingPage() {
                     }
                   />
                 )}
+
+                {data.thirdPlaceEnabled && (
+                  <label className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-gray-100">
+                    <input
+                      type="checkbox"
+                      checked={data.fourthPlaceEnabled}
+                      onChange={(event) =>
+                        setData((previous) => ({
+                          ...previous,
+                          fourthPlaceEnabled: event.target.checked,
+                        }))
+                      }
+                      className="h-5 w-5 rounded border-gray-600 bg-gray-900 text-emerald-500"
+                    />
+                    Incluir premiação para 4º lugar
+                  </label>
+                )}
+
+                {data.thirdPlaceEnabled && data.fourthPlaceEnabled && (
+                  <PercentageInput
+                    id="fourth-place-percentage"
+                    label="Percentual do 4º lugar"
+                    value={data.fourthPlacePercentage}
+                    onChange={(value) =>
+                      setData((previous) => ({ ...previous, fourthPlacePercentage: value }))
+                    }
+                  />
+                )}
               </div>
             )}
 
@@ -515,6 +562,7 @@ export function OnboardingPage() {
             <FinancialPreviewCard
               preview={preview}
               thirdPlaceEnabled={data.thirdPlaceEnabled}
+              fourthPlaceEnabled={data.fourthPlaceEnabled}
             />
 
             <ul className="mb-5 max-h-64 space-y-2 overflow-auto pr-1">
@@ -622,9 +670,11 @@ function PercentageInput({
 function FinancialPreviewCard({
   preview,
   thirdPlaceEnabled,
+  fourthPlaceEnabled,
 }: {
   preview: FinancialPreview;
   thirdPlaceEnabled: boolean;
+  fourthPlaceEnabled: boolean;
 }) {
   return (
     <div className="mb-4 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
@@ -637,6 +687,9 @@ function FinancialPreviewCard({
         <PreviewLine label="Valor do vice" value={formatCurrency(preview.runnerUpAmount)} />
         {thirdPlaceEnabled && (
           <PreviewLine label="Valor do terceiro" value={formatCurrency(preview.thirdPlaceAmount)} />
+        )}
+        {thirdPlaceEnabled && fourthPlaceEnabled && (
+          <PreviewLine label="Valor do quarto" value={formatCurrency(preview.fourthPlaceAmount)} />
         )}
       </div>
     </div>

@@ -7,6 +7,8 @@ export interface OnboardingData {
   runnerUpPercentage: string;
   thirdPlacePercentage: string;
   thirdPlaceEnabled: boolean;
+  fourthPlacePercentage: string;
+  fourthPlaceEnabled: boolean;
 }
 
 export interface OnboardingResult {

@@ -39,6 +39,22 @@ export function TournamentSettingsPage() {
     value: '30',
     sourceId: null,
   });
+  const [thirdPctState, setThirdPctState] = useState<FieldState>({
+    value: '0',
+    sourceId: null,
+  });
+  const [fourthPctState, setFourthPctState] = useState<FieldState>({
+    value: '0',
+    sourceId: null,
+  });
+  const [thirdEnabledState, setThirdEnabledState] = useState<{ value: boolean; sourceId: string | null }>({
+    value: false,
+    sourceId: null,
+  });
+  const [fourthEnabledState, setFourthEnabledState] = useState<{ value: boolean; sourceId: string | null }>({
+    value: false,
+    sourceId: null,
+  });
   const [saved, setSaved] = useState(false);
 
   const tournamentKey = data?.id ?? null;
@@ -46,6 +62,8 @@ export function TournamentSettingsPage() {
   const organizerPercentageValue = data?.organizerPercentage;
   const firstPlacePercentageValue = data?.firstPlacePercentage;
   const secondPlacePercentageValue = data?.secondPlacePercentage;
+  const thirdPlacePercentageValue = data?.thirdPlacePercentage;
+  const fourthPlacePercentageValue = data?.fourthPlacePercentage;
   const hasDetails = data != null;
 
   const serverDefaults = useMemo(() => {
@@ -58,6 +76,12 @@ export function TournamentSettingsPage() {
         firstPlacePercentageValue != null ? String(firstPlacePercentageValue) : '70',
       secondPlacePercentage:
         secondPlacePercentageValue != null ? String(secondPlacePercentageValue) : '30',
+      thirdPlacePercentage:
+        thirdPlacePercentageValue != null ? String(thirdPlacePercentageValue) : '0',
+      fourthPlacePercentage:
+        fourthPlacePercentageValue != null ? String(fourthPlacePercentageValue) : '0',
+      thirdEnabled: thirdPlacePercentageValue != null && thirdPlacePercentageValue > 0,
+      fourthEnabled: fourthPlacePercentageValue != null && fourthPlacePercentageValue > 0,
     };
   }, [
     hasDetails,
@@ -66,6 +90,8 @@ export function TournamentSettingsPage() {
     organizerPercentageValue,
     firstPlacePercentageValue,
     secondPlacePercentageValue,
+    thirdPlacePercentageValue,
+    fourthPlacePercentageValue,
   ]);
 
   const entryFee =
@@ -84,6 +110,22 @@ export function TournamentSettingsPage() {
     secondPctState.sourceId === tournamentKey
       ? secondPctState.value
       : serverDefaults?.secondPlacePercentage ?? '30';
+  const thirdPct =
+    thirdPctState.sourceId === tournamentKey
+      ? thirdPctState.value
+      : serverDefaults?.thirdPlacePercentage ?? '0';
+  const fourthPct =
+    fourthPctState.sourceId === tournamentKey
+      ? fourthPctState.value
+      : serverDefaults?.fourthPlacePercentage ?? '0';
+  const thirdEnabled =
+    thirdEnabledState.sourceId === tournamentKey
+      ? thirdEnabledState.value
+      : serverDefaults?.thirdEnabled ?? false;
+  const fourthEnabled =
+    fourthEnabledState.sourceId === tournamentKey
+      ? fourthEnabledState.value
+      : serverDefaults?.fourthEnabled ?? false;
 
   const handleEntryFeeChange = (value: string) => {
     setEntryFeeState({ value, sourceId: tournamentKey });
@@ -98,15 +140,6 @@ export function TournamentSettingsPage() {
   const handleFirstPctChange = (value: string) => {
     setFirstPctState({ value, sourceId: tournamentKey });
     setSaved(false);
-
-    const num = parseFloat(value);
-    if (!isNaN(num) && num >= 0 && num <= 100) {
-      const remaining = Math.max(100 - num, 0);
-      setSecondPctState({
-        value: String(Math.round(remaining * 100) / 100),
-        sourceId: tournamentKey,
-      });
-    }
   };
 
   const handleSecondPctChange = (value: string) => {
@@ -114,14 +147,49 @@ export function TournamentSettingsPage() {
     setSaved(false);
   };
 
+  const handleThirdPctChange = (value: string) => {
+    setThirdPctState({ value, sourceId: tournamentKey });
+    setSaved(false);
+  };
+
+  const handleFourthPctChange = (value: string) => {
+    setFourthPctState({ value, sourceId: tournamentKey });
+    setSaved(false);
+  };
+
+  const handleThirdEnabledChange = (checked: boolean) => {
+    setThirdEnabledState({ value: checked, sourceId: tournamentKey });
+    setSaved(false);
+    if (!checked) {
+      setThirdPctState({ value: '0', sourceId: tournamentKey });
+      setFourthEnabledState({ value: false, sourceId: tournamentKey });
+      setFourthPctState({ value: '0', sourceId: tournamentKey });
+    }
+  };
+
+  const handleFourthEnabledChange = (checked: boolean) => {
+    setFourthEnabledState({ value: checked, sourceId: tournamentKey });
+    setSaved(false);
+    if (!checked) {
+      setFourthPctState({ value: '0', sourceId: tournamentKey });
+    }
+  };
+
   const resetFieldOverrides = () => {
     setEntryFeeState({ value: '', sourceId: null });
     setOrganizerPctState({ value: '', sourceId: null });
     setFirstPctState({ value: '70', sourceId: null });
     setSecondPctState({ value: '30', sourceId: null });
+    setThirdPctState({ value: '0', sourceId: null });
+    setFourthPctState({ value: '0', sourceId: null });
+    setThirdEnabledState({ value: false, sourceId: null });
+    setFourthEnabledState({ value: false, sourceId: null });
   };
 
   const playerCount = data?.playerCount ?? 0;
+
+  const effectiveThirdPct = thirdEnabled ? (parseFloat(thirdPct) || 0) : 0;
+  const effectiveFourthPct = thirdEnabled && fourthEnabled ? (parseFloat(fourthPct) || 0) : 0;
 
   const preview = useMemo(() => {
     const fee = parseFloat(entryFee) || 0;
@@ -134,9 +202,11 @@ export function TournamentSettingsPage() {
     const prizePool = Math.max(totalCollected - organizerAmount, 0);
     const firstPlace = prizePool * (fp / 100);
     const secondPlace = prizePool * (sp / 100);
+    const thirdPlace = prizePool * (effectiveThirdPct / 100);
+    const fourthPlace = prizePool * (effectiveFourthPct / 100);
 
-    return { totalCollected, organizerAmount, prizePool, firstPlace, secondPlace };
-  }, [entryFee, organizerPct, firstPct, secondPct, playerCount]);
+    return { totalCollected, organizerAmount, prizePool, firstPlace, secondPlace, thirdPlace, fourthPlace };
+  }, [entryFee, organizerPct, firstPct, secondPct, effectiveThirdPct, effectiveFourthPct, playerCount]);
 
   const savedSnapshot = useMemo(() => {
     if (!data || data.totalCollected == null) return null;
@@ -148,18 +218,24 @@ export function TournamentSettingsPage() {
       prizePool: data.prizePool ?? 0,
       firstPlace: data.firstPlacePrize ?? 0,
       secondPlace: data.secondPlacePrize ?? 0,
+      thirdPlace: data.thirdPlacePrize ?? 0,
+      fourthPlace: data.fourthPlacePrize ?? 0,
     };
   }, [data]);
 
   const organizerNumber = parseFloat(organizerPct);
   const firstNumber = parseFloat(firstPct);
   const secondNumber = parseFloat(secondPct);
-  const pctSum = (firstNumber || 0) + (secondNumber || 0);
+  const thirdNumber = effectiveThirdPct;
+  const fourthNumber = effectiveFourthPct;
+  const pctSum = (firstNumber || 0) + (secondNumber || 0) + thirdNumber + fourthNumber;
   const pctValid = Math.abs(pctSum - 100) < 0.01;
   const organizerValid =
     organizerPct === '' || (organizerNumber >= 0 && organizerNumber <= 100);
   const firstValid = firstPct === '' || (firstNumber >= 0 && firstNumber <= 100);
   const secondValid = secondPct === '' || (secondNumber >= 0 && secondNumber <= 100);
+  const thirdValid = !thirdEnabled || thirdPct === '' || (parseFloat(thirdPct) >= 0 && parseFloat(thirdPct) <= 100);
+  const fourthValid = !fourthEnabled || fourthPct === '' || (parseFloat(fourthPct) >= 0 && parseFloat(fourthPct) <= 100);
 
   const validationMessages: string[] = [];
   if (!pctValid && firstPct !== '' && secondPct !== '') {
@@ -175,6 +251,12 @@ export function TournamentSettingsPage() {
   }
   if (!secondValid) {
     validationMessages.push('O percentual de 2º lugar deve ficar entre 0% e 100%.');
+  }
+  if (!thirdValid) {
+    validationMessages.push('O percentual de 3º lugar deve ficar entre 0% e 100%.');
+  }
+  if (!fourthValid) {
+    validationMessages.push('O percentual de 4º lugar deve ficar entre 0% e 100%.');
   }
 
   const canSave =
@@ -193,6 +275,10 @@ export function TournamentSettingsPage() {
       await updateFinancials(tournamentId!, {
         entryFee: parseFloat(entryFee),
         organizerPercentage: parseFloat(organizerPct),
+        championPercentage: parseFloat(firstPct),
+        runnerUpPercentage: parseFloat(secondPct),
+        thirdPlacePercentage: effectiveThirdPct,
+        fourthPlacePercentage: effectiveFourthPct,
         firstPlacePercentage: parseFloat(firstPct),
         secondPlacePercentage: parseFloat(secondPct),
       });
@@ -369,6 +455,72 @@ export function TournamentSettingsPage() {
                   </div>
                 </div>
               </div>
+
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-100 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={thirdEnabled}
+                  onChange={(e) => handleThirdEnabledChange(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-600 bg-gray-900 text-emerald-500"
+                />
+                Incluir premiação para 3º lugar
+              </label>
+
+              {thirdEnabled && (
+                <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-emerald-500/60 transition">
+                  <label className="block text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold mb-1">
+                    3o lugar
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={thirdPct}
+                      onChange={(e) => handleThirdPctChange(e.target.value)}
+                      className="flex-1 bg-transparent text-white text-lg font-semibold focus:outline-none"
+                    />
+                    <span className="text-gray-500 text-xs font-semibold tracking-[0.4em] uppercase">
+                      %
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {thirdEnabled && (
+                <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-100 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={fourthEnabled}
+                    onChange={(e) => handleFourthEnabledChange(e.target.checked)}
+                    className="h-5 w-5 rounded border-gray-600 bg-gray-900 text-emerald-500"
+                  />
+                  Incluir premiação para 4º lugar
+                </label>
+              )}
+
+              {thirdEnabled && fourthEnabled && (
+                <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-emerald-500/60 transition">
+                  <label className="block text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold mb-1">
+                    4o lugar
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={fourthPct}
+                      onChange={(e) => handleFourthPctChange(e.target.value)}
+                      className="flex-1 bg-transparent text-white text-lg font-semibold focus:outline-none"
+                    />
+                    <span className="text-gray-500 text-xs font-semibold tracking-[0.4em] uppercase">
+                      %
+                    </span>
+                  </div>
+                </div>
+              )}
             </fieldset>
 
             {validationMessages.length > 0 && (
@@ -448,6 +600,20 @@ export function TournamentSettingsPage() {
                   value={formatCurrency(preview.secondPlace)}
                   tone="slate"
                 />
+                {thirdEnabled && (
+                  <PreviewCard
+                    label={`3º lugar (${formatPercent(thirdPct)}%)`}
+                    value={formatCurrency(preview.thirdPlace)}
+                    tone="slate"
+                  />
+                )}
+                {thirdEnabled && fourthEnabled && (
+                  <PreviewCard
+                    label={`4º lugar (${formatPercent(fourthPct)}%)`}
+                    value={formatCurrency(preview.fourthPlace)}
+                    tone="slate"
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -471,6 +637,12 @@ export function TournamentSettingsPage() {
                 <SummaryRow label="Premiacao" value={formatCurrency(savedSnapshot.prizePool)} />
                 <SummaryRow label="1º lugar" value={formatCurrency(savedSnapshot.firstPlace)} />
                 <SummaryRow label="2º lugar" value={formatCurrency(savedSnapshot.secondPlace)} />
+                {savedSnapshot.thirdPlace > 0 && (
+                  <SummaryRow label="3º lugar" value={formatCurrency(savedSnapshot.thirdPlace)} />
+                )}
+                {savedSnapshot.fourthPlace > 0 && (
+                  <SummaryRow label="4º lugar" value={formatCurrency(savedSnapshot.fourthPlace)} />
+                )}
               </dl>
             ) : (
               <p className="text-sm text-gray-500">

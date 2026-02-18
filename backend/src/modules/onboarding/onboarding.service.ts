@@ -7,6 +7,7 @@ const DEFAULT_ORGANIZER_PERCENTAGE = 10;
 const DEFAULT_CHAMPION_PERCENTAGE = 70;
 const DEFAULT_RUNNER_UP_PERCENTAGE = 30;
 const DEFAULT_THIRD_PLACE_PERCENTAGE = 0;
+const DEFAULT_FOURTH_PLACE_PERCENTAGE = 0;
 
 export interface OnboardingInput {
   organizerId: string;
@@ -17,6 +18,7 @@ export interface OnboardingInput {
   championPercentage?: number;
   runnerUpPercentage?: number;
   thirdPlacePercentage?: number | null;
+  fourthPlacePercentage?: number | null;
   firstPlacePercentage?: number;
   secondPlacePercentage?: number;
 }
@@ -39,6 +41,7 @@ export async function runOnboardingSetup(
     championPercentage,
     runnerUpPercentage,
     thirdPlacePercentage,
+    fourthPlacePercentage,
     firstPlacePercentage,
     secondPlacePercentage,
   } = input;
@@ -93,6 +96,15 @@ export async function runOnboardingSetup(
   }
 
   if (
+    fourthPlacePercentage != null &&
+    (!Number.isFinite(fourthPlacePercentage) ||
+      fourthPlacePercentage < 0 ||
+      fourthPlacePercentage > 100)
+  ) {
+    throw new OnboardingError('Fourth place percentage must be between 0 and 100', 400);
+  }
+
+  if (
     firstPlacePercentage != null &&
     (!Number.isFinite(firstPlacePercentage) ||
       firstPlacePercentage < 0 ||
@@ -123,17 +135,20 @@ export async function runOnboardingSetup(
     DEFAULT_RUNNER_UP_PERCENTAGE;
   const safeThirdPlacePercentage =
     thirdPlacePercentage ?? DEFAULT_THIRD_PLACE_PERCENTAGE;
+  const safeFourthPlacePercentage =
+    fourthPlacePercentage ?? DEFAULT_FOURTH_PLACE_PERCENTAGE;
 
   if (
     Math.abs(
       safeChampionPercentage +
         safeRunnerUpPercentage +
-        safeThirdPlacePercentage -
+        safeThirdPlacePercentage +
+        safeFourthPlacePercentage -
         100
     ) > 0.01
   ) {
     throw new OnboardingError(
-      'Champion, runner-up and third place percentages must sum to 100',
+      'Champion, runner-up, third and fourth place percentages must sum to 100',
       400
     );
   }
@@ -145,6 +160,7 @@ export async function runOnboardingSetup(
     championPercentage: safeChampionPercentage,
     runnerUpPercentage: safeRunnerUpPercentage,
     thirdPlacePercentage: safeThirdPlacePercentage,
+    fourthPlacePercentage: safeFourthPlacePercentage,
   });
 
   const result = await prisma.$transaction(async (tx) => {
@@ -158,6 +174,7 @@ export async function runOnboardingSetup(
         championPercentage: new Decimal(safeChampionPercentage),
         runnerUpPercentage: new Decimal(safeRunnerUpPercentage),
         thirdPlacePercentage: new Decimal(safeThirdPlacePercentage),
+        fourthPlacePercentage: new Decimal(safeFourthPlacePercentage),
         firstPlacePercentage: new Decimal(safeChampionPercentage),
         secondPlacePercentage: new Decimal(safeRunnerUpPercentage),
         totalCollected: new Decimal(snapshot.totalCollected),
