@@ -73,7 +73,7 @@ export function InteractiveMatchCard({
 
       {isBye && (
         <footer className="border-t border-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
-          Vitoria por BYE
+          Avançou automaticamente
         </footer>
       )}
     </article>

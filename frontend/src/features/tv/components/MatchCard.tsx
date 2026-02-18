@@ -20,7 +20,7 @@ export function MatchCard({ match }: MatchCardProps) {
       <div className="rounded-2xl p-4 min-w-48 border border-amber-500/30 bg-[#0C0A09]/70 shadow-[0_20px_45px_rgba(0,0,0,0.5)]">
         <PlayerSlot player={match.player1} isWinner={true} isEliminated={false} />
         <div className="border-t border-gray-700 my-1" />
-        <div className="py-1 px-2 text-gray-600 text-sm italic">BYE</div>
+        <div className="py-1 px-2 text-gray-600 text-sm italic">Avançou automaticamente</div>
       </div>
     );
   }

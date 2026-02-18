@@ -205,3 +205,131 @@ describe('edge cases', () => {
     expect(Math.log2(bracketSize)).toBe(5); // 5 rounds
   });
 });
+
+describe('multi-round BYE pairing logic', () => {
+  /**
+   * Simulates the pairing loop from recordMatchResult() to verify
+   * correct behavior for even and odd winner counts.
+   */
+  function buildNextRoundMatches(
+    completedMatches: Array<{ winnerId: string; positionInBracket: number }>
+  ) {
+    const nextMatches: Array<{
+      player1Id: string;
+      player2Id: string | null;
+      winnerId: string | null;
+      isBye: boolean;
+      positionInBracket: number;
+    }> = [];
+
+    for (let i = 0; i < completedMatches.length; i += 2) {
+      const positionInBracket = Math.floor(i / 2) + 1;
+      const player1Id = completedMatches[i].winnerId;
+
+      if (i + 1 < completedMatches.length) {
+        nextMatches.push({
+          player1Id,
+          player2Id: completedMatches[i + 1].winnerId,
+          winnerId: null,
+          isBye: false,
+          positionInBracket,
+        });
+      } else {
+        nextMatches.push({
+          player1Id,
+          player2Id: null,
+          winnerId: player1Id,
+          isBye: true,
+          positionInBracket,
+        });
+      }
+    }
+
+    return nextMatches;
+  }
+
+  it('pairs even winner count without creating BYE matches', () => {
+    const completed = [
+      { winnerId: 'w1', positionInBracket: 1 },
+      { winnerId: 'w2', positionInBracket: 2 },
+      { winnerId: 'w3', positionInBracket: 3 },
+      { winnerId: 'w4', positionInBracket: 4 },
+    ];
+
+    const nextRound = buildNextRoundMatches(completed);
+
+    expect(nextRound).toHaveLength(2);
+    expect(nextRound.every((m) => !m.isBye)).toBe(true);
+    expect(nextRound[0]).toEqual({
+      player1Id: 'w1',
+      player2Id: 'w2',
+      winnerId: null,
+      isBye: false,
+      positionInBracket: 1,
+    });
+    expect(nextRound[1]).toEqual({
+      player1Id: 'w3',
+      player2Id: 'w4',
+      winnerId: null,
+      isBye: false,
+      positionInBracket: 2,
+    });
+  });
+
+  it('creates BYE match for odd winner count', () => {
+    const completed = [
+      { winnerId: 'w1', positionInBracket: 1 },
+      { winnerId: 'w2', positionInBracket: 2 },
+      { winnerId: 'w3', positionInBracket: 3 },
+    ];
+
+    const nextRound = buildNextRoundMatches(completed);
+
+    expect(nextRound).toHaveLength(2);
+
+    // First match: normal pairing
+    expect(nextRound[0]).toEqual({
+      player1Id: 'w1',
+      player2Id: 'w2',
+      winnerId: null,
+      isBye: false,
+      positionInBracket: 1,
+    });
+
+    // Second match: BYE auto-advancement
+    expect(nextRound[1]).toEqual({
+      player1Id: 'w3',
+      player2Id: null,
+      winnerId: 'w3',
+      isBye: true,
+      positionInBracket: 2,
+    });
+  });
+
+  it('BYE match has winnerId pre-set and player2Id null', () => {
+    const completed = [
+      { winnerId: 'solo', positionInBracket: 1 },
+    ];
+
+    const nextRound = buildNextRoundMatches(completed);
+
+    expect(nextRound).toHaveLength(1);
+    expect(nextRound[0].isBye).toBe(true);
+    expect(nextRound[0].winnerId).toBe('solo');
+    expect(nextRound[0].player2Id).toBeNull();
+  });
+
+  it('handles single match (2 winners) correctly', () => {
+    const completed = [
+      { winnerId: 'a', positionInBracket: 1 },
+      { winnerId: 'b', positionInBracket: 2 },
+    ];
+
+    const nextRound = buildNextRoundMatches(completed);
+
+    expect(nextRound).toHaveLength(1);
+    expect(nextRound[0].isBye).toBe(false);
+    expect(nextRound[0].player1Id).toBe('a');
+    expect(nextRound[0].player2Id).toBe('b');
+  });
+});

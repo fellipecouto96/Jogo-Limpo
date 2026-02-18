@@ -150,13 +150,29 @@ export async function recordMatchResult(
 
     const nextMatches = [];
     for (let i = 0; i < completedMatches.length; i += 2) {
-      nextMatches.push({
-        tournamentId,
-        roundId: nextRound.id,
-        player1Id: completedMatches[i].winnerId!,
-        player2Id: completedMatches[i + 1].winnerId!,
-        positionInBracket: Math.floor(i / 2) + 1,
-      });
+      const positionInBracket = Math.floor(i / 2) + 1;
+      const player1Id = completedMatches[i].winnerId!;
+
+      if (i + 1 < completedMatches.length) {
+        nextMatches.push({
+          tournamentId,
+          roundId: nextRound.id,
+          player1Id,
+          player2Id: completedMatches[i + 1].winnerId!,
+          positionInBracket,
+        });
+      } else {
+        nextMatches.push({
+          tournamentId,
+          roundId: nextRound.id,
+          player1Id,
+          player2Id: null,
+          winnerId: player1Id,
+          isBye: true,
+          positionInBracket,
+          finishedAt: new Date(),
+        });
+      }
     }
 
     await tx.match.createMany({ data: nextMatches });
@@ -215,6 +231,7 @@ export async function undoLastMatchResult(
           select: {
             id: true,
             winnerId: true,
+            isBye: true,
           },
         },
       },
@@ -222,7 +239,7 @@ export async function undoLastMatchResult(
 
     if (nextRound) {
       const hasResolvedMatch = nextRound.matches.some(
-        (nextMatch) => nextMatch.winnerId !== null
+        (nextMatch) => nextMatch.winnerId !== null && !nextMatch.isBye
       );
       if (hasResolvedMatch) {
         throw new MatchError(
