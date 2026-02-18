@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.ts';
 import { Sidebar } from './Sidebar.tsx';
+import { OnboardingToast } from '../../shared/OnboardingToast.tsx';
 
 export function AppLayout() {
   const { organizer } = useAuth();
@@ -44,6 +45,7 @@ export function AppLayout() {
         {/* Page content */}
         <main className="flex-1 p-4 lg:p-8">
           <Outlet />
+          <OnboardingToast />
         </main>
       </div>
     </div>

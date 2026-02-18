@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { OnboardingData, OnboardingResult } from './types.ts';
 import { apiFetch } from '../../shared/api.ts';
+import { useOnboarding } from '../../shared/useOnboarding.ts';
+import { OnboardingHint } from '../../shared/OnboardingHint.tsx';
 
 const MIN_PLAYERS = 2;
 const REQUIRE_DOUBLE_TAP_CONFIRM = false;
-const STEP_LABELS = ['Dados', 'Jogadores'];
+const STEP_LABELS_DEFAULT = ['Dados', 'Jogadores'];
+const STEP_LABELS_ONBOARDING = ['Informações', 'Premiação', 'Jogadores', 'Sorteio'];
 const DEFAULT_ORGANIZER_PERCENTAGE = 10;
 const DEFAULT_CHAMPION_PERCENTAGE = 70;
 const DEFAULT_RUNNER_UP_PERCENTAGE = 30;
@@ -92,6 +95,7 @@ function calculatePreview(input: {
 
 export function OnboardingPage() {
   const navigate = useNavigate();
+  const { isActive: onboardingActive, isIdle, recordInteraction } = useOnboarding();
   const [step, setStep] = useState<FlowStep>(0);
   const [data, setData] = useState<OnboardingData>({
     tournamentName: '',
@@ -295,8 +299,24 @@ export function OnboardingPage() {
       ? 'Confirmar sorteio'
       : `Sortear (${uniquePlayers.length} jogador${uniquePlayers.length === 1 ? '' : 'es'})`;
 
+  const stepLabels = onboardingActive ? STEP_LABELS_ONBOARDING : STEP_LABELS_DEFAULT;
+
+  // Map flow step + state to visual segment index for onboarding 4-step bar
+  const activeSegment = onboardingActive
+    ? isSubmitting
+      ? 3
+      : step === 1
+        ? 2
+        : isAdvancedOpen
+          ? 1
+          : 0
+    : step;
+
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-10rem)] w-full max-w-3xl flex-col justify-center">
+    <div
+      className="mx-auto flex min-h-[calc(100vh-10rem)] w-full max-w-3xl flex-col justify-center"
+      onPointerDown={onboardingActive ? recordInteraction : undefined}
+    >
       <div className="mb-6">
         <h1 className="mb-2 font-display text-3xl text-white">Criar torneio</h1>
         <p className="text-base text-gray-300">
@@ -305,19 +325,19 @@ export function OnboardingPage() {
       </div>
 
       <div className="w-full rounded-3xl border border-gray-800 bg-gray-900/80 p-4 sm:p-6">
-        <div className="mb-8 grid grid-cols-2 gap-2">
-          {STEP_LABELS.map((label, i) => (
+        <div className={`mb-8 grid gap-2 ${onboardingActive ? 'grid-cols-4' : 'grid-cols-2'}`}>
+          {stepLabels.map((label, i) => (
             <div key={label}>
               <div
                 className={[
                   'h-2 rounded-full transition-colors',
-                  i <= step ? 'bg-emerald-500' : 'bg-gray-700',
+                  i <= activeSegment ? 'bg-emerald-500' : 'bg-gray-700',
                 ].join(' ')}
               />
               <p
                 className={[
                   'mt-2 text-center text-sm transition-colors',
-                  i <= step ? 'text-gray-200' : 'text-gray-500',
+                  i <= activeSegment ? 'text-gray-200' : 'text-gray-500',
                 ].join(' ')}
               >
                 {label}
@@ -397,6 +417,10 @@ export function OnboardingPage() {
               Modo simples: organizador {DEFAULT_ORGANIZER_PERCENTAGE}% | campeão {DEFAULT_CHAMPION_PERCENTAGE}% | vice {DEFAULT_RUNNER_UP_PERCENTAGE}%
             </div>
 
+            {onboardingActive && (
+              <OnboardingHint id="hint-prize-config" message="Defina quanto fica para o bar e como dividir o prêmio." />
+            )}
+
             <button
               type="button"
               onClick={() => setIsAdvancedOpen((current) => !current)}
@@ -407,6 +431,9 @@ export function OnboardingPage() {
 
             {isAdvancedOpen && (
               <div className="mb-4 space-y-3 rounded-2xl border border-gray-700 bg-gray-950/70 p-4">
+                {onboardingActive && (
+                  <OnboardingHint id="hint-advanced-prize" message="Ajuste cada porcentagem. A soma da premiação deve fechar em 100%." />
+                )}
                 <PercentageInput
                   id="organizer-percentage"
                   label="Percentual do organizador"
@@ -500,6 +527,12 @@ export function OnboardingPage() {
               </div>
             )}
 
+            {onboardingActive && isIdle && step === 0 && (
+              <div className="mb-4 rounded-xl border border-amber-400/20 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-200">
+                Preencha o nome e a taxa para continuar. O modo simples já vem configurado.
+              </div>
+            )}
+
             <div className="space-y-3">
               <button
                 onClick={() => setStep(1)}
@@ -524,6 +557,10 @@ export function OnboardingPage() {
             <p className="mb-5 text-base text-gray-300">
               Adicione um nome por vez e pressione Enter.
             </p>
+
+            {onboardingActive && (
+              <OnboardingHint id="hint-players" message="Adicione os nomes. Você pode editar depois." />
+            )}
 
             <div className="mb-4 flex gap-2">
               <label htmlFor="player-name" className="sr-only">
@@ -605,8 +642,17 @@ export function OnboardingPage() {
               Voltar
             </button>
 
+            {onboardingActive && isIdle && step === 1 && (
+              <div className="mb-4 rounded-xl border border-amber-400/20 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-200">
+                Digite um nome e pressione Enter ou o botão +.
+              </div>
+            )}
+
             <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-800 bg-[#0b1120]/95 backdrop-blur-md">
               <div className="mx-auto w-full max-w-3xl px-4 pb-4 pt-3 sm:px-6">
+                {onboardingActive && canDraw && (
+                  <OnboardingHint id="hint-draw" message="O sistema organiza automaticamente." />
+                )}
                 {!canDraw && (
                   <p className="mb-2 text-sm text-amber-200">
                     Adicione pelo menos {MIN_PLAYERS} jogadores com regras válidas para sortear.

@@ -4,5 +4,21 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     exclude: ['dist/**', 'node_modules/**'],
+    coverage: {
+      provider: 'v8',
+      include: [
+        'src/modules/**/financials.ts',
+        'src/modules/**/draw.service.ts',
+        'src/shared/utils/prng.ts',
+      ],
+      reporter: ['text', 'lcov', 'json-summary'],
+      reportsDirectory: './coverage',
+      thresholds: {
+        lines: 85,
+        functions: 85,
+        branches: 80,
+        statements: 85,
+      },
+    },
   },
 });

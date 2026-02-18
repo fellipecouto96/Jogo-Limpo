@@ -7,6 +7,8 @@ import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import { useTournamentDetails } from './useTournamentDetails.ts';
 import type { BracketMatch, BracketPlayer, BracketRound } from '../tv/types.ts';
 import { apiFetch } from '../../shared/api.ts';
+import { useOnboarding } from '../../shared/useOnboarding.ts';
+import { OnboardingHint } from '../../shared/OnboardingHint.tsx';
 
 interface OrderedMatch {
   match: BracketMatch;
@@ -48,6 +50,13 @@ export function ManageTournamentPage() {
   const [updatingPlayerId, setUpdatingPlayerId] = useState<string | null>(null);
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [isChampionshipCelebrating, setIsChampionshipCelebrating] = useState(false);
+  const {
+    isActive: onboardingActive,
+    triggerToast,
+    markComplete,
+    isIdle,
+    recordInteraction,
+  } = useOnboarding();
   const menuRef = useRef<HTMLDivElement | null>(null);
   const matchRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const previousStatusRef = useRef<string | null>(null);
@@ -74,6 +83,8 @@ export function ManageTournamentPage() {
       tournamentStatus === 'FINISHED'
     ) {
       setIsChampionshipCelebrating(true);
+      triggerToast('toast-tournament-finished');
+      markComplete();
     }
     if (tournamentStatus !== 'FINISHED') {
       setIsChampionshipCelebrating(false);
@@ -263,6 +274,7 @@ export function ManageTournamentPage() {
         positionInBracket: entry.match.positionInBracket,
       });
       await Promise.all([refetch(), refetchDetails()]);
+      triggerToast('toast-first-winner');
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Erro ao registrar resultado');
     } finally {
@@ -354,6 +366,20 @@ export function ManageTournamentPage() {
     setScrollToMatchId(null);
   }, [scrollToMatchId, data]);
 
+  // Draw toast: fires once when a fresh tournament bracket loads
+  const drawToastFiredRef = useRef(false);
+  useEffect(() => {
+    if (drawToastFiredRef.current) return;
+    if (!data) return;
+    const ordered = getOrderedMatches(data.rounds);
+    const playable = ordered.filter(({ match }) => !match.isBye && match.player2 !== null);
+    const completed = playable.filter(({ match }) => Boolean(match.winner));
+    if (playable.length > 0 && completed.length === 0) {
+      drawToastFiredRef.current = true;
+      triggerToast('toast-first-draw');
+    }
+  }, [data, triggerToast]);
+
   if (isLoading) {
     return (
       <p className="text-gray-500 text-sm py-12 text-center">
@@ -385,7 +411,7 @@ export function ManageTournamentPage() {
   const runnerUp = details?.runnerUp ?? runnerUpFromBracket;
 
   return (
-    <div>
+    <div onPointerDown={onboardingActive ? recordInteraction : undefined}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
@@ -541,6 +567,14 @@ export function ManageTournamentPage() {
       {/* Live operation */}
       {totalRounds > 0 && (
         <section className="space-y-4 pb-32">
+          {onboardingActive && activeMatches.length > 0 && (
+            <OnboardingHint id="hint-match" message="Toque no vencedor para avançar." />
+          )}
+          {onboardingActive && isIdle && activeMatches.length > 0 && (
+            <div className="rounded-xl border border-amber-400/20 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-200">
+              Selecione o jogador que venceu a partida para registrar o resultado.
+            </div>
+          )}
           <div className="rounded-2xl border border-gray-800 bg-[#0b1120] p-4">
             <p className="mb-3 text-sm font-semibold text-gray-200">
               {completedCount} de {totalCount} partidas concluídas

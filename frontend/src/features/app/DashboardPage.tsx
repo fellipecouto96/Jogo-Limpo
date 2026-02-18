@@ -2,10 +2,39 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.ts';
 import { useDashboard } from './useDashboard.ts';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
+import { useOnboarding } from '../../shared/useOnboarding.ts';
 
 export function DashboardPage() {
   const { organizer } = useAuth();
   const { data, error, isLoading } = useDashboard();
+  const hasTournaments = data ? data.tournaments.length > 0 : undefined;
+  const { showWelcome, dismissWelcome } = useOnboarding(hasTournaments);
+
+  if (showWelcome) {
+    return (
+      <div className="mx-auto flex min-h-[calc(100vh-10rem)] w-full max-w-md flex-col items-center justify-center text-center">
+        <h1 className="mb-3 font-display text-3xl text-white">
+          Vamos organizar seu primeiro torneio?
+        </h1>
+        <p className="mb-8 text-base text-gray-300">
+          Você cria, adiciona os jogadores e o sistema cuida do resto.
+        </p>
+        <Link
+          to="/app/new"
+          className="flex h-14 w-full items-center justify-center rounded-2xl bg-emerald-500 text-lg font-bold text-gray-950 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/60 [touch-action:manipulation]"
+        >
+          Criar torneio
+        </Link>
+        <button
+          type="button"
+          onClick={dismissWelcome}
+          className="mt-3 flex h-12 w-full items-center justify-center rounded-2xl bg-gray-800 text-base font-semibold text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gray-500/60 [touch-action:manipulation]"
+        >
+          Explorar primeiro
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>
