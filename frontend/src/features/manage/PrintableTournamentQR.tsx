@@ -5,6 +5,7 @@ import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { resolveGuidedSystemError } from '../../shared/systemErrors.ts';
 import { usePublicTournament } from '../public-profile/usePublicProfile.ts';
 import { logClientPerformance } from '../../shared/logger.ts';
+import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
 
 export function PrintableTournamentQR() {
   const mountStartedAt = useRef<number | null>(null);
@@ -36,7 +37,10 @@ export function PrintableTournamentQR() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-8">
-        <p className="text-gray-500 text-base">Carregando...</p>
+        <ProgressiveLoadingMessage
+          initialMessage="Preparando QR Code"
+          className="text-gray-600 text-base min-h-6"
+        />
       </div>
     );
   }

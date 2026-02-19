@@ -7,6 +7,7 @@ import {
   getRemainingPercentageMessage,
   parseGuidedSystemErrorText,
 } from '../../shared/systemErrors.ts';
+import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
 
 function formatCurrency(value: number): string {
   if (!isFinite(value)) return 'R$\u00a00,00';
@@ -300,7 +301,9 @@ export function TournamentSettingsPage() {
 
   if (isLoading) {
     return (
-      <p className="text-gray-500 text-sm py-12 text-center">Carregando...</p>
+      <div className="py-12 text-center">
+        <ProgressiveLoadingMessage className="text-gray-400 text-sm min-h-6" />
+      </div>
     );
   }
 
@@ -600,7 +603,7 @@ export function TournamentSettingsPage() {
               {isTournamentFinished
                 ? 'Torneio finalizado'
                 : isSubmitting
-                  ? 'Salvando...'
+                  ? 'Salvando configuracoes'
                   : 'Salvar configurações'}
             </button>
           </fieldset>

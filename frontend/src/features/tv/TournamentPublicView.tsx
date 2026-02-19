@@ -7,6 +7,7 @@ import {
   parseGuidedSystemErrorText,
   resolveGuidedSystemError,
 } from '../../shared/systemErrors.ts';
+import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
 
 interface TournamentPublicViewProps {
   mode: 'tv' | 'mobile';
@@ -19,7 +20,10 @@ export function TournamentPublicView({ mode }: TournamentPublicViewProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <p className="text-white text-2xl">Carregando...</p>
+        <ProgressiveLoadingMessage
+          initialMessage="Carregando torneio"
+          className="text-white text-2xl min-h-8"
+        />
       </div>
     );
   }

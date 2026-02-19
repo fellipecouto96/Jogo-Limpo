@@ -6,6 +6,7 @@ import { ChampionBanner } from '../tv/components/ChampionBanner.tsx';
 import { PublicBadge } from './PublicBadge.tsx';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { resolveGuidedSystemError } from '../../shared/systemErrors.ts';
+import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
 
 export function PublicTournamentDetailPage() {
   const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
@@ -14,7 +15,10 @@ export function PublicTournamentDetailPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <p className="text-white text-lg">Carregando...</p>
+        <ProgressiveLoadingMessage
+          initialMessage="Carregando torneio"
+          className="text-white text-lg min-h-7"
+        />
       </div>
     );
   }

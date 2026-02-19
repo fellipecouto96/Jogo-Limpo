@@ -16,6 +16,7 @@ import {
   parseGuidedSystemErrorText,
   resolveGuidedSystemError,
 } from '../../shared/systemErrors.ts';
+import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
 
 interface OrderedMatch {
   match: BracketMatch;
@@ -344,6 +345,7 @@ export function ManageTournamentPage() {
         ? ` (${player1Score} x ${player2Score})`
         : '';
       setLastActionLabel(`${winnerName} venceu${scoreLabel}`);
+      setFeedback('\u2714 Resultado registrado');
       setScrollFromMatch({
         roundNumber: entry.roundNumber,
         positionInBracket: entry.match.positionInBracket,
@@ -505,9 +507,9 @@ export function ManageTournamentPage() {
 
   if (isLoading) {
     return (
-      <p className="text-gray-500 text-sm py-12 text-center">
-        Carregando...
-      </p>
+      <div className="py-12 text-center">
+        <ProgressiveLoadingMessage className="text-gray-400 text-sm min-h-6" />
+      </div>
     );
   }
 
@@ -783,9 +785,9 @@ export function ManageTournamentPage() {
           type="button"
           onClick={handleUndoLastAction}
           disabled={isUndoingLastAction || pendingMatchId !== null}
-          className="fixed bottom-6 right-4 z-50 h-12 rounded-full border border-gray-700 bg-[#111827] px-4 text-sm font-semibold text-white shadow-[0_15px_35px_rgba(0,0,0,0.45)] transition hover:bg-[#1f2937] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/50 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400 [touch-action:manipulation]"
+          className="fixed bottom-6 right-4 z-50 h-12 min-w-[190px] rounded-full border border-gray-700 bg-[#111827] px-4 text-sm font-semibold text-white shadow-[0_15px_35px_rgba(0,0,0,0.45)] transition hover:bg-[#1f2937] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/50 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400 [touch-action:manipulation]"
         >
-          {isUndoingLastAction ? 'Desfazendo...' : 'Desfazer última ação'}
+          {isUndoingLastAction ? 'Atualizando dados' : 'Desfazer última ação'}
         </button>
       )}
 
@@ -859,9 +861,9 @@ export function ManageTournamentPage() {
                       type="button"
                       onClick={() => handleRenamePlayer(player)}
                       disabled={updatingPlayerId === player.id}
-                      className="h-11 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-gray-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400 [touch-action:manipulation]"
+                      className="h-11 min-w-[96px] rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-gray-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400 [touch-action:manipulation]"
                     >
-                      {updatingPlayerId === player.id ? 'Salvando...' : 'Salvar'}
+                      {updatingPlayerId === player.id ? 'Salvando' : 'Salvar'}
                     </button>
                   </div>
                 </li>
@@ -898,7 +900,7 @@ export function ManageTournamentPage() {
                 disabled={isEndingTournament}
                 className="h-12 rounded-xl bg-red-500 text-base font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:bg-gray-700 [touch-action:manipulation]"
               >
-                {isEndingTournament ? 'Encerrando...' : 'Confirmar'}
+                {isEndingTournament ? 'Finalizando torneio' : 'Confirmar'}
               </button>
               <button
                 type="button"
@@ -973,7 +975,7 @@ function ChampionshipClosureScreen({
   if (isLoading) {
     return (
       <div className="rounded-3xl border border-white/5 bg-[#05060c] p-6 animate-pulse text-gray-500">
-        Fechando resultado oficial...
+        Atualizando dados
       </div>
     );
   }

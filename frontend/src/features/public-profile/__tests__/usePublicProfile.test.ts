@@ -139,7 +139,7 @@ describe('usePublicProfile', () => {
     const { result } = renderHook(() => usePublicProfile('joao-a7x2'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.data).toBeNull();
-    expect(result.current.error?.what).toBe('Ocorreu um erro inesperado.');
+    expect(result.current.error?.what).toBe('Nao foi possivel concluir agora.');
   });
 
   it('sets graceful error on network failure', async () => {

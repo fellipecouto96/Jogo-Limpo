@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { parseGuidedSystemErrorText } from '../../shared/systemErrors.ts';
+import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
 
 export function TournamentsPage() {
   const {
@@ -42,7 +43,9 @@ export function TournamentsPage() {
       </Link>
 
       {isLoading && (
-        <p className="text-gray-300 text-center py-12 text-lg">Carregando...</p>
+        <div className="py-12 text-center">
+          <ProgressiveLoadingMessage className="text-gray-300 text-lg min-h-7" />
+        </div>
       )}
 
       {error && (
@@ -133,7 +136,7 @@ export function TournamentsPage() {
             disabled={isLoadingMore}
             className="flex h-12 w-full items-center justify-center rounded-2xl border border-gray-700 bg-gray-900 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isLoadingMore ? 'Carregando...' : 'Carregar mais torneios'}
+            {isLoadingMore ? 'Atualizando dados' : 'Carregar mais torneios'}
           </button>
           <p className="mt-2 text-center text-xs text-gray-500">
             Exibindo {tournaments.length} de {total}

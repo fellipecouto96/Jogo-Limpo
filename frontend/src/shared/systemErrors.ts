@@ -122,16 +122,16 @@ export function resolveGuidedSystemError(options: {
   const connectionMessage: GuidedSystemError = {
     kind: 'connection',
     what: 'Nao foi possivel concluir agora.',
-    why: 'Houve uma instabilidade de conexao.',
-    next: 'Verifique sua conexao e tente novamente.',
+    why: 'Tente novamente em alguns segundos.',
+    next: 'Use o botao abaixo para continuar.',
     actionLabel: 'Tentar novamente',
   };
 
   const unexpectedMessage: GuidedSystemError = {
     kind: 'unexpected',
-    what: 'Ocorreu um erro inesperado.',
-    why: 'Estamos registrando o problema.',
-    next: 'Tente novamente em alguns segundos.',
+    what: 'Nao foi possivel concluir agora.',
+    why: 'Tente novamente em alguns segundos.',
+    next: 'Use o botao abaixo para continuar.',
     actionLabel: 'Tentar novamente',
   };
 

@@ -306,7 +306,7 @@ export function OnboardingPage() {
   };
 
   const drawButtonText = isSubmitting
-    ? 'Sorteando...'
+    ? 'Organizando chave'
     : REQUIRE_DOUBLE_TAP_CONFIRM && canDraw && isDrawArmed
       ? 'Confirmar sorteio'
       : `Sortear (${uniquePlayers.length} jogador${uniquePlayers.length === 1 ? '' : 'es'})`;

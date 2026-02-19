@@ -5,6 +5,7 @@ import {
   formatGuidedSystemError,
   resolveGuidedSystemError,
 } from '../../shared/systemErrors.ts';
+import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
 
 interface Settings {
   publicSlug: string | null;
@@ -106,7 +107,7 @@ export function SettingsPage() {
           <h2 className="text-lg font-bold text-white mb-4">Perfil publico</h2>
 
           {loading ? (
-            <p className="text-sm text-gray-500">Carregando...</p>
+            <ProgressiveLoadingMessage className="text-sm text-gray-400 min-h-6" />
           ) : (
             <div className="space-y-5">
               {/* Slug */}
@@ -157,7 +158,7 @@ export function SettingsPage() {
                 disabled={saving}
                 className="flex h-11 w-full items-center justify-center rounded-xl bg-emerald-500 text-sm font-semibold text-gray-950 transition hover:bg-emerald-400 disabled:opacity-50 [touch-action:manipulation]"
               >
-                {saving ? 'Salvando...' : 'Salvar configuracoes'}
+                {saving ? 'Salvando configuracoes' : 'Salvar configuracoes'}
               </button>
 
               {/* Feedback */}

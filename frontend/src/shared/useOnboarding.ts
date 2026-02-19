@@ -11,7 +11,7 @@ interface OnboardingState {
 
 const TOAST_MESSAGES: Record<string, string> = {
   'toast-first-draw': 'Chave organizada.',
-  'toast-first-winner': 'Avançou corretamente.',
+  'toast-first-winner': '\u2714 Resultado registrado',
   'toast-tournament-finished': 'Torneio finalizado com sucesso.',
 };
 

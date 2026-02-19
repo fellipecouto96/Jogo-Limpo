@@ -67,7 +67,12 @@ export function TournamentQRModal({
               dangerouslySetInnerHTML={{ __html: svgHtml }}
             />
           ) : (
-            <div className="w-full h-full bg-gray-100 animate-pulse rounded" />
+            <div className="relative w-full h-full rounded flex items-center justify-center">
+              <div className="absolute inset-0 bg-gray-100 animate-pulse rounded" />
+              <p className="relative text-[11px] font-medium text-gray-500">
+                Preparando QR Code
+              </p>
+            </div>
           )}
         </div>
 

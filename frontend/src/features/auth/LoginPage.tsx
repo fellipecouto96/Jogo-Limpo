@@ -131,7 +131,7 @@ export function LoginPage() {
             disabled={isLoading}
             className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-700 disabled:text-gray-500 text-gray-950 font-bold py-3 rounded-lg transition-colors"
           >
-            {isLoading ? 'Entrando...' : 'Entrar'}
+            {isLoading ? 'Entrando' : 'Entrar'}
           </button>
         </form>
 
