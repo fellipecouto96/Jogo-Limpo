@@ -5,6 +5,22 @@ export function logClientError(
   message: string,
   metadata?: Record<string, unknown>
 ): void {
+  sendClientLog(journey, message, metadata);
+}
+
+export function logClientPerformance(
+  journey: string,
+  message: string,
+  metadata?: Record<string, unknown>
+): void {
+  sendClientLog(journey, message, metadata);
+}
+
+function sendClientLog(
+  journey: string,
+  message: string,
+  metadata?: Record<string, unknown>
+) {
   try {
     fetch(getApiUrl('/logs'), {
       method: 'POST',

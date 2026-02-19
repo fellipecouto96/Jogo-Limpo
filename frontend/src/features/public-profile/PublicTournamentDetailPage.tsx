@@ -8,11 +8,8 @@ import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { resolveGuidedSystemError } from '../../shared/systemErrors.ts';
 
 export function PublicTournamentDetailPage() {
-  const { slug, tournamentId } = useParams<{
-    slug: string;
-    tournamentId: string;
-  }>();
-  const { data, error, isLoading, refetch } = usePublicTournament(slug!, tournamentId!);
+  const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
+  const { data, error, isLoading, refetch } = usePublicTournament(tournamentSlug!);
 
   if (isLoading) {
     return (
@@ -36,18 +33,19 @@ export function PublicTournamentDetailPage() {
   const { tournament, bracket, statistics } = data;
   const isFinished = tournament.status === 'FINISHED';
 
-  const runnerUp = isFinished && bracket.totalRounds > 0
-    ? deriveRunnerUp(bracket.rounds, bracket.totalRounds)
-    : null;
+  const runnerUp =
+    isFinished && bracket.totalRounds > 0
+      ? deriveRunnerUp(bracket.rounds, bracket.totalRounds)
+      : null;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <div className="mx-auto max-w-2xl px-4 py-8">
         <Link
-          to={`/organizer/${slug}`}
+          to="/"
           className="mb-6 inline-flex items-center text-sm text-gray-400 hover:text-white transition"
         >
-          &larr; Voltar ao perfil
+          &larr; Voltar para a pagina principal
         </Link>
 
         <header className="mb-6">
@@ -61,7 +59,8 @@ export function PublicTournamentDetailPage() {
           </div>
           <p className="text-sm text-gray-400 mt-1">
             {tournament.playerCount} jogador{tournament.playerCount === 1 ? '' : 'es'}
-            {tournament.startedAt && ` · ${formatDate(tournament.startedAt)}`}
+            {' · '}
+            {formatDate(tournament.startedAt ?? tournament.createdAt)}
           </p>
         </header>
 
@@ -71,31 +70,6 @@ export function PublicTournamentDetailPage() {
             runnerUp={runnerUp}
             stats={statistics}
           />
-        )}
-
-        {/* Financials */}
-        {tournament.entryFee !== null && (
-          <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-4">
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Financeiro
-            </h2>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-400">Entrada</p>
-                <p className="text-lg font-bold text-white">
-                  {formatCurrency(tournament.entryFee)}
-                </p>
-              </div>
-              {tournament.prizePool !== null && (
-                <div>
-                  <p className="text-gray-400">Premiacao</p>
-                  <p className="text-lg font-bold text-white">
-                    {formatCurrency(tournament.prizePool)}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
         )}
 
         {/* Statistics */}
@@ -116,6 +90,12 @@ export function PublicTournamentDetailPage() {
               <StatItem
                 label="Maior margem"
                 value={`${statistics.biggestWinMargin.winner} (+${statistics.biggestWinMargin.margin})`}
+              />
+            )}
+            {statistics.finalScore && (
+              <StatItem
+                label="Placar final"
+                value={`${statistics.finalScore.player1} ${statistics.finalScore.score1} x ${statistics.finalScore.score2} ${statistics.finalScore.player2}`}
               />
             )}
           </div>
@@ -157,15 +137,6 @@ function formatDate(iso: string): string {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  });
-}
-
-function formatCurrency(value: number): string {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
   });
 }
 

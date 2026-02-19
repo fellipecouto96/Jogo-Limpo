@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { BracketPlayer, TournamentStatistics } from '../types.ts';
 
 interface ChampionBannerProps {
@@ -6,7 +7,11 @@ interface ChampionBannerProps {
   stats?: TournamentStatistics | null;
 }
 
-export function ChampionBanner({ champion, runnerUp, stats }: ChampionBannerProps) {
+export const ChampionBanner = memo(function ChampionBanner({
+  champion,
+  runnerUp,
+  stats,
+}: ChampionBannerProps) {
   return (
     <div className="mt-4 flex flex-col items-center gap-4">
       <div className="inline-block bg-emerald-500/20 border border-emerald-500 rounded-xl px-8 py-4">
@@ -82,4 +87,4 @@ export function ChampionBanner({ champion, runnerUp, stats }: ChampionBannerProp
       )}
     </div>
   );
-}
+});

@@ -1,37 +1,37 @@
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
 import { generateQRDataUrl } from '../../shared/qrcode.ts';
-import { usePublicProfile } from '../public-profile/usePublicProfile.ts';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { resolveGuidedSystemError } from '../../shared/systemErrors.ts';
+import { usePublicTournament } from '../public-profile/usePublicProfile.ts';
 import { logClientPerformance } from '../../shared/logger.ts';
 
-export function PrintableQR() {
-  const startedAtRef = useRef<number | null>(null);
-  const { slug } = useParams<{ slug: string }>();
-  const { data, error, isLoading, refetch } = usePublicProfile(slug!);
+export function PrintableTournamentQR() {
+  const mountStartedAt = useRef<number | null>(null);
+  const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
+  const { data, error, isLoading, refetch } = usePublicTournament(tournamentSlug!);
   const [qrDataUrl, setQrDataUrl] = useState('');
-  const publicUrl = `${window.location.origin}/organizer/${slug}`;
+  const publicUrl = `${window.location.origin}/tournament/${tournamentSlug}`;
 
   useEffect(() => {
-    startedAtRef.current = performance.now();
+    mountStartedAt.current = performance.now();
   }, []);
 
   useEffect(() => {
-    generateQRDataUrl(publicUrl, 1024).then(setQrDataUrl);
+    generateQRDataUrl(publicUrl, 1200).then(setQrDataUrl);
   }, [publicUrl]);
 
   useEffect(() => {
     if (qrDataUrl && data && !error) {
-      const startedAt = startedAtRef.current ?? performance.now();
+      const startedAt = mountStartedAt.current ?? performance.now();
       const elapsedMs = performance.now() - startedAt;
-      logClientPerformance('qr_perf', 'printable_profile_qr_load_ms', {
+      logClientPerformance('qr_perf', 'printable_tournament_qr_load_ms', {
         durationMs: Number(elapsedMs.toFixed(2)),
-        slug,
+        slug: tournamentSlug,
       });
-      setTimeout(() => window.print(), 400);
+      setTimeout(() => window.print(), 350);
     }
-  }, [data, error, qrDataUrl, slug]);
+  }, [data, error, qrDataUrl, tournamentSlug]);
 
   if (isLoading) {
     return (
@@ -54,7 +54,7 @@ export function PrintableQR() {
     );
   }
 
-  const organizerName = data.name;
+  const tournamentDate = data.tournament.startedAt ?? data.tournament.createdAt;
 
   return (
     <>
@@ -72,64 +72,60 @@ export function PrintableQR() {
       `}</style>
       <div className="min-h-screen bg-white flex items-center justify-center p-8 print:p-0">
         <div className="w-full max-w-[210mm] min-h-[297mm] bg-white flex flex-col items-center justify-center px-12 py-16 print:px-16 print:py-20">
-          {/* Header: organizer name */}
           <p
-            className="text-center text-gray-800 font-bold tracking-wide uppercase"
-            style={{ fontSize: '1.5rem', letterSpacing: '0.08em' }}
+            className="text-center text-gray-700 font-semibold uppercase tracking-[0.24em]"
+            style={{ fontSize: '1rem' }}
           >
-            {organizerName}
+            Torneio
           </p>
 
-          {/* Title */}
           <h1
-            className="mt-8 text-center text-black font-bold leading-tight"
-            style={{ fontSize: '2.5rem' }}
+            className="mt-2 text-center text-black font-bold leading-tight max-w-[16cm]"
+            style={{ fontSize: '2.3rem' }}
           >
-            Acompanhe nossos torneios
+            {data.tournament.name}
           </h1>
 
-          {/* QR Code */}
-          <div className="mt-12 mb-12">
+          <p className="mt-3 text-sm text-gray-500">
+            {formatDate(tournamentDate)}
+          </p>
+
+          <div className="mt-10 mb-8">
             {qrDataUrl ? (
               <img
                 src={qrDataUrl}
-                alt="QR Code"
+                alt="QR Code do torneio"
                 className="mx-auto"
-                style={{ width: '280px', height: '280px' }}
+                style={{ width: '340px', height: '340px' }}
               />
             ) : (
               <div
                 className="mx-auto bg-gray-200 animate-pulse"
-                style={{ width: '280px', height: '280px' }}
+                style={{ width: '340px', height: '340px' }}
               />
             )}
           </div>
 
-          {/* URL */}
           <p
-            className="text-center text-gray-500 break-all"
-            style={{ fontSize: '0.875rem' }}
+            className="text-center text-gray-700 font-semibold"
+            style={{ fontSize: '1.25rem' }}
           >
+            Acompanhe a chave ao vivo
+          </p>
+
+          <p className="mt-4 text-center text-gray-500 break-all text-sm">
             {publicUrl}
-          </p>
-
-          {/* Footer */}
-          <p
-            className="mt-12 text-center text-gray-600 leading-relaxed max-w-md"
-            style={{ fontSize: '1.125rem' }}
-          >
-            Escaneie para ver chave, campeoes e proximos torneios
-          </p>
-
-          {/* Branding */}
-          <p
-            className="mt-auto pt-12 text-center text-gray-400"
-            style={{ fontSize: '0.75rem' }}
-          >
-            Jogo Limpo
           </p>
         </div>
       </div>
     </>
   );
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }

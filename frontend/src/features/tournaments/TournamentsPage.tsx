@@ -1,10 +1,29 @@
 import { useTournaments } from './useTournaments.ts';
 import { Link } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { parseGuidedSystemErrorText } from '../../shared/systemErrors.ts';
 
 export function TournamentsPage() {
-  const { data: tournaments, error, isLoading, refetch } = useTournaments();
+  const {
+    data: tournaments,
+    error,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    total,
+    refetch,
+    loadMore,
+  } = useTournaments();
+  const [showFinished, setShowFinished] = useState(false);
+  const activeTournaments = useMemo(
+    () => tournaments.filter((t) => t.status !== 'FINISHED'),
+    [tournaments]
+  );
+  const finishedTournaments = useMemo(
+    () => tournaments.filter((t) => t.status === 'FINISHED'),
+    [tournaments]
+  );
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -43,7 +62,7 @@ export function TournamentsPage() {
 
       {!isLoading && !error && tournaments.length > 0 && (
         <ul className="space-y-3">
-          {tournaments.map((t) => {
+          {activeTournaments.map((t) => {
             const status =
               t.status === 'RUNNING'
                 ? 'Em andamento'
@@ -69,7 +88,57 @@ export function TournamentsPage() {
               </li>
             );
           })}
+
+          {finishedTournaments.length > 0 && (
+            <li className="pt-2">
+              <button
+                type="button"
+                onClick={() => setShowFinished((current) => !current)}
+                className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-left text-sm font-semibold text-gray-200 transition hover:bg-gray-800"
+              >
+                {showFinished
+                  ? `Ocultar finalizados (${finishedTournaments.length})`
+                  : `Mostrar finalizados (${finishedTournaments.length})`}
+              </button>
+            </li>
+          )}
+
+          {showFinished &&
+            finishedTournaments.map((t) => (
+              <li key={`finished-${t.id}`}>
+                <Link
+                  to={`/app/tournament/${t.id}/history`}
+                  className="flex min-h-16 w-full items-center justify-between rounded-2xl border border-gray-800 bg-gray-900 px-4 py-3 transition hover:border-gray-600 hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40"
+                >
+                  <div>
+                    <p className="text-lg font-semibold text-white">{t.name}</p>
+                    <p className="text-base text-gray-300">
+                      {t.playerCount} jogadores · Finalizado
+                    </p>
+                  </div>
+                  <span className="text-base font-semibold text-emerald-300">
+                    Histórico
+                  </span>
+                </Link>
+              </li>
+            ))}
         </ul>
+      )}
+
+      {!isLoading && !error && hasMore && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={isLoadingMore}
+            className="flex h-12 w-full items-center justify-center rounded-2xl border border-gray-700 bg-gray-900 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isLoadingMore ? 'Carregando...' : 'Carregar mais torneios'}
+          </button>
+          <p className="mt-2 text-center text-xs text-gray-500">
+            Exibindo {tournaments.length} de {total}
+          </p>
+        </div>
       )}
     </div>
   );

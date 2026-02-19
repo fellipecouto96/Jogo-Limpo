@@ -48,6 +48,7 @@ model Player {
 model Tournament {
   id          String           @id @default(uuid())
   name        String
+  publicSlug  String?          @unique @map("public_slug")
   organizerId String           @map("organizer_id")
   status      TournamentStatus @default(DRAFT)
   drawSeed    String?          @map("draw_seed")
@@ -78,6 +79,8 @@ model Tournament {
   matches   Match[]
 
   @@index([organizerId])
+  @@index([organizerId, createdAt])
+  @@index([organizerId, status])
   @@index([status])
   @@map("tournaments")
 }

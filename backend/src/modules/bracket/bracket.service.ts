@@ -1,4 +1,5 @@
 import { prisma } from '../../shared/database/prisma.js';
+import { withPerformanceLog } from '../../shared/logging/performance.service.js';
 
 export interface BracketResponse {
   tournament: {
@@ -35,37 +36,43 @@ interface BracketMatch {
 export async function fetchBracket(
   tournamentId: string
 ): Promise<BracketResponse> {
-  const tournament = await prisma.tournament.findUnique({
-    where: { id: tournamentId },
-    select: {
-      id: true,
-      name: true,
-      status: true,
-      startedAt: true,
-      finishedAt: true,
-      rounds: {
-        orderBy: { roundNumber: 'asc' },
+  const tournament = await withPerformanceLog(
+    'public_page',
+    'fetch_bracket',
+    () =>
+      prisma.tournament.findUnique({
+        where: { id: tournamentId },
         select: {
           id: true,
-          roundNumber: true,
-          matches: {
-            orderBy: { positionInBracket: 'asc' },
+          name: true,
+          status: true,
+          startedAt: true,
+          finishedAt: true,
+          rounds: {
+            orderBy: { roundNumber: 'asc' },
             select: {
               id: true,
-              positionInBracket: true,
-              isBye: true,
-              finishedAt: true,
-              player1Score: true,
-              player2Score: true,
-              player1: { select: { id: true, name: true } },
-              player2: { select: { id: true, name: true } },
-              winner: { select: { id: true, name: true } },
+              roundNumber: true,
+              matches: {
+                orderBy: { positionInBracket: 'asc' },
+                select: {
+                  id: true,
+                  positionInBracket: true,
+                  isBye: true,
+                  finishedAt: true,
+                  player1Score: true,
+                  player2Score: true,
+                  player1: { select: { id: true, name: true } },
+                  player2: { select: { id: true, name: true } },
+                  winner: { select: { id: true, name: true } },
+                },
+              },
             },
           },
         },
-      },
-    },
-  });
+      }),
+    { tournamentId }
+  );
 
   if (!tournament) {
     throw new BracketError('Torneio nao encontrado', 404);

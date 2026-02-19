@@ -4,14 +4,14 @@ import {
   getApiUrl,
   normalizeApiError,
 } from '../../shared/api.ts';
-import { logClientError } from '../../shared/logger.ts';
+import { logClientError, logClientPerformance } from '../../shared/logger.ts';
 import {
   type GuidedSystemError,
   resolveGuidedSystemError,
 } from '../../shared/systemErrors.ts';
 
 interface PublicTournament {
-  id: string;
+  publicSlug: string;
   name: string;
   status: string;
   createdAt: string;
@@ -19,26 +19,29 @@ interface PublicTournament {
   finishedAt: string | null;
   playerCount: number;
   championName: string | null;
-  entryFee: number | null;
-  prizePool: number | null;
 }
 
 interface PublicProfile {
   name: string;
   tournaments: PublicTournament[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
 }
 
 interface PublicTournamentDetail {
   tournament: {
-    id: string;
+    publicSlug: string;
     name: string;
     status: string;
+    createdAt: string;
     startedAt: string | null;
     finishedAt: string | null;
     playerCount: number;
     championName: string | null;
-    entryFee: number | null;
-    prizePool: number | null;
   };
   bracket: {
     tournament: { id: string; name: string; status: string; startedAt: string | null; finishedAt: string | null };
@@ -73,18 +76,64 @@ interface PublicTournamentDetail {
   };
 }
 
-export function usePublicProfile(slug: string) {
+interface UsePublicProfileOptions {
+  status?: 'RUNNING' | 'FINISHED';
+  enabled?: boolean;
+  limit?: number;
+}
+
+export function usePublicProfile(
+  slug: string,
+  options: UsePublicProfileOptions = {}
+) {
+  const { status, enabled = true, limit = 8 } = options;
   const [data, setData] = useState<PublicProfile | null>(null);
   const [error, setError] = useState<GuidedSystemError | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(enabled);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const fetchProfile = useCallback(async () => {
+  const fetchProfile = useCallback(async (page = 1, append = false) => {
+    if (!enabled) return;
+    const startedAt = performance.now();
+
+    if (append) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+    }
+
     try {
-      const res = await fetch(getApiUrl(`/public/organizers/${slug}`));
+      const query = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
+      if (status) {
+        query.set('status', status);
+      }
+
+      const res = await fetch(
+        getApiUrl(`/public/organizers/${slug}?${query.toString()}`)
+      );
       if (!res.ok) {
         throw await buildHttpResponseError(res);
       }
-      setData(await res.json());
+      const json: PublicProfile = await res.json();
+      setData((previous) =>
+        append && previous
+          ? {
+              ...json,
+              tournaments: [...previous.tournaments, ...json.tournaments],
+            }
+          : json
+      );
+      const durationMs = performance.now() - startedAt;
+      logClientPerformance('public_page_perf', 'public_profile_load_ms', {
+        durationMs: Number(durationMs.toFixed(2)),
+        slug,
+        status: status ?? 'ALL',
+        page,
+        count: json.tournaments.length,
+      });
       setError(null);
     } catch (error) {
       logClientError('public_page', 'Failed to load public profile', { slug });
@@ -96,34 +145,60 @@ export function usePublicProfile(slug: string) {
         })
       );
     } finally {
-      setIsLoading(false);
+      if (append) {
+        setIsLoadingMore(false);
+      } else {
+        setIsLoading(false);
+      }
     }
-  }, [slug]);
+  }, [enabled, limit, slug, status]);
 
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+    if (!enabled) {
+      setIsLoading(false);
+      return;
+    }
+    void fetchProfile(1, false);
+  }, [enabled, fetchProfile]);
 
-  return { data, error, isLoading, refetch: fetchProfile };
+  const loadMore = useCallback(async () => {
+    if (!data?.pagination.hasMore || isLoadingMore) return;
+    await fetchProfile(data.pagination.page + 1, true);
+  }, [data?.pagination.hasMore, data?.pagination.page, fetchProfile, isLoadingMore]);
+
+  return {
+    data,
+    error,
+    isLoading,
+    isLoadingMore,
+    hasMore: data?.pagination.hasMore ?? false,
+    refetch: () => fetchProfile(1, false),
+    loadMore,
+  };
 }
 
-export function usePublicTournament(slug: string, tournamentId: string) {
+export function usePublicTournament(tournamentSlug: string) {
   const [data, setData] = useState<PublicTournamentDetail | null>(null);
   const [error, setError] = useState<GuidedSystemError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchDetail = useCallback(async () => {
+    const startedAt = performance.now();
     try {
-      const res = await fetch(
-        getApiUrl(`/public/organizers/${slug}/tournaments/${tournamentId}`)
-      );
+      const res = await fetch(getApiUrl(`/public/tournaments/${tournamentSlug}`));
       if (!res.ok) {
         throw await buildHttpResponseError(res);
       }
-      setData(await res.json());
+      const json: PublicTournamentDetail = await res.json();
+      setData(json);
+      const durationMs = performance.now() - startedAt;
+      logClientPerformance('public_page_perf', 'public_tournament_load_ms', {
+        durationMs: Number(durationMs.toFixed(2)),
+        slug: tournamentSlug,
+      });
       setError(null);
     } catch (error) {
-      logClientError('public_page', 'Failed to load tournament detail', { slug, tournamentId });
+      logClientError('public_page', 'Failed to load tournament detail', { tournamentSlug });
       const normalized = normalizeApiError(error);
       setError(
         resolveGuidedSystemError({
@@ -134,7 +209,7 @@ export function usePublicTournament(slug: string, tournamentId: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [slug, tournamentId]);
+  }, [tournamentSlug]);
 
   useEffect(() => {
     fetchDetail();

@@ -2,6 +2,7 @@ import { prisma } from '../../shared/database/prisma.js';
 import { Decimal } from '@prisma/client/runtime/library';
 import { generateDraw } from '../draw/draw.service.js';
 import { calculateFinancials } from '../tournament/financials.js';
+import { generateUniqueTournamentSlug } from '../tournament/public-slug.js';
 
 const DEFAULT_ORGANIZER_PERCENTAGE = 10;
 const DEFAULT_CHAMPION_PERCENTAGE = 70;
@@ -164,9 +165,21 @@ export async function runOnboardingSetup(
   });
 
   const result = await prisma.$transaction(async (tx) => {
+    const publicSlug = await generateUniqueTournamentSlug(
+      tournamentName.trim(),
+      async (slug) => {
+        const existing = await tx.tournament.findUnique({
+          where: { publicSlug: slug },
+          select: { id: true },
+        });
+        return Boolean(existing);
+      }
+    );
+
     const tournament = await tx.tournament.create({
       data: {
         name: tournamentName.trim(),
+        publicSlug,
         organizerId,
         status: 'OPEN',
         entryFee: new Decimal(safeEntryFee),

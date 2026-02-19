@@ -5,6 +5,7 @@ import {
   formatGuidedSystemError,
   resolveGuidedSystemError,
 } from '../../shared/systemErrors.ts';
+import { logClientPerformance } from '../../shared/logger.ts';
 
 const POLL_INTERVAL = 15_000;
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3333';
@@ -23,6 +24,7 @@ export function useBracketData(tournamentId: string): UseBracketDataResult {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchBracket = useCallback(async () => {
+    const startedAt = performance.now();
     try {
       const res = await fetch(
         `${API_BASE}/tournaments/${tournamentId}/bracket`
@@ -32,6 +34,12 @@ export function useBracketData(tournamentId: string): UseBracketDataResult {
       }
       const json: BracketData = await res.json();
       setData(json);
+      const durationMs = performance.now() - startedAt;
+      logClientPerformance('bracket_perf', 'bracket_load_ms', {
+        tournamentId,
+        durationMs: Number(durationMs.toFixed(2)),
+        rounds: json.rounds.length,
+      });
       setError(null);
     } catch (err) {
       setError(

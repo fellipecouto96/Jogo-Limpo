@@ -1,4 +1,5 @@
 import { prisma } from '../../shared/database/prisma.js';
+import { withPerformanceLog } from '../../shared/logging/performance.service.js';
 
 export interface RecordResultInput {
   winnerId: string;
@@ -32,9 +33,20 @@ export async function recordMatchResult(
 
   return await prisma.$transaction(async (tx) => {
     // 1. Validate tournament
-    const tournament = await tx.tournament.findUnique({
-      where: { id: tournamentId },
-    });
+    const tournament = await withPerformanceLog(
+      'record_result',
+      'match_tournament_lookup',
+      () =>
+        tx.tournament.findUnique({
+          where: { id: tournamentId },
+          select: {
+            id: true,
+            organizerId: true,
+            status: true,
+          },
+        }),
+      { tournamentId }
+    );
 
     if (!tournament) {
       throw new MatchError('Torneio nao encontrado', 404);
@@ -47,10 +59,26 @@ export async function recordMatchResult(
     }
 
     // 2. Validate match
-    const match = await tx.match.findUnique({
-      where: { id: matchId },
-      include: { round: true },
-    });
+    const match = await withPerformanceLog(
+      'record_result',
+      'match_lookup',
+      () =>
+        tx.match.findUnique({
+          where: { id: matchId },
+          select: {
+            id: true,
+            tournamentId: true,
+            roundId: true,
+            positionInBracket: true,
+            isBye: true,
+            winnerId: true,
+            player1Id: true,
+            player2Id: true,
+            round: { select: { roundNumber: true } },
+          },
+        }),
+      { tournamentId, matchId }
+    );
 
     if (!match || match.tournamentId !== tournamentId) {
       throw new MatchError('Partida nao encontrada', 404);
@@ -229,9 +257,20 @@ export async function undoLastMatchResult(
   organizerId: string
 ): Promise<UndoLastResultResponse> {
   return await prisma.$transaction(async (tx) => {
-    const tournament = await tx.tournament.findUnique({
-      where: { id: tournamentId },
-    });
+    const tournament = await withPerformanceLog(
+      'record_result',
+      'undo_tournament_lookup',
+      () =>
+        tx.tournament.findUnique({
+          where: { id: tournamentId },
+          select: {
+            id: true,
+            organizerId: true,
+            status: true,
+          },
+        }),
+      { tournamentId }
+    );
 
     if (!tournament) {
       throw new MatchError('Torneio nao encontrado', 404);
@@ -243,15 +282,26 @@ export async function undoLastMatchResult(
       throw new MatchError('Torneio nao esta em andamento', 409);
     }
 
-    const latestMatch = await tx.match.findFirst({
-      where: {
-        tournamentId,
-        winnerId: { not: null },
-        isBye: false,
-      },
-      include: { round: true },
-      orderBy: [{ finishedAt: 'desc' }, { createdAt: 'desc' }],
-    });
+    const latestMatch = await withPerformanceLog(
+      'record_result',
+      'undo_latest_match_lookup',
+      () =>
+        tx.match.findFirst({
+          where: {
+            tournamentId,
+            winnerId: { not: null },
+            isBye: false,
+          },
+          select: {
+            id: true,
+            winnerId: true,
+            roundId: true,
+            round: { select: { roundNumber: true } },
+          },
+          orderBy: [{ finishedAt: 'desc' }, { createdAt: 'desc' }],
+        }),
+      { tournamentId }
+    );
 
     if (!latestMatch || !latestMatch.winnerId) {
       throw new MatchError('Nenhum resultado para desfazer', 409);
@@ -336,9 +386,19 @@ export async function updateMatchScore(
 ): Promise<{ matchId: string; player1Score: number; player2Score: number }> {
   const { player1Score, player2Score } = input;
 
-  const tournament = await prisma.tournament.findUnique({
-    where: { id: tournamentId },
-  });
+  const tournament = await withPerformanceLog(
+    'record_result',
+    'update_score_tournament_lookup',
+    () =>
+      prisma.tournament.findUnique({
+        where: { id: tournamentId },
+        select: {
+          organizerId: true,
+          status: true,
+        },
+      }),
+    { tournamentId }
+  );
 
   if (!tournament) {
     throw new MatchError('Torneio nao encontrado', 404);
@@ -350,9 +410,23 @@ export async function updateMatchScore(
     throw new MatchError('Torneio ja finalizado, nao e possivel editar placares', 409);
   }
 
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-  });
+  const match = await withPerformanceLog(
+    'record_result',
+    'update_score_match_lookup',
+    () =>
+      prisma.match.findUnique({
+        where: { id: matchId },
+        select: {
+          id: true,
+          tournamentId: true,
+          isBye: true,
+          winnerId: true,
+          player1Id: true,
+          player2Id: true,
+        },
+      }),
+    { tournamentId, matchId }
+  );
 
   if (!match || match.tournamentId !== tournamentId) {
     throw new MatchError('Partida nao encontrada', 404);
@@ -398,24 +472,46 @@ export interface TournamentStatistics {
 export async function getTournamentStatistics(
   tournamentId: string
 ): Promise<TournamentStatistics> {
-  const tournament = await prisma.tournament.findUnique({
-    where: { id: tournamentId },
-    include: {
-      matches: {
-        where: { isBye: false },
-        include: {
-          player1: true,
-          player2: true,
-          winner: true,
-          round: true,
+  const tournament = await withPerformanceLog(
+    'public_page',
+    'tournament_statistics',
+    () =>
+      prisma.tournament.findUnique({
+        where: { id: tournamentId },
+        select: {
+          matches: {
+            where: { isBye: false },
+            select: {
+              id: true,
+              roundId: true,
+              winnerId: true,
+              player1Id: true,
+              player2Id: true,
+              player1Score: true,
+              player2Score: true,
+              player1: {
+                select: {
+                  name: true,
+                },
+              },
+              player2: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+          rounds: {
+            orderBy: { roundNumber: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+            },
+          },
         },
-      },
-      rounds: {
-        orderBy: { roundNumber: 'desc' },
-        take: 1,
-      },
-    },
-  });
+      }),
+    { tournamentId }
+  );
 
   if (!tournament) {
     throw new MatchError('Torneio nao encontrado', 404);

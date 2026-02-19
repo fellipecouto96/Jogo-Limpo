@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { BracketData, TournamentStatistics } from '../types.ts';
 import { MobileRound } from '../components/MobileRound.tsx';
 import { WaitingState } from '../components/WaitingState.tsx';
@@ -36,9 +36,13 @@ export function MobileLayout({ data }: MobileLayoutProps) {
     void fetchStats();
   }, [tournament.id, isFinished]);
 
-  const runnerUp = isFinished && totalRounds > 0
-    ? deriveRunnerUp(rounds, totalRounds)
-    : null;
+  const runnerUp = useMemo(
+    () =>
+      isFinished && totalRounds > 0
+        ? deriveRunnerUp(rounds, totalRounds)
+        : null,
+    [isFinished, rounds, totalRounds]
+  );
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-4">

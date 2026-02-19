@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import type { BracketMatch, BracketPlayer } from '../types.ts';
 
 interface MatchCardProps {
   match: BracketMatch | null;
 }
 
-export function MatchCard({ match }: MatchCardProps) {
+export const MatchCard = memo(function MatchCard({ match }: MatchCardProps) {
   if (!match) {
     return (
       <div className="bg-[#0C0A09]/70 border border-white/5 rounded-2xl p-4 min-w-48">
@@ -54,7 +55,7 @@ export function MatchCard({ match }: MatchCardProps) {
       />
     </div>
   );
-}
+});
 
 interface PlayerSlotProps {
   player: BracketPlayer | null;

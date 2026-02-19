@@ -126,6 +126,15 @@ export function DashboardPage() {
                     </Link>
                   </article>
                 ))}
+
+                {data.pagination.hasMore && (
+                  <Link
+                    to="/app/tournaments"
+                    className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-gray-700 bg-gray-900 px-4 text-sm font-semibold text-white transition hover:bg-gray-800"
+                  >
+                    Ver todos os torneios ({data.pagination.total})
+                  </Link>
+                )}
               </div>
             )}
           </section>

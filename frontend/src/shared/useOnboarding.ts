@@ -58,7 +58,11 @@ export function useOnboarding(hasTournaments?: boolean) {
 
   const [activeToast, setActiveToast] = useState<string | null>(null);
   const [isIdle, setIsIdle] = useState(false);
-  const lastInteractionRef = useRef(Date.now());
+  const lastInteractionRef = useRef(0);
+
+  useEffect(() => {
+    lastInteractionRef.current = Date.now();
+  }, []);
 
   // Persist to localStorage whenever state changes
   useEffect(() => {
@@ -70,10 +74,16 @@ export function useOnboarding(hasTournaments?: boolean) {
     if (!organizerId) return;
     const current = loadState(organizerId);
     if (current.pendingToast && current.pendingToast.expiresAt > Date.now()) {
-      setActiveToast(current.pendingToast.message);
-      setState((prev) => ({ ...prev, pendingToast: null }));
-      const timer = setTimeout(() => setActiveToast(null), TOAST_DURATION);
-      return () => clearTimeout(timer);
+      const message = current.pendingToast.message;
+      const openTimer = setTimeout(() => {
+        setActiveToast(message);
+        setState((prev) => ({ ...prev, pendingToast: null }));
+      }, 0);
+      const closeTimer = setTimeout(() => setActiveToast(null), TOAST_DURATION);
+      return () => {
+        clearTimeout(openTimer);
+        clearTimeout(closeTimer);
+      };
     }
   }, [organizerId]);
 

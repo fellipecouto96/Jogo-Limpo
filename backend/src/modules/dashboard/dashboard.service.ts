@@ -1,4 +1,5 @@
 import { prisma } from '../../shared/database/prisma.js';
+import { withPerformanceLog } from '../../shared/logging/performance.service.js';
 
 export interface DashboardSummary {
   metrics: {
@@ -14,6 +15,12 @@ export interface DashboardSummary {
     startedAt: string | null;
     finishedAt: string | null;
   }>;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
 }
 
 function countPlayers(matches: { isBye: boolean }[]): number {
@@ -22,8 +29,16 @@ function countPlayers(matches: { isBye: boolean }[]): number {
 }
 
 export async function getDashboardSummary(
-  organizerId: string
+  organizerId: string,
+  page = 1,
+  limit = 8
 ): Promise<DashboardSummary> {
+  const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+  const safeLimit = Number.isFinite(limit)
+    ? Math.min(30, Math.max(1, Math.floor(limit)))
+    : 8;
+  const skip = (safePage - 1) * safeLimit;
+
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
@@ -31,46 +46,50 @@ export async function getDashboardSummary(
   const nextMonthStart = new Date(monthStart);
   nextMonthStart.setMonth(nextMonthStart.getMonth() + 1);
 
-  const [
-    tournamentsRaw,
-    collectedAgg,
-    prizeAgg,
-  ] = await Promise.all([
-    prisma.tournament.findMany({
-      where: { organizerId },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        createdAt: true,
-        startedAt: true,
-        finishedAt: true,
-        rounds: {
-          where: { roundNumber: 1 },
-          select: {
-            matches: { select: { isBye: true } },
-          },
-        },
-      },
-    }),
-
-    prisma.tournament.aggregate({
-      where: {
-        organizerId,
-        createdAt: {
-          gte: monthStart,
-          lt: nextMonthStart,
-        },
-      },
-      _sum: { totalCollected: true },
-    }),
-
-    prisma.tournament.aggregate({
-      where: { organizerId, status: 'FINISHED' },
-      _sum: { prizePool: true },
-    }),
-  ]);
+  const [tournamentsRaw, totalTournaments, collectedAgg, prizeAgg] =
+    await withPerformanceLog(
+      'dashboard',
+      'dashboard_summary',
+      () =>
+        Promise.all([
+          prisma.tournament.findMany({
+            where: { organizerId },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: safeLimit,
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              createdAt: true,
+              startedAt: true,
+              finishedAt: true,
+              rounds: {
+                where: { roundNumber: 1 },
+                select: {
+                  matches: { select: { isBye: true } },
+                },
+              },
+            },
+          }),
+          prisma.tournament.count({ where: { organizerId } }),
+          prisma.tournament.aggregate({
+            where: {
+              organizerId,
+              createdAt: {
+                gte: monthStart,
+                lt: nextMonthStart,
+              },
+            },
+            _sum: { totalCollected: true },
+          }),
+          prisma.tournament.aggregate({
+            where: { organizerId, status: 'FINISHED' },
+            _sum: { prizePool: true },
+          }),
+        ]),
+      { organizerId, page: safePage, limit: safeLimit }
+    );
 
   const tournaments = tournamentsRaw.map((t) => {
     const matches = t.rounds[0]?.matches ?? [];
@@ -98,5 +117,11 @@ export async function getDashboardSummary(
       totalPrizePaid,
     },
     tournaments,
+    pagination: {
+      page: safePage,
+      limit: safeLimit,
+      total: totalTournaments,
+      hasMore: skip + tournaments.length < totalTournaments,
+    },
   };
 }

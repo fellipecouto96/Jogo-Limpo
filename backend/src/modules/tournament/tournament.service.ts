@@ -1,6 +1,8 @@
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '../../shared/database/prisma.js';
 import { calculateFinancials } from './financials.js';
+import { generateUniqueTournamentSlug } from './public-slug.js';
+import { withPerformanceLog } from '../../shared/logging/performance.service.js';
 
 /** Count real players from round 1 matches: normal matches have 2, bye matches have 1. */
 function countPlayers(matches: { isBye: boolean }[]): number {
@@ -15,6 +17,32 @@ const DEFAULT_FOURTH_PLACE_PERCENTAGE = 0;
 
 function decimalToNumber(value: Decimal | null | undefined): number | null {
   return value != null ? value.toNumber() : null;
+}
+
+async function ensureTournamentPublicSlug(
+  tournament: { id: string; name: string; publicSlug: string | null }
+): Promise<string> {
+  if (tournament.publicSlug) {
+    return tournament.publicSlug;
+  }
+
+  const publicSlug = await generateUniqueTournamentSlug(
+    tournament.name,
+    async (slug) => {
+      const existing = await prisma.tournament.findUnique({
+        where: { publicSlug: slug },
+        select: { id: true },
+      });
+      return Boolean(existing);
+    }
+  );
+
+  await prisma.tournament.update({
+    where: { id: tournament.id },
+    data: { publicSlug },
+  });
+
+  return publicSlug;
 }
 
 function resolveStoredPercentages(tournament: {
@@ -52,6 +80,7 @@ function resolveStoredPercentages(tournament: {
 
 export interface TournamentListItem {
   id: string;
+  publicSlug: string | null;
   name: string;
   status: string;
   organizer: { id: string; name: string };
@@ -61,31 +90,60 @@ export interface TournamentListItem {
   finishedAt: string | null;
 }
 
-export async function listTournaments(
-  organizerId: string
-): Promise<TournamentListItem[]> {
-  const tournaments = await prisma.tournament.findMany({
-    where: { organizerId },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      name: true,
-      status: true,
-      createdAt: true,
-      startedAt: true,
-      finishedAt: true,
-      organizer: { select: { id: true, name: true } },
-      rounds: {
-        where: { roundNumber: 1 },
-        select: { matches: { select: { isBye: true } } },
-      },
-    },
-  });
+export interface TournamentListResponse {
+  items: TournamentListItem[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+}
 
-  return tournaments.map((t) => {
+export async function listTournaments(
+  organizerId: string,
+  page = 1,
+  limit = 20
+): Promise<TournamentListResponse> {
+  const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+  const safeLimit = Number.isFinite(limit)
+    ? Math.min(50, Math.max(1, Math.floor(limit)))
+    : 20;
+  const skip = (safePage - 1) * safeLimit;
+
+  const [tournaments, total] = await withPerformanceLog(
+    'dashboard',
+    'list_tournaments',
+    () =>
+      Promise.all([
+        prisma.tournament.findMany({
+          where: { organizerId },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: safeLimit,
+          select: {
+            id: true,
+            publicSlug: true,
+            name: true,
+            status: true,
+            createdAt: true,
+            startedAt: true,
+            finishedAt: true,
+            organizer: { select: { id: true, name: true } },
+            rounds: {
+              where: { roundNumber: 1 },
+              select: { matches: { select: { isBye: true } } },
+            },
+          },
+        }),
+        prisma.tournament.count({ where: { organizerId } }),
+      ]),
+    { organizerId, page: safePage, limit: safeLimit }
+  );
+
+  const items = tournaments.map((t) => {
     const matches = t.rounds[0]?.matches ?? [];
     return {
       id: t.id,
+      publicSlug: t.publicSlug,
       name: t.name,
       status: t.status,
       organizer: { id: t.organizer.id, name: t.organizer.name },
@@ -95,10 +153,19 @@ export async function listTournaments(
       finishedAt: t.finishedAt?.toISOString() ?? null,
     };
   });
+
+  return {
+    items,
+    page: safePage,
+    limit: safeLimit,
+    total,
+    hasMore: skip + items.length < total,
+  };
 }
 
 export interface TournamentDetail {
   id: string;
+  publicSlug: string;
   name: string;
   status: string;
   playerCount: number;
@@ -138,6 +205,7 @@ export async function getTournamentById(
     where: { id: tournamentId },
     select: {
       id: true,
+      publicSlug: true,
       name: true,
       status: true,
       organizerId: true,
@@ -175,6 +243,11 @@ export async function getTournamentById(
   }
 
   const playerCount = countPlayers(t.rounds[0]?.matches ?? []);
+  const publicSlug = await ensureTournamentPublicSlug({
+    id: t.id,
+    name: t.name,
+    publicSlug: t.publicSlug,
+  });
   const percentages = resolveStoredPercentages(t);
   const entryFee = decimalToNumber(t.entryFee);
   const organizerPercentage = decimalToNumber(t.organizerPercentage);
@@ -198,6 +271,7 @@ export async function getTournamentById(
 
   return {
     id: t.id,
+    publicSlug,
     name: t.name,
     status: t.status,
     playerCount,
@@ -420,6 +494,7 @@ export async function updateTournamentFinancials(
     },
     select: {
       id: true,
+      publicSlug: true,
       name: true,
       status: true,
       drawSeed: true,
@@ -449,6 +524,11 @@ export async function updateTournamentFinancials(
 
   return {
     id: updated.id,
+    publicSlug: (await ensureTournamentPublicSlug({
+      id: updated.id,
+      name: updated.name,
+      publicSlug: updated.publicSlug,
+    })),
     name: updated.name,
     status: updated.status,
     playerCount,

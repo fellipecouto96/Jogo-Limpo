@@ -10,11 +10,18 @@ import {
 import { logEvent } from '../../shared/logging/log.service.js';
 
 export async function getTournaments(
-  request: FastifyRequest,
+  request: FastifyRequest<{
+    Querystring: {
+      page?: string;
+      limit?: string;
+    };
+  }>,
   reply: FastifyReply
 ) {
   const organizerId = request.user.sub;
-  const tournaments = await listTournaments(organizerId);
+  const page = request.query.page ? Number(request.query.page) : 1;
+  const limit = request.query.limit ? Number(request.query.limit) : 20;
+  const tournaments = await listTournaments(organizerId, page, limit);
   return reply.send(tournaments);
 }
 

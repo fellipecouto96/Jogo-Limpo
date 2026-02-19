@@ -78,14 +78,11 @@ describe('QR URL format validation', () => {
     expect(url).toBe('https://jogolimpo.com/organizer/joao-silva-a7x2');
   });
 
-  it('public tournament URL follows /organizer/:slug/tournament/:id pattern', () => {
+  it('public tournament URL follows /tournament/:tournamentSlug pattern', () => {
     const origin = 'https://jogolimpo.com';
-    const slug = 'joao-a7x2';
-    const tournamentId = 'tour-uuid-1234';
-    const url = `${origin}/organizer/${slug}/tournament/${tournamentId}`;
-    expect(url).toBe(
-      'https://jogolimpo.com/organizer/joao-a7x2/tournament/tour-uuid-1234'
-    );
+    const tournamentSlug = 'copa-domingo-a7x2';
+    const url = `${origin}/tournament/${tournamentSlug}`;
+    expect(url).toBe('https://jogolimpo.com/tournament/copa-domingo-a7x2');
   });
 
   it('QR code for organizer page encodes correct URL', async () => {
@@ -122,10 +119,8 @@ describe('WhatsApp share URL', () => {
   });
 
   it('tournament-specific WhatsApp share uses correct URL', () => {
-    const tournamentName = 'Copa de Domingo';
-    const publicUrl =
-      'https://example.com/organizer/joao-a7x2/tournament/t123';
-    const message = `Acompanhe o torneio "${tournamentName}" ao vivo!\n${publicUrl}`;
+    const publicUrl = 'https://example.com/tournament/copa-domingo-a7x2';
+    const message = `Confira o torneio aqui: ${publicUrl}`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     expect(whatsappUrl).toContain(encodeURIComponent(publicUrl));
   });

@@ -7,40 +7,40 @@ import {
 import { logClientError } from '../../shared/logger.ts';
 
 interface TournamentQRModalProps {
-  tournamentId: string;
+  tournamentSlug: string;
   tournamentName: string;
-  slug: string;
+  tournamentDate: string | null;
   onClose: () => void;
 }
 
 export function TournamentQRModal({
-  tournamentId,
+  tournamentSlug,
   tournamentName,
-  slug,
+  tournamentDate,
   onClose,
 }: TournamentQRModalProps) {
   const [svgHtml, setSvgHtml] = useState('');
-  const publicUrl = `${window.location.origin}/organizer/${slug}/tournament/${tournamentId}`;
+  const publicUrl = `${window.location.origin}/tournament/${tournamentSlug}`;
 
   useEffect(() => {
     generateQRSvg(publicUrl)
       .then(setSvgHtml)
       .catch(() => {
-        logClientError('qr_access', 'QR SVG generation failed', { tournamentId });
+        logClientError('qr_access', 'QR SVG generation failed', { tournamentSlug });
       });
-  }, [publicUrl, tournamentId]);
+  }, [publicUrl, tournamentSlug]);
 
   async function handleDownload() {
     try {
       const dataUrl = await generateQRDataUrl(publicUrl, 1024);
-      downloadDataUrl(dataUrl, `qrcode-torneio-${tournamentId.slice(0, 8)}.png`);
+      downloadDataUrl(dataUrl, `qrcode-torneio-${tournamentSlug}.png`);
     } catch {
-      logClientError('qr_access', 'QR PNG download failed', { tournamentId });
+      logClientError('qr_access', 'QR PNG download failed', { tournamentSlug });
     }
   }
 
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
-    `Acompanhe o torneio "${tournamentName}" ao vivo!\n${publicUrl}`
+    `Confira o torneio aqui: ${publicUrl}`
   )}`;
 
   return (
@@ -54,6 +54,11 @@ export function TournamentQRModal({
           QR Code do Torneio
         </h3>
         <p className="mb-4 text-sm text-gray-400 truncate">{tournamentName}</p>
+        {tournamentDate && (
+          <p className="-mt-3 mb-4 text-xs text-gray-500">
+            {formatDate(tournamentDate)}
+          </p>
+        )}
 
         <div className="mx-auto mb-4 w-48 h-48 rounded-xl bg-white p-3 flex items-center justify-center">
           {svgHtml ? (
@@ -86,6 +91,14 @@ export function TournamentQRModal({
           >
             Compartilhar no WhatsApp
           </a>
+          <a
+            href={`/print/tournament/${tournamentSlug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-11 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-500 [touch-action:manipulation]"
+          >
+            Versao para imprimir
+          </a>
           <button
             type="button"
             onClick={onClose}
@@ -97,4 +110,12 @@ export function TournamentQRModal({
       </div>
     </div>
   );
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }

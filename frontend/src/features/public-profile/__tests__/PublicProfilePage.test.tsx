@@ -1,33 +1,39 @@
-/**
- * Component tests for PublicProfilePage.
- *
- * Verifies:
- * - Loading skeleton renders during fetch
- * - 404 / error state renders friendly message
- * - Organizer name displayed prominently
- * - Tournaments listed with correct links (/organizer/:slug/tournament/:id)
- * - Financial data hidden when entryFee/prizePool are null (server-enforced)
- * - Financial data shown when provided (showFinancials=true path)
- * - RUNNING tournaments show before FINISHED ones
- * - Champion name shown for FINISHED tournaments
- * - No horizontal overflow (mobile-safe)
- */
-
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PublicProfilePage } from '../PublicProfilePage.tsx';
 
-// ── Mock hook ─────────────────────────────────────────────────────────────────
 vi.mock('../usePublicProfile.ts', () => ({
   usePublicProfile: vi.fn(),
   usePublicTournament: vi.fn(),
 }));
 
 import { usePublicProfile } from '../usePublicProfile.ts';
+
 const mockUsePublicProfile = vi.mocked(usePublicProfile);
 
-// ── Render helper ─────────────────────────────────────────────────────────────
+const runningTournament = {
+  publicSlug: 'copa-ao-vivo-a7x2',
+  name: 'Copa ao Vivo',
+  status: 'RUNNING',
+  createdAt: '2026-01-10T00:00:00Z',
+  startedAt: '2026-01-11T00:00:00Z',
+  finishedAt: null,
+  playerCount: 8,
+  championName: null,
+};
+
+const finishedTournament = {
+  publicSlug: 'copa-encerrada-a7x2',
+  name: 'Copa Encerrada',
+  status: 'FINISHED',
+  createdAt: '2026-01-01T00:00:00Z',
+  startedAt: '2026-01-02T00:00:00Z',
+  finishedAt: '2026-01-03T00:00:00Z',
+  playerCount: 16,
+  championName: 'Pedro Santos',
+};
+
 function renderPage(slug = 'joao-a7x2') {
   return render(
     <MemoryRouter initialEntries={[`/organizer/${slug}`]}>
@@ -38,196 +44,133 @@ function renderPage(slug = 'joao-a7x2') {
   );
 }
 
-// ── Fixtures ──────────────────────────────────────────────────────────────────
-const runningTournament = {
-  id: 't-running',
-  name: 'Copa ao Vivo',
-  status: 'RUNNING',
-  createdAt: '2026-01-10T00:00:00Z',
-  startedAt: '2026-01-11T00:00:00Z',
-  finishedAt: null,
-  playerCount: 8,
-  championName: null,
-  entryFee: null,
-  prizePool: null,
-};
+function makeHookResult(overrides: Partial<ReturnType<typeof usePublicProfile>> = {}) {
+  return {
+    data: {
+      name: 'João Silva',
+      tournaments: [],
+      pagination: { page: 1, limit: 8, total: 0, hasMore: false },
+    },
+    error: null,
+    isLoading: false,
+    isLoadingMore: false,
+    hasMore: false,
+    refetch: vi.fn(),
+    loadMore: vi.fn(),
+    ...overrides,
+  };
+}
 
-const finishedTournament = {
-  id: 't-finished',
-  name: 'Copa Encerrada',
-  status: 'FINISHED',
-  createdAt: '2026-01-01T00:00:00Z',
-  startedAt: '2026-01-02T00:00:00Z',
-  finishedAt: '2026-01-03T00:00:00Z',
-  playerCount: 16,
-  championName: 'Pedro Santos',
-  entryFee: null,
-  prizePool: null,
-};
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
-describe('PublicProfilePage – loading state', () => {
+describe('PublicProfilePage', () => {
   beforeEach(() => {
-    mockUsePublicProfile.mockReturnValue({
-      data: null,
-      error: null,
-      isLoading: true,
-      refetch: vi.fn(),
-    });
+    vi.clearAllMocks();
   });
 
-  it('shows loading indicator', () => {
+  it('shows loading state while running list is loading', () => {
+    mockUsePublicProfile.mockImplementation((_, options) =>
+      makeHookResult({
+        isLoading: options?.status === 'RUNNING',
+      })
+    );
+
     renderPage();
     expect(screen.getByText(/carregando/i)).toBeInTheDocument();
   });
-});
 
-describe('PublicProfilePage – error state', () => {
-  beforeEach(() => {
-    mockUsePublicProfile.mockReturnValue({
-      data: null,
-      error: {
-        kind: 'public_link',
-        what: 'Link invalido ou torneio nao encontrado.',
-        why: 'O endereco pode estar incompleto ou desatualizado.',
-        next: 'Volte para a pagina principal e abra o link novamente.',
-      },
-      isLoading: false,
-      refetch: vi.fn(),
-    });
-  });
-
-  it('shows error message', () => {
-    renderPage();
-    expect(screen.getByText(/link invalido ou torneio nao encontrado/i)).toBeInTheDocument();
-  });
-
-  it('does not render any tournament links', () => {
-    renderPage();
-    expect(screen.queryByRole('link', { name: /ver torneio/i })).toBeNull();
-  });
-});
-
-describe('PublicProfilePage – success state', () => {
-  beforeEach(() => {
-    mockUsePublicProfile.mockReturnValue({
-      data: {
-        name: 'João Silva',
-        tournaments: [runningTournament, finishedTournament],
-      },
-      error: null,
-      isLoading: false,
-      refetch: vi.fn(),
-    });
-  });
-
-  it('displays organizer name as heading', () => {
-    renderPage();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'João Silva'
+  it('shows guided error when running list fails', () => {
+    mockUsePublicProfile.mockImplementation((_, options) =>
+      makeHookResult({
+        data: null,
+        error:
+          options?.status === 'RUNNING'
+            ? {
+                kind: 'public_link',
+                what: 'Link invalido ou torneio nao encontrado.',
+                why: 'O endereco pode estar incompleto ou desatualizado.',
+                next: 'Volte para a pagina principal e abra o link novamente.',
+              }
+            : null,
+      })
     );
-  });
 
-  it('shows tournament count in subheading', () => {
     renderPage();
-    expect(screen.getByText(/2 torneios/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/link invalido ou torneio nao encontrado/i)
+    ).toBeInTheDocument();
   });
 
-  it('renders both tournaments', () => {
+  it('renders running tournaments and hides history by default', () => {
+    mockUsePublicProfile.mockImplementation((_, options) => {
+      if (options?.status === 'FINISHED') {
+        return makeHookResult({
+          data: {
+            name: 'João Silva',
+            tournaments: [finishedTournament],
+            pagination: { page: 1, limit: 6, total: 1, hasMore: false },
+          },
+        });
+      }
+      return makeHookResult({
+        data: {
+          name: 'João Silva',
+          tournaments: [runningTournament],
+          pagination: { page: 1, limit: 8, total: 1, hasMore: false },
+        },
+      });
+    });
+
     renderPage();
     expect(screen.getByText('Copa ao Vivo')).toBeInTheDocument();
-    expect(screen.getByText('Copa Encerrada')).toBeInTheDocument();
+    expect(screen.queryByText('Copa Encerrada')).toBeNull();
   });
 
-  it('links to correct tournament detail page', () => {
-    renderPage('joao-a7x2');
-    const links = screen.getAllByRole('link');
-    const tournamentLinks = links.filter((l) =>
-      l.getAttribute('href')?.includes('/tournament/')
-    );
-    expect(tournamentLinks.length).toBe(2);
-    expect(tournamentLinks[0].getAttribute('href')).toContain(
-      '/organizer/joao-a7x2/tournament/'
-    );
-  });
+  it('loads and shows finished history after toggle', () => {
+    mockUsePublicProfile.mockImplementation((_, options) => {
+      if (options?.status === 'FINISHED') {
+        return makeHookResult({
+          data: {
+            name: 'João Silva',
+            tournaments: [finishedTournament],
+            pagination: { page: 1, limit: 6, total: 1, hasMore: false },
+          },
+          isLoading: false,
+        });
+      }
+      return makeHookResult({
+        data: {
+          name: 'João Silva',
+          tournaments: [runningTournament],
+          pagination: { page: 1, limit: 8, total: 1, hasMore: false },
+        },
+      });
+    });
 
-  it('shows champion name for FINISHED tournament', () => {
     renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /mostrar histórico público/i }));
+    expect(screen.getByText('Copa Encerrada')).toBeInTheDocument();
     expect(screen.getByText(/pedro santos/i)).toBeInTheDocument();
   });
 
-  it('does NOT show financial data when entryFee is null', () => {
-    renderPage();
-    expect(screen.queryByText(/entrada:/i)).toBeNull();
-    expect(screen.queryByText(/premiacao:/i)).toBeNull();
-  });
-});
-
-describe('PublicProfilePage – with financials (showFinancials=true)', () => {
-  beforeEach(() => {
-    mockUsePublicProfile.mockReturnValue({
-      data: {
-        name: 'Clube do Bilhar',
-        tournaments: [
-          {
-            ...runningTournament,
-            entryFee: 50,
-            prizePool: 400,
-          },
-        ],
-      },
-      error: null,
-      isLoading: false,
-      refetch: vi.fn(),
-    });
-  });
-
-  it('shows entry fee when provided by server', () => {
-    renderPage();
-    expect(screen.getByText(/entrada:/i)).toBeInTheDocument();
-  });
-});
-
-describe('PublicProfilePage – empty tournaments', () => {
-  beforeEach(() => {
-    mockUsePublicProfile.mockReturnValue({
-      data: { name: 'Sem Torneios', tournaments: [] },
-      error: null,
-      isLoading: false,
-      refetch: vi.fn(),
-    });
-  });
-
-  it('shows empty state message', () => {
-    renderPage();
-    expect(screen.getByText(/nenhum torneio/i)).toBeInTheDocument();
-  });
-
-  it('still shows organizer name', () => {
-    renderPage();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'Sem Torneios'
+  it('uses slug-based tournament links', () => {
+    mockUsePublicProfile.mockImplementation((_, options) =>
+      options?.status === 'RUNNING'
+        ? makeHookResult({
+            data: {
+              name: 'João Silva',
+              tournaments: [runningTournament],
+              pagination: { page: 1, limit: 8, total: 1, hasMore: false },
+            },
+          })
+        : makeHookResult()
     );
-  });
-});
 
-describe('PublicProfilePage – ordering', () => {
-  it('renders RUNNING before FINISHED tournaments', () => {
-    mockUsePublicProfile.mockReturnValue({
-      data: {
-        name: 'Organizador',
-        // Intentionally pass finished first to test client-side ordering
-        tournaments: [finishedTournament, runningTournament],
-      },
-      error: null,
-      isLoading: false,
-      refetch: vi.fn(),
-    });
     renderPage();
-    const allText = document.body.textContent ?? '';
-    const runningPos = allText.indexOf('Copa ao Vivo');
-    const finishedPos = allText.indexOf('Copa Encerrada');
-    expect(runningPos).toBeLessThan(finishedPos);
+    const links = screen.getAllByRole('link');
+    const tournamentLink = links.find((link) =>
+      link.getAttribute('href')?.includes('/tournament/')
+    );
+    expect(tournamentLink?.getAttribute('href')).toBe(
+      `/tournament/${runningTournament.publicSlug}`
+    );
   });
 });

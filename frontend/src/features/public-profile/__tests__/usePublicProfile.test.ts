@@ -75,16 +75,24 @@ describe('usePublicProfile', () => {
   });
 
   it('calls the correct public API endpoint', async () => {
-    mockSuccess({ name: 'João', tournaments: [] });
+    mockSuccess({
+      name: 'João',
+      tournaments: [],
+      pagination: { page: 1, limit: 8, total: 0, hasMore: false },
+    });
     const { result } = renderHook(() => usePublicProfile('joao-a7x2'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.test/public/organizers/joao-a7x2'
+      'https://api.test/public/organizers/joao-a7x2?page=1&limit=8'
     );
   });
 
   it('does NOT include Authorization header (public endpoint)', async () => {
-    mockSuccess({ name: 'João', tournaments: [] });
+    mockSuccess({
+      name: 'João',
+      tournaments: [],
+      pagination: { page: 1, limit: 8, total: 0, hasMore: false },
+    });
     renderHook(() => usePublicProfile('joao-a7x2'));
     await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     const callArgs = mockFetch.mock.calls[0];
@@ -99,7 +107,7 @@ describe('usePublicProfile', () => {
       name: 'João Silva',
       tournaments: [
         {
-          id: 't-1',
+          publicSlug: 'copa-test-a7x2',
           name: 'Copa Test',
           status: 'RUNNING',
           createdAt: '2026-01-01T00:00:00Z',
@@ -107,10 +115,9 @@ describe('usePublicProfile', () => {
           finishedAt: null,
           playerCount: 8,
           championName: null,
-          entryFee: null,
-          prizePool: null,
         },
       ],
+      pagination: { page: 1, limit: 8, total: 1, hasMore: false },
     };
     mockSuccess(profileData);
     const { result } = renderHook(() => usePublicProfile('joao-a7x2'));
@@ -143,12 +150,12 @@ describe('usePublicProfile', () => {
     expect(result.current.error?.what).toBe('Nao foi possivel concluir agora.');
   });
 
-  it('never exposes financial data returned from API (passes through null)', async () => {
+  it('keeps public tournament payload without financial fields', async () => {
     const profileData = {
       name: 'João',
       tournaments: [
         {
-          id: 't-1',
+          publicSlug: 'copa-a7x2',
           name: 'Copa',
           status: 'RUNNING',
           createdAt: '2026-01-01T00:00:00Z',
@@ -156,51 +163,55 @@ describe('usePublicProfile', () => {
           finishedAt: null,
           playerCount: 4,
           championName: null,
-          entryFee: null,   // server hides this when showFinancials=false
-          prizePool: null,  // server hides this when showFinancials=false
         },
       ],
+      pagination: { page: 1, limit: 8, total: 1, hasMore: false },
     };
     mockSuccess(profileData);
     const { result } = renderHook(() => usePublicProfile('joao-a7x2'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.data!.tournaments[0].entryFee).toBeNull();
-    expect(result.current.data!.tournaments[0].prizePool).toBeNull();
+    expect(result.current.data!.tournaments[0].publicSlug).toBe('copa-a7x2');
+    expect(
+      (result.current.data!.tournaments[0] as unknown as Record<string, unknown>).entryFee
+    ).toBeUndefined();
   });
 });
 
 // ── usePublicTournament ───────────────────────────────────────────────────────
 
 describe('usePublicTournament', () => {
-  it('calls the correct tournament-specific endpoint', async () => {
+  it('calls the new slug-based tournament endpoint', async () => {
     mockSuccess({
-      tournament: { id: 't-1', name: 'Copa', status: 'RUNNING' },
+      tournament: {
+        publicSlug: 'copa-abc-123',
+        name: 'Copa',
+        status: 'RUNNING',
+        createdAt: '2026-02-10T00:00:00Z',
+        startedAt: null,
+        finishedAt: null,
+        playerCount: 8,
+        championName: null,
+      },
       bracket: { rounds: [], totalRounds: 0, champion: null },
       statistics: {},
     });
-    const { result } = renderHook(() =>
-      usePublicTournament('joao-a7x2', 't-abc-123')
-    );
+    const { result } = renderHook(() => usePublicTournament('copa-abc-123'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.test/public/organizers/joao-a7x2/tournaments/t-abc-123'
+      'https://api.test/public/tournaments/copa-abc-123'
     );
   });
 
   it('sets 404 error message on not found', async () => {
     mockError(404);
-    const { result } = renderHook(() =>
-      usePublicTournament('joao-a7x2', 'no-such-id')
-    );
+    const { result } = renderHook(() => usePublicTournament('no-such-slug'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.error?.what).toBe('Link invalido ou torneio nao encontrado.');
   });
 
   it('handles network failure gracefully', async () => {
     mockNetworkFailure();
-    const { result } = renderHook(() =>
-      usePublicTournament('joao-a7x2', 't-1')
-    );
+    const { result } = renderHook(() => usePublicTournament('copa-abc-123'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.error?.what).toBe('Nao foi possivel concluir agora.');
   });

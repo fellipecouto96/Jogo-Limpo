@@ -9,7 +9,6 @@ import type { BracketMatch, BracketPlayer, BracketRound } from '../tv/types.ts';
 import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
 import { useOnboarding } from '../../shared/useOnboarding.ts';
 import { OnboardingHint } from '../../shared/OnboardingHint.tsx';
-import { useAuth } from '../auth/useAuth.ts';
 import { TournamentQRModal } from './TournamentQRModal.tsx';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import {
@@ -28,8 +27,15 @@ interface UndoLastResultResponse {
   matchId: string;
 }
 
+interface OptimisticMatchState {
+  winnerId: string;
+  player1Score: number | null;
+  player2Score: number | null;
+}
+
+const ACTION_DEBOUNCE_MS = 180;
+
 export function ManageTournamentPage() {
-  const { organizer } = useAuth();
   const { tournamentId } = useParams<{ tournamentId: string }>();
   const { data, error, isLoading, refetch } = useManageBracket(
     tournamentId!
@@ -60,6 +66,9 @@ export function ManageTournamentPage() {
   const [updatingPlayerId, setUpdatingPlayerId] = useState<string | null>(null);
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [isChampionshipCelebrating, setIsChampionshipCelebrating] = useState(false);
+  const [optimisticMatches, setOptimisticMatches] = useState<
+    Record<string, OptimisticMatchState>
+  >({});
   const {
     isActive: onboardingActive,
     triggerToast,
@@ -70,12 +79,56 @@ export function ManageTournamentPage() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const matchRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const previousStatusRef = useRef<string | null>(null);
+  const lastActionAtRef = useRef(0);
   const { recordResult, updateScore } = useRecordResult();
   const players = useMemo(
     () => extractTournamentPlayers(data?.rounds ?? []),
     [data?.rounds]
   );
   const tournamentStatus = data?.tournament.status ?? null;
+  const tournamentPublicSlug = details?.publicSlug ?? null;
+  const orderedMatchesLive = useMemo(
+    () => getOrderedMatches(data?.rounds ?? []),
+    [data?.rounds]
+  );
+  const roundsWithOptimistic = useMemo(
+    () =>
+      (data?.rounds ?? []).map((round) => ({
+        ...round,
+        matches: round.matches.map((match) => {
+          const optimistic = optimisticMatches[match.id];
+          if (!optimistic) return match;
+
+          const optimisticWinner =
+            optimistic.winnerId === match.player1.id
+              ? match.player1
+              : optimistic.winnerId === match.player2?.id
+                ? match.player2
+                : match.winner;
+
+          return {
+            ...match,
+            winner: optimisticWinner,
+            player1Score: optimistic.player1Score,
+            player2Score: optimistic.player2Score,
+          };
+        }),
+      })),
+    [data?.rounds, optimisticMatches]
+  );
+  const orderedMatchesOptimistic = useMemo(
+    () => getOrderedMatches(roundsWithOptimistic),
+    [roundsWithOptimistic]
+  );
+
+  function isActionDebounced() {
+    const now = Date.now();
+    if (now - lastActionAtRef.current < ACTION_DEBOUNCE_MS) {
+      return true;
+    }
+    lastActionAtRef.current = now;
+    return false;
+  }
 
   useEffect(() => {
     if (!isPlayersOpen) return;
@@ -101,7 +154,7 @@ export function ManageTournamentPage() {
     }
 
     previousStatusRef.current = tournamentStatus;
-  }, [tournamentStatus]);
+  }, [markComplete, tournamentStatus, triggerToast]);
 
   useEffect(() => {
     if (!isChampionshipCelebrating) return;
@@ -158,7 +211,9 @@ export function ManageTournamentPage() {
     const runnerUpAmount = details?.runnerUpPrize ?? details?.secondPlacePrize ?? null;
     const thirdPlaceAmount = details?.thirdPlacePrize ?? null;
     const fourthPlaceAmount = details?.fourthPlacePrize ?? null;
-    const shareUrl = `${window.location.origin}/tournament/${tournamentId}/tv`;
+    const shareUrl = tournamentPublicSlug
+      ? `${window.location.origin}/tournament/${tournamentPublicSlug}`
+      : `${window.location.origin}/tournament/${tournamentId}/tv`;
     const lines = [
       `Resultado oficial - ${data?.tournament.name ?? 'Torneio'}`,
       `Campeao: ${championName}`,
@@ -270,11 +325,19 @@ export function ManageTournamentPage() {
     player1Score?: number,
     player2Score?: number
   ) {
-    if (pendingMatchId || isUndoingLastAction) return;
+    if (pendingMatchId || isUndoingLastAction || isActionDebounced()) return;
 
     setPendingMatchId(entry.match.id);
     setActionError(null);
     setFeedback(null);
+    setOptimisticMatches((previous) => ({
+      ...previous,
+      [entry.match.id]: {
+        winnerId,
+        player1Score: player1Score ?? null,
+        player2Score: player2Score ?? null,
+      },
+    }));
     try {
       await recordResult(tournamentId!, entry.match.id, winnerId, player1Score, player2Score);
       const scoreLabel = player1Score !== undefined && player2Score !== undefined
@@ -287,7 +350,17 @@ export function ManageTournamentPage() {
       });
       await Promise.all([refetch(), refetchDetails()]);
       triggerToast('toast-first-winner');
+      setOptimisticMatches((previous) => {
+        const next = { ...previous };
+        delete next[entry.match.id];
+        return next;
+      });
     } catch (err) {
+      setOptimisticMatches((previous) => {
+        const next = { ...previous };
+        delete next[entry.match.id];
+        return next;
+      });
       setActionError(
         formatGuidedSystemError(
           resolveGuidedSystemError({
@@ -302,16 +375,40 @@ export function ManageTournamentPage() {
   }
 
   async function handleUpdateScore(matchId: string, player1Score: number, player2Score: number) {
-    if (pendingMatchId || isUndoingLastAction) return;
+    if (pendingMatchId || isUndoingLastAction || isActionDebounced()) return;
 
     setPendingMatchId(matchId);
     setActionError(null);
     setFeedback(null);
+    const currentMatch = orderedMatchesLive.find(
+      ({ match }) => match.id === matchId
+    )?.match;
+    const currentWinnerId = currentMatch?.winner?.id;
+    if (currentWinnerId) {
+      setOptimisticMatches((previous) => ({
+        ...previous,
+        [matchId]: {
+          winnerId: currentWinnerId,
+          player1Score,
+          player2Score,
+        },
+      }));
+    }
     try {
       await updateScore(tournamentId!, matchId, player1Score, player2Score);
       setFeedback(`Placar atualizado: ${player1Score} x ${player2Score}`);
       await Promise.all([refetch(), refetchDetails()]);
+      setOptimisticMatches((previous) => {
+        const next = { ...previous };
+        delete next[matchId];
+        return next;
+      });
     } catch (err) {
+      setOptimisticMatches((previous) => {
+        const next = { ...previous };
+        delete next[matchId];
+        return next;
+      });
       setActionError(
         formatGuidedSystemError(
           resolveGuidedSystemError({ error: err })
@@ -323,11 +420,13 @@ export function ManageTournamentPage() {
   }
 
   async function handleUndoLastAction() {
-    if (!lastActionLabel || isUndoingLastAction || pendingMatchId) return;
+    if (!lastActionLabel || isUndoingLastAction || pendingMatchId || isActionDebounced()) return;
 
+    const previousLabel = lastActionLabel;
     setIsUndoingLastAction(true);
     setActionError(null);
     setFeedback(null);
+    setLastActionLabel(null);
     try {
       const response = await apiFetch(
         `/tournaments/${tournamentId}/matches/undo-last`,
@@ -339,10 +438,10 @@ export function ManageTournamentPage() {
 
       const payload = (await response.json()) as UndoLastResultResponse;
       setFeedback('Ultima partida desfeita.');
-      setLastActionLabel(null);
       setScrollToMatchId(payload.matchId);
       await Promise.all([refetch(), refetchDetails()]);
     } catch (err) {
+      setLastActionLabel(previousLabel);
       setActionError(
         formatGuidedSystemError(
           resolveGuidedSystemError({ error: err })
@@ -356,8 +455,7 @@ export function ManageTournamentPage() {
   useEffect(() => {
     if (!scrollFromMatch) return;
 
-    const allMatches = getOrderedMatches(data?.rounds ?? []);
-    const pending = allMatches.filter(
+    const pending = orderedMatchesLive.filter(
       ({ match }) => !match.isBye && match.player2 && !match.winner
     );
     const next =
@@ -377,7 +475,7 @@ export function ManageTournamentPage() {
       });
     }
     setScrollFromMatch(null);
-  }, [data, scrollFromMatch]);
+  }, [orderedMatchesLive, scrollFromMatch]);
 
   useEffect(() => {
     if (!scrollToMatchId) return;
@@ -395,14 +493,15 @@ export function ManageTournamentPage() {
   useEffect(() => {
     if (drawToastFiredRef.current) return;
     if (!data) return;
-    const ordered = getOrderedMatches(data.rounds);
-    const playable = ordered.filter(({ match }) => !match.isBye && match.player2 !== null);
+    const playable = orderedMatchesLive.filter(
+      ({ match }) => !match.isBye && match.player2 !== null
+    );
     const completed = playable.filter(({ match }) => Boolean(match.winner));
     if (playable.length > 0 && completed.length === 0) {
       drawToastFiredRef.current = true;
       triggerToast('toast-first-draw');
     }
-  }, [data, triggerToast]);
+  }, [data, orderedMatchesLive, triggerToast]);
 
   if (isLoading) {
     return (
@@ -423,8 +522,8 @@ export function ManageTournamentPage() {
 
   if (!data) return null;
 
-  const { tournament, rounds, totalRounds, champion: bracketChampion } = data;
-  const orderedMatches = getOrderedMatches(rounds);
+  const { tournament, totalRounds, champion: bracketChampion } = data;
+  const orderedMatches = orderedMatchesOptimistic;
   const playableMatches = orderedMatches.filter(
     ({ match }) => !match.isBye && match.player2 !== null
   );
@@ -433,7 +532,7 @@ export function ManageTournamentPage() {
   const completedCount = completedMatches.length;
   const totalCount = playableMatches.length;
   const progressPercent = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
-  const runnerUpFromBracket = deriveRunnerUp(rounds, totalRounds);
+  const runnerUpFromBracket = deriveRunnerUp(roundsWithOptimistic, totalRounds);
   const champion = details?.champion ?? bracketChampion;
   const runnerUp = details?.runnerUp ?? runnerUpFromBracket;
 
@@ -460,16 +559,15 @@ export function ManageTournamentPage() {
           >
             Celular
           </Link>
-          {organizer?.publicSlug && (
-            <button
-              type="button"
-              onClick={() => setIsQROpen(true)}
-              className="flex h-11 items-center justify-center rounded-xl bg-gray-800 px-3 text-sm font-semibold text-gray-200 border border-gray-700 hover:bg-gray-700 transition-colors [touch-action:manipulation]"
-              title="QR Code do torneio"
-            >
-              <QRIcon />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setIsQROpen(true)}
+            disabled={!tournamentPublicSlug}
+            className="flex h-11 items-center justify-center gap-2 rounded-xl bg-gray-800 px-4 text-sm font-semibold text-gray-200 border border-gray-700 hover:bg-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60 [touch-action:manipulation]"
+          >
+            <QRIcon />
+            Compartilhar este torneio
+          </button>
           <div className="relative" ref={menuRef}>
             <button
               type="button"
@@ -625,7 +723,7 @@ export function ManageTournamentPage() {
             </div>
           </div>
 
-          {rounds.map((round) => {
+          {roundsWithOptimistic.map((round) => {
             const matches = [...round.matches].sort(
               (a, b) => a.positionInBracket - b.positionInBracket
             );
@@ -815,11 +913,13 @@ export function ManageTournamentPage() {
         </div>
       )}
 
-      {isQROpen && organizer?.publicSlug && (
+      {isQROpen && tournamentPublicSlug && (
         <TournamentQRModal
-          tournamentId={tournamentId!}
+          tournamentSlug={tournamentPublicSlug}
           tournamentName={tournament.name}
-          slug={organizer.publicSlug}
+          tournamentDate={
+            details?.startedAt ?? details?.createdAt ?? tournament.startedAt ?? null
+          }
           onClose={() => setIsQROpen(false)}
         />
       )}

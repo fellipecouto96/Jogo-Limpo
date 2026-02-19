@@ -7,6 +7,7 @@ import {
 
 export interface TournamentDetail {
   id: string;
+  publicSlug: string;
   name: string;
   status: string;
   playerCount: number;

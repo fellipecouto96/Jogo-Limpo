@@ -1,9 +1,11 @@
 import { prisma } from '../../shared/database/prisma.js';
 import { fetchBracket } from '../bracket/bracket.service.js';
 import { getTournamentStatistics } from '../match/match.service.js';
+import { generateUniqueTournamentSlug } from '../tournament/public-slug.js';
+import { withPerformanceLog } from '../../shared/logging/performance.service.js';
 
 export interface PublicProfileTournament {
-  id: string;
+  publicSlug: string;
   name: string;
   status: string;
   createdAt: string;
@@ -11,91 +13,205 @@ export interface PublicProfileTournament {
   finishedAt: string | null;
   playerCount: number;
   championName: string | null;
-  entryFee: number | null;
-  prizePool: number | null;
 }
 
 export interface PublicProfile {
   name: string;
   tournaments: PublicProfileTournament[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
 }
+
+export type PublicTournamentStatus = 'RUNNING' | 'FINISHED';
 
 export interface PublicTournamentDetail {
   tournament: {
-    id: string;
+    publicSlug: string;
     name: string;
     status: string;
+    createdAt: string;
     startedAt: string | null;
     finishedAt: string | null;
     playerCount: number;
     championName: string | null;
-    entryFee: number | null;
-    prizePool: number | null;
   };
   bracket: Awaited<ReturnType<typeof fetchBracket>>;
   statistics: Awaited<ReturnType<typeof getTournamentStatistics>>;
 }
 
+function countPlayersFromRoundOne(matches: { isBye: boolean }[]): number {
+  const byeCount = matches.filter((match) => match.isBye).length;
+  return matches.length * 2 - byeCount;
+}
+
+async function ensurePublicTournamentSlug(tournament: {
+  id: string;
+  name: string;
+  publicSlug: string | null;
+}): Promise<string> {
+  if (tournament.publicSlug) {
+    return tournament.publicSlug;
+  }
+
+  const publicSlug = await generateUniqueTournamentSlug(
+    tournament.name,
+    async (slug) => {
+      const existing = await prisma.tournament.findUnique({
+        where: { publicSlug: slug },
+        select: { id: true },
+      });
+      return Boolean(existing);
+    }
+  );
+
+  await prisma.tournament.update({
+    where: { id: tournament.id },
+    data: { publicSlug },
+  });
+
+  return publicSlug;
+}
+
+async function buildPublicTournamentDetail(tournament: {
+  id: string;
+  name: string;
+  publicSlug: string | null;
+  status: string;
+  createdAt: Date;
+  startedAt: Date | null;
+  finishedAt: Date | null;
+  champion: { name: string } | null;
+  rounds: Array<{ matches: Array<{ isBye: boolean }> }>;
+}): Promise<PublicTournamentDetail> {
+  const publicSlug = await ensurePublicTournamentSlug({
+    id: tournament.id,
+    name: tournament.name,
+    publicSlug: tournament.publicSlug,
+  });
+  const playerCount = countPlayersFromRoundOne(tournament.rounds[0]?.matches ?? []);
+  const [bracket, statistics] = await Promise.all([
+    fetchBracket(tournament.id),
+    getTournamentStatistics(tournament.id),
+  ]);
+
+  return {
+    tournament: {
+      publicSlug,
+      name: tournament.name,
+      status: tournament.status,
+      createdAt: tournament.createdAt.toISOString(),
+      startedAt: tournament.startedAt?.toISOString() ?? null,
+      finishedAt: tournament.finishedAt?.toISOString() ?? null,
+      playerCount,
+      championName: tournament.champion?.name ?? null,
+    },
+    bracket,
+    statistics,
+  };
+}
+
 export async function getPublicProfile(
-  slug: string
+  slug: string,
+  page = 1,
+  limit = 8,
+  status?: PublicTournamentStatus
 ): Promise<PublicProfile | null> {
-  const organizer = await prisma.organizer.findUnique({
-    where: { publicSlug: slug },
-    select: {
-      name: true,
-      isPublicProfileEnabled: true,
-      showFinancials: true,
-      tournaments: {
-        where: { status: { in: ['RUNNING', 'FINISHED'] } },
-        orderBy: { createdAt: 'desc' },
+  const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+  const safeLimit = Number.isFinite(limit)
+    ? Math.min(30, Math.max(1, Math.floor(limit)))
+    : 8;
+  const skip = (safePage - 1) * safeLimit;
+
+  const organizer = await withPerformanceLog(
+    'public_page',
+    'public_profile_organizer_lookup',
+    () =>
+      prisma.organizer.findUnique({
+        where: { publicSlug: slug },
         select: {
           id: true,
           name: true,
-          status: true,
-          createdAt: true,
-          startedAt: true,
-          finishedAt: true,
-          entryFee: true,
-          prizePool: true,
-          champion: { select: { name: true } },
-          matches: {
-            select: { player1Id: true, player2Id: true },
-          },
+          isPublicProfileEnabled: true,
         },
-      },
-    },
-  });
+      }),
+    { slug }
+  );
 
   if (!organizer || !organizer.isPublicProfileEnabled) {
     return null;
   }
 
+  const where = {
+    organizerId: organizer.id,
+    status: status
+      ? status
+      : {
+          in: ['RUNNING', 'FINISHED'] as PublicTournamentStatus[],
+        },
+  };
+
+  const [tournaments, total] = await withPerformanceLog(
+    'public_page',
+    'public_profile_tournaments',
+    () =>
+      Promise.all([
+        prisma.tournament.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: safeLimit,
+          select: {
+            id: true,
+            publicSlug: true,
+            name: true,
+            status: true,
+            createdAt: true,
+            startedAt: true,
+            finishedAt: true,
+            champion: { select: { name: true } },
+            rounds: {
+              where: { roundNumber: 1 },
+              select: {
+                matches: {
+                  select: { isBye: true },
+                },
+              },
+            },
+          },
+        }),
+        prisma.tournament.count({ where }),
+      ]),
+    { slug, status: status ?? 'ALL', page: safePage, limit: safeLimit }
+  );
+
   return {
     name: organizer.name,
-    tournaments: organizer.tournaments.map((t) => {
-      const playerIds = new Set<string>();
-      for (const m of t.matches) {
-        playerIds.add(m.player1Id);
-        if (m.player2Id) playerIds.add(m.player2Id);
-      }
-
-      return {
-        id: t.id,
+    tournaments: await Promise.all(
+      tournaments.map(async (t) => ({
+        publicSlug: await ensurePublicTournamentSlug({
+          id: t.id,
+          name: t.name,
+          publicSlug: t.publicSlug,
+        }),
         name: t.name,
         status: t.status,
         createdAt: t.createdAt.toISOString(),
         startedAt: t.startedAt?.toISOString() ?? null,
         finishedAt: t.finishedAt?.toISOString() ?? null,
-        playerCount: playerIds.size,
+        playerCount: countPlayersFromRoundOne(t.rounds[0]?.matches ?? []),
         championName: t.champion?.name ?? null,
-        entryFee: organizer.showFinancials && t.entryFee
-          ? Number(t.entryFee)
-          : null,
-        prizePool: organizer.showFinancials && t.prizePool
-          ? Number(t.prizePool)
-          : null,
-      };
-    }),
+      }))
+    ),
+    pagination: {
+      page: safePage,
+      limit: safeLimit,
+      total,
+      hasMore: skip + tournaments.length < total,
+    },
   };
 }
 
@@ -103,36 +219,52 @@ export async function getPublicTournamentDetail(
   slug: string,
   tournamentId: string
 ): Promise<PublicTournamentDetail | null> {
-  const organizer = await prisma.organizer.findUnique({
-    where: { publicSlug: slug },
-    select: {
-      id: true,
-      isPublicProfileEnabled: true,
-      showFinancials: true,
-    },
-  });
+  const organizer = await withPerformanceLog(
+    'public_page',
+    'public_tournament_organizer_lookup',
+    () =>
+      prisma.organizer.findUnique({
+        where: { publicSlug: slug },
+        select: {
+          id: true,
+          isPublicProfileEnabled: true,
+        },
+      }),
+    { slug }
+  );
 
   if (!organizer || !organizer.isPublicProfileEnabled) {
     return null;
   }
 
-  const tournament = await prisma.tournament.findUnique({
-    where: { id: tournamentId },
-    select: {
-      id: true,
-      name: true,
-      status: true,
-      organizerId: true,
-      startedAt: true,
-      finishedAt: true,
-      entryFee: true,
-      prizePool: true,
-      champion: { select: { name: true } },
-      matches: {
-        select: { player1Id: true, player2Id: true },
-      },
-    },
-  });
+  const tournament = await withPerformanceLog(
+    'public_page',
+    'public_tournament_detail',
+    () =>
+      prisma.tournament.findUnique({
+        where: { id: tournamentId },
+        select: {
+          id: true,
+          publicSlug: true,
+          name: true,
+          status: true,
+          organizerId: true,
+          createdAt: true,
+          startedAt: true,
+          finishedAt: true,
+          champion: { select: { name: true } },
+          rounds: {
+            where: { roundNumber: 1 },
+            select: {
+              matches: {
+                select: { isBye: true },
+              },
+            },
+          },
+        },
+      }),
+    { slug, tournamentId }
+  );
 
   if (!tournament || tournament.organizerId !== organizer.id) {
     return null;
@@ -142,32 +274,46 @@ export async function getPublicTournamentDetail(
     return null;
   }
 
-  const playerIds = new Set<string>();
-  for (const m of tournament.matches) {
-    playerIds.add(m.player1Id);
-    if (m.player2Id) playerIds.add(m.player2Id);
+  return buildPublicTournamentDetail(tournament);
+}
+
+export async function getPublicTournamentBySlug(
+  tournamentSlug: string
+): Promise<PublicTournamentDetail | null> {
+  const tournament = await withPerformanceLog(
+    'public_page',
+    'public_tournament_slug_lookup',
+    () =>
+      prisma.tournament.findUnique({
+        where: { publicSlug: tournamentSlug },
+        select: {
+          id: true,
+          publicSlug: true,
+          name: true,
+          status: true,
+          createdAt: true,
+          startedAt: true,
+          finishedAt: true,
+          champion: { select: { name: true } },
+          rounds: {
+            where: { roundNumber: 1 },
+            select: {
+              matches: {
+                select: { isBye: true },
+              },
+            },
+          },
+        },
+      }),
+    { tournamentSlug }
+  );
+
+  if (!tournament) {
+    return null;
+  }
+  if (tournament.status !== 'RUNNING' && tournament.status !== 'FINISHED') {
+    return null;
   }
 
-  const bracket = await fetchBracket(tournamentId);
-  const statistics = await getTournamentStatistics(tournamentId);
-
-  return {
-    tournament: {
-      id: tournament.id,
-      name: tournament.name,
-      status: tournament.status,
-      startedAt: tournament.startedAt?.toISOString() ?? null,
-      finishedAt: tournament.finishedAt?.toISOString() ?? null,
-      playerCount: playerIds.size,
-      championName: tournament.champion?.name ?? null,
-      entryFee: organizer.showFinancials && tournament.entryFee
-        ? Number(tournament.entryFee)
-        : null,
-      prizePool: organizer.showFinancials && tournament.prizePool
-        ? Number(tournament.prizePool)
-        : null,
-    },
-    bracket,
-    statistics,
-  };
+  return buildPublicTournamentDetail(tournament);
 }

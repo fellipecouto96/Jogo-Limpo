@@ -4,6 +4,7 @@ import {
   formatGuidedSystemError,
   resolveGuidedSystemError,
 } from '../../shared/systemErrors.ts';
+import { logClientPerformance } from '../../shared/logger.ts';
 
 interface DashboardMetrics {
   totalCollectedThisMonth: number;
@@ -23,6 +24,12 @@ interface DashboardTournament {
 export interface DashboardData {
   metrics: DashboardMetrics;
   tournaments: DashboardTournament[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
 }
 
 interface UseDashboardResult {
@@ -35,6 +42,7 @@ interface UseDashboardResult {
 const emptyData: DashboardData = {
   metrics: { totalCollectedThisMonth: 0, totalPrizePaid: 0 },
   tournaments: [],
+  pagination: { page: 1, limit: 8, total: 0, hasMore: false },
 };
 
 export function useDashboard(): UseDashboardResult {
@@ -43,14 +51,20 @@ export function useDashboard(): UseDashboardResult {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchDashboard = useCallback(async () => {
+    const startedAt = performance.now();
     try {
-      const res = await apiFetch('/dashboard-summary');
+      const res = await apiFetch('/dashboard-summary?page=1&limit=8');
       if (!res.ok) {
         throw await buildHttpResponseError(res);
       }
       const json: DashboardData = await res.json();
       setData(json);
       setError(null);
+      const durationMs = performance.now() - startedAt;
+      logClientPerformance('dashboard_perf', 'dashboard_load_ms', {
+        durationMs: Number(durationMs.toFixed(2)),
+        tournaments: json.tournaments.length,
+      });
     } catch (err) {
       setError(
         formatGuidedSystemError(
