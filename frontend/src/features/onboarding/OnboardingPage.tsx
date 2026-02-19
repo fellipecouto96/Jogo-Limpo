@@ -327,18 +327,18 @@ export function OnboardingPage() {
 
   return (
     <div
-      className="mx-auto flex min-h-[calc(100vh-10rem)] w-full max-w-3xl flex-col justify-center"
+      className="mx-auto w-full max-w-3xl pb-24"
       onPointerDown={onboardingActive ? recordInteraction : undefined}
     >
-      <div className="mb-6">
-        <h1 className="mb-2 font-display text-3xl text-white">Criar torneio</h1>
-        <p className="text-base text-gray-300">
+      <div className="mb-4">
+        <h1 className="mb-1.5 font-display text-3xl text-white">Criar torneio</h1>
+        <p className="text-sm text-gray-300">
           Fluxo rápido para configurar premiação e iniciar pelo celular.
         </p>
       </div>
 
-      <div className="w-full rounded-3xl border border-gray-800 bg-gray-900/80 p-4 sm:p-6">
-        <div className={`mb-8 grid gap-2 ${onboardingActive ? 'grid-cols-4' : 'grid-cols-2'}`}>
+      <div className="w-full rounded-2xl border border-gray-800 bg-gray-900/80 p-3 sm:p-4">
+        <div className={`mb-6 grid gap-2 ${onboardingActive ? 'grid-cols-4' : 'grid-cols-2'}`}>
           {stepLabels.map((label, i) => (
             <div key={label}>
               <div
@@ -360,9 +360,9 @@ export function OnboardingPage() {
         </div>
 
         {step === 0 && (
-          <section>
-            <h2 className="mb-2 text-2xl font-bold text-white">Dados e premiação</h2>
-            <p className="mb-5 text-base text-gray-300">
+          <section className="pb-28">
+            <h2 className="mb-1 text-xl font-bold text-white">Dados e premiação</h2>
+            <p className="mb-4 text-sm text-gray-300">
               Configure o torneio. O modo simples já vem pronto.
             </p>
 
@@ -387,13 +387,13 @@ export function OnboardingPage() {
                 }
               }}
               placeholder="Ex: Copa de Domingo"
-              className="mb-4 h-14 w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 text-lg text-white placeholder:text-gray-500 focus:border-emerald-400 focus:outline-none"
+              className="mb-3 h-12 w-full rounded-xl border border-gray-700 bg-gray-950 px-4 text-base text-white placeholder:text-gray-500 focus:border-emerald-400 focus:outline-none"
             />
 
             <label htmlFor="entry-fee" className="sr-only">
               Taxa por jogador
             </label>
-            <div className="relative mb-4">
+            <div className="relative mb-3">
               <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-gray-400">
                 R$
               </span>
@@ -416,18 +416,36 @@ export function OnboardingPage() {
                   }
                 }}
                 placeholder="0,00"
-                className="h-14 w-full rounded-2xl border border-gray-700 bg-gray-950 pl-14 pr-4 text-lg text-white placeholder:text-gray-500 focus:border-emerald-400 focus:outline-none"
+                className="h-12 w-full rounded-xl border border-gray-700 bg-gray-950 pl-12 pr-4 text-base text-white placeholder:text-gray-500 focus:border-emerald-400 focus:outline-none"
               />
             </div>
 
             {entryFeeValue === null && (
-              <p className="mb-4 rounded-xl border border-red-400/40 bg-red-400/10 px-4 py-3 text-base text-red-200">
+              <p className="mb-3 rounded-xl border border-red-400/40 bg-red-400/10 px-3 py-2 text-sm text-red-200">
                 Digite uma taxa válida (ex: 25 ou 25,00).
               </p>
             )}
 
-            <div className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            <div className="mb-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
               Modo simples: organizador {DEFAULT_ORGANIZER_PERCENTAGE}% | campeão {DEFAULT_CHAMPION_PERCENTAGE}% | vice {DEFAULT_RUNNER_UP_PERCENTAGE}%
+            </div>
+
+            <div className="mb-4 rounded-xl border border-gray-700 bg-[#0b1222] p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">
+                Prévia financeira ao vivo
+              </p>
+              <p className="mt-1 text-[11px] text-gray-500">
+                Baseado em {uniquePlayers.length} jogador{uniquePlayers.length === 1 ? '' : 'es'} cadastrado{uniquePlayers.length === 1 ? '' : 's'}.
+              </p>
+              <div className="mt-2 space-y-1.5 text-sm">
+                <PreviewLine label="Arrecadação estimada" value={formatCurrency(preview.totalCollected)} />
+                <PreviewLine label="Valor do organizador" value={formatCurrency(preview.organizerAmount)} />
+                <PreviewLine label="Premiação total" value={formatCurrency(preview.prizePool)} />
+                <PreviewLine
+                  label="Distribuição"
+                  value={`${(championPercentageValue ?? 0).toFixed(0)}% / ${(runnerUpPercentageValue ?? 0).toFixed(0)}% / ${(thirdPlacePercentageValue ?? 0).toFixed(0)}% / ${(fourthPlacePercentageValue ?? 0).toFixed(0)}%`}
+                />
+              </div>
             </div>
 
             {onboardingActive && (
@@ -437,9 +455,9 @@ export function OnboardingPage() {
             <button
               type="button"
               onClick={() => setIsAdvancedOpen((current) => !current)}
-              className="mb-3 flex h-12 w-full items-center justify-center rounded-xl border border-gray-700 bg-gray-800 px-4 text-base font-semibold text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gray-500/60 [touch-action:manipulation]"
+              className="mb-3 flex h-10 w-full items-center justify-center rounded-xl border border-gray-700 bg-gray-800 px-4 text-sm font-semibold text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gray-500/60 [touch-action:manipulation]"
             >
-              ⚙️ Configurar regras de premiação
+              Configurar regras de premiação
             </button>
 
             {isAdvancedOpen && (
@@ -560,16 +578,26 @@ export function OnboardingPage() {
               <button
                 onClick={() => setStep(1)}
                 disabled={!canContinue}
-                className="h-14 w-full rounded-2xl bg-emerald-500 text-lg font-bold text-gray-950 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/60 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-500 [touch-action:manipulation]"
+                className="hidden h-12 w-full rounded-xl bg-emerald-500 text-base font-bold text-gray-950 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/60 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-500 sm:block [touch-action:manipulation]"
               >
                 Continuar
               </button>
               <Link
                 to="/app/tournaments"
-                className="flex h-14 w-full items-center justify-center rounded-2xl bg-gray-800 text-lg font-semibold text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gray-500/60 [touch-action:manipulation]"
+                className="flex h-11 w-full items-center justify-center rounded-xl bg-gray-800 text-sm font-semibold text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gray-500/60 [touch-action:manipulation]"
               >
                 Voltar
               </Link>
+            </div>
+
+            <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-800 bg-[#0b1120]/95 px-4 pb-4 pt-3 backdrop-blur-md sm:hidden">
+              <button
+                onClick={() => setStep(1)}
+                disabled={!canContinue}
+                className="h-12 w-full rounded-xl bg-emerald-500 text-base font-semibold text-gray-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400"
+              >
+                Continuar
+              </button>
             </div>
           </section>
         )}

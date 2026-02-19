@@ -85,6 +85,9 @@ export interface TournamentListItem {
   status: string;
   organizer: { id: string; name: string };
   playerCount: number;
+  championName: string | null;
+  totalCollected: number | null;
+  organizerProfit: number | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
@@ -124,9 +127,13 @@ export async function listTournaments(
             publicSlug: true,
             name: true,
             status: true,
+            totalCollected: true,
+            calculatedOrganizerAmount: true,
+            prizePool: true,
             createdAt: true,
             startedAt: true,
             finishedAt: true,
+            champion: { select: { name: true } },
             organizer: { select: { id: true, name: true } },
             rounds: {
               where: { roundNumber: 1 },
@@ -148,6 +155,13 @@ export async function listTournaments(
       status: t.status,
       organizer: { id: t.organizer.id, name: t.organizer.name },
       playerCount: countPlayers(matches),
+      championName: t.champion?.name ?? null,
+      totalCollected: decimalToNumber(t.totalCollected),
+      organizerProfit:
+        decimalToNumber(t.calculatedOrganizerAmount) ??
+        (t.totalCollected && t.prizePool
+          ? t.totalCollected.toNumber() - t.prizePool.toNumber()
+          : null),
       createdAt: t.createdAt.toISOString(),
       startedAt: t.startedAt?.toISOString() ?? null,
       finishedAt: t.finishedAt?.toISOString() ?? null,

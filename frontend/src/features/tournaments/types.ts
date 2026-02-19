@@ -5,6 +5,9 @@ export interface TournamentListItem {
   status: 'DRAFT' | 'OPEN' | 'RUNNING' | 'FINISHED';
   organizer: { id: string; name: string };
   playerCount: number;
+  championName: string | null;
+  totalCollected: number | null;
+  organizerProfit: number | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
