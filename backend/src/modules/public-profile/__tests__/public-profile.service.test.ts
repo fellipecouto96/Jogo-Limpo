@@ -63,6 +63,10 @@ function makeOrganizer(overrides: Partial<{
 }> = {}) {
   return {
     name: 'João Silva',
+    email: 'joao@example.com',
+    passwordHash: 'hashed',
+    publicSlug: 'joao-a7x2',
+    createdAt: new Date('2026-01-01'),
     isPublicProfileEnabled: true,
     showFinancials: false,
     id: 'org-1',
@@ -83,6 +87,7 @@ function makeTournament(overrides: Partial<{
   champion: { name: string } | null;
   matches: { player1Id: string; player2Id: string | null }[];
 }> = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return {
     id: 't-1',
     name: 'Copa Test',
@@ -95,7 +100,7 @@ function makeTournament(overrides: Partial<{
     champion: null,
     matches: [{ player1Id: 'p1', player2Id: 'p2' }],
     ...overrides,
-  };
+  } as any;
 }
 
 // ── getPublicProfile ──────────────────────────────────────────────────────────
@@ -131,21 +136,21 @@ describe('getPublicProfile – security', () => {
     mockOrgFindUnique.mockResolvedValue(orgWithEmail);
     const result = await getPublicProfile('joao-a7x2');
     expect(result).not.toBeNull();
-    expect((result as Record<string, unknown>).email).toBeUndefined();
+    expect((result as unknown as Record<string, unknown>).email).toBeUndefined();
   });
 
   it('never exposes passwordHash in response', async () => {
     const orgWithPwd = { ...makeOrganizer(), passwordHash: 'bcrypt$hash' };
     mockOrgFindUnique.mockResolvedValue(orgWithPwd);
     const result = await getPublicProfile('joao-a7x2');
-    expect((result as Record<string, unknown>).passwordHash).toBeUndefined();
+    expect((result as unknown as Record<string, unknown>).passwordHash).toBeUndefined();
   });
 
   it('never exposes organizerId in response', async () => {
     mockOrgFindUnique.mockResolvedValue(makeOrganizer());
     const result = await getPublicProfile('joao-a7x2');
-    expect((result as Record<string, unknown>).organizerId).toBeUndefined();
-    expect((result as Record<string, unknown>).id).toBeUndefined();
+    expect((result as unknown as Record<string, unknown>).organizerId).toBeUndefined();
+    expect((result as unknown as Record<string, unknown>).id).toBeUndefined();
   });
 
   it('excludes DRAFT tournaments from public listing (DB-level filter)', async () => {
@@ -331,7 +336,7 @@ describe('getPublicTournamentDetail – security', () => {
     );
     const result = await getPublicTournamentDetail('joao-a7x2', 't-1');
     expect(
-      (result!.tournament as Record<string, unknown>).organizerId
+      (result!.tournament as unknown as Record<string, unknown>).organizerId
     ).toBeUndefined();
   });
 });

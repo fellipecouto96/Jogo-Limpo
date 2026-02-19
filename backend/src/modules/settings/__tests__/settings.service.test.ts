@@ -30,11 +30,12 @@ describe('getSettings', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns settings for a valid organizer', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockFindUniqueOrThrow.mockResolvedValue({
       publicSlug: 'joao-a7x2',
       isPublicProfileEnabled: true,
       showFinancials: false,
-    });
+    } as any);
     const result = await getSettings('org-1');
     expect(result.publicSlug).toBe('joao-a7x2');
     expect(result.isPublicProfileEnabled).toBe(true);
@@ -110,7 +111,7 @@ describe('updateSettings – slug validation', () => {
   // ── Uniqueness ────────────────────────────────────────────────────────────
 
   it('rejects slug already taken by a different organizer (409)', async () => {
-    mockFindUnique.mockResolvedValue({ id: 'org-OTHER' });
+    mockFindUnique.mockResolvedValue({ id: 'org-OTHER' } as any);
     const err = await updateSettings('org-1', {
       publicSlug: 'taken-slug-ab12',
     }).catch((e) => e);
@@ -120,22 +121,24 @@ describe('updateSettings – slug validation', () => {
 
   it('allows organizer to keep their own slug (no conflict)', async () => {
     // Same organizer owns the slug – should succeed
-    mockFindUnique.mockResolvedValue({ id: 'org-1' });
+    mockFindUnique.mockResolvedValue({ id: 'org-1' } as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockUpdate.mockResolvedValue({
       publicSlug: 'own-slug-ab12',
       isPublicProfileEnabled: true,
       showFinancials: false,
-    });
+    } as any);
     const result = await updateSettings('org-1', { publicSlug: 'own-slug-ab12' });
     expect(result.publicSlug).toBe('own-slug-ab12');
   });
 
   it('updates toggle fields without touching slug', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockUpdate.mockResolvedValue({
       publicSlug: 'joao-a7x2',
       isPublicProfileEnabled: false,
       showFinancials: true,
-    });
+    } as any);
     const result = await updateSettings('org-1', {
       isPublicProfileEnabled: false,
       showFinancials: true,
