@@ -9,6 +9,9 @@ export default defineConfig({
       include: [
         'src/modules/**/financials.ts',
         'src/shared/utils/prng.ts',
+        'src/utils/slug.ts',
+        'src/modules/public-profile/public-profile.service.ts',
+        'src/modules/settings/settings.service.ts',
       ],
       reporter: ['text', 'lcov', 'json-summary'],
       reportsDirectory: './coverage',
