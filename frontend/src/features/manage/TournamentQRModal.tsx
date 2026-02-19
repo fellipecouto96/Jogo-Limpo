@@ -4,6 +4,7 @@ import {
   generateQRDataUrl,
   downloadDataUrl,
 } from '../../shared/qrcode.ts';
+import { logClientError } from '../../shared/logger.ts';
 
 interface TournamentQRModalProps {
   tournamentId: string;
@@ -22,12 +23,20 @@ export function TournamentQRModal({
   const publicUrl = `${window.location.origin}/organizer/${slug}/tournament/${tournamentId}`;
 
   useEffect(() => {
-    generateQRSvg(publicUrl).then(setSvgHtml);
-  }, [publicUrl]);
+    generateQRSvg(publicUrl)
+      .then(setSvgHtml)
+      .catch(() => {
+        logClientError('qr_access', 'QR SVG generation failed', { tournamentId });
+      });
+  }, [publicUrl, tournamentId]);
 
   async function handleDownload() {
-    const dataUrl = await generateQRDataUrl(publicUrl, 1024);
-    downloadDataUrl(dataUrl, `qrcode-torneio-${tournamentId.slice(0, 8)}.png`);
+    try {
+      const dataUrl = await generateQRDataUrl(publicUrl, 1024);
+      downloadDataUrl(dataUrl, `qrcode-torneio-${tournamentId.slice(0, 8)}.png`);
+    } catch {
+      logClientError('qr_access', 'QR PNG download failed', { tournamentId });
+    }
   }
 
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(

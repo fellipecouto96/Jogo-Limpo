@@ -7,6 +7,7 @@ import {
   renameTournamentPlayer,
   TournamentError,
 } from './tournament.service.js';
+import { logEvent } from '../../shared/logging/log.service.js';
 
 export async function getTournaments(
   request: FastifyRequest,
@@ -98,6 +99,14 @@ export async function patchTournamentFinancials(
     return reply.send(result);
   } catch (err) {
     if (err instanceof TournamentError) {
+      logEvent({
+        level: 'WARN',
+        journey: 'create_tournament',
+        tournamentId: request.params.tournamentId,
+        userId: request.user.sub,
+        message: err.message,
+        metadata: { statusCode: err.statusCode },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
     throw err;
@@ -115,6 +124,14 @@ export async function patchTournamentFinish(
     return reply.send(result);
   } catch (err) {
     if (err instanceof TournamentError) {
+      logEvent({
+        level: 'WARN',
+        journey: 'create_tournament',
+        tournamentId: request.params.tournamentId,
+        userId: request.user.sub,
+        message: err.message,
+        metadata: { statusCode: err.statusCode },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
     throw err;
@@ -155,6 +172,14 @@ export async function patchTournamentPlayer(
     return reply.send(result);
   } catch (err) {
     if (err instanceof TournamentError) {
+      logEvent({
+        level: 'WARN',
+        journey: 'create_tournament',
+        tournamentId: request.params.tournamentId,
+        userId: request.user.sub,
+        message: err.message,
+        metadata: { statusCode: err.statusCode, playerId: request.params.playerId },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
     throw err;

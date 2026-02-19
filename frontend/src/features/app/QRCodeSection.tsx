@@ -4,6 +4,7 @@ import {
   generateQRDataUrl,
   downloadDataUrl,
 } from '../../shared/qrcode.ts';
+import { logClientError } from '../../shared/logger.ts';
 
 interface QRCodeSectionProps {
   slug: string;
@@ -15,12 +16,20 @@ export function QRCodeSection({ slug, organizerName }: QRCodeSectionProps) {
   const publicUrl = `${window.location.origin}/organizer/${slug}`;
 
   useEffect(() => {
-    generateQRSvg(publicUrl).then(setSvgHtml);
-  }, [publicUrl]);
+    generateQRSvg(publicUrl)
+      .then(setSvgHtml)
+      .catch(() => {
+        logClientError('qr_access', 'QR SVG generation failed', { slug });
+      });
+  }, [publicUrl, slug]);
 
   async function handleDownloadPng() {
-    const dataUrl = await generateQRDataUrl(publicUrl, 1024);
-    downloadDataUrl(dataUrl, `qrcode-${slug}.png`);
+    try {
+      const dataUrl = await generateQRDataUrl(publicUrl, 1024);
+      downloadDataUrl(dataUrl, `qrcode-${slug}.png`);
+    } catch {
+      logClientError('qr_access', 'QR PNG download failed', { slug });
+    }
   }
 
   function handleOpenPrint() {
