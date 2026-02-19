@@ -32,7 +32,7 @@ export function QRCodeSection({ slug, organizerName }: QRCodeSectionProps) {
   }
 
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
-    `Confira meus torneios no Jogo Limpo!\n${publicUrl}`
+    `Confira os torneios de ${organizerName} no Jogo Limpo!\n${publicUrl}`
   )}`;
 
   return (

@@ -10,7 +10,6 @@ interface Settings {
 
 export function SettingsPage() {
   const { organizer } = useAuth();
-  const [settings, setSettings] = useState<Settings | null>(null);
   const [slug, setSlug] = useState('');
   const [profileEnabled, setProfileEnabled] = useState(true);
   const [showFinancials, setShowFinancials] = useState(false);
@@ -24,7 +23,6 @@ export function SettingsPage() {
         const res = await apiFetch('/organizer/settings');
         if (res.ok) {
           const data: Settings = await res.json();
-          setSettings(data);
           setSlug(data.publicSlug ?? '');
           setProfileEnabled(data.isPublicProfileEnabled);
           setShowFinancials(data.showFinancials);
@@ -51,8 +49,6 @@ export function SettingsPage() {
         }),
       });
       if (res.ok) {
-        const data: Settings = await res.json();
-        setSettings(data);
         setFeedback({ type: 'success', message: 'Configuracoes salvas!' });
       } else {
         const body = await res.json().catch(() => ({}));
