@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTournamentDetails } from './useTournamentDetails.ts';
 import { useBracketData } from '../tv/useBracketData.ts';
@@ -7,7 +7,10 @@ import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import type { BracketMatch } from '../tv/types.ts';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { parseGuidedSystemErrorText } from '../../shared/systemErrors.ts';
-import { HistoryPageSkeleton } from '../../shared/loading/LoadingSystem.tsx';
+import {
+  ActionLoadingButton,
+  HistoryPageSkeleton,
+} from '../../shared/loading/LoadingSystem.tsx';
 
 function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', {
@@ -26,6 +29,9 @@ function formatDateFull(iso: string): string {
 
 export function TournamentHistoryPage() {
   const { tournamentId } = useParams<{ tournamentId: string }>();
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
   const {
     data: details,
     error: detailsError,
@@ -85,6 +91,62 @@ export function TournamentHistoryPage() {
     (computedRunnerUp
       ? { id: computedRunnerUp.id, name: computedRunnerUp.name }
       : null);
+
+  const tournamentPublicSlug = details?.publicSlug ?? null;
+  const shareUrl = tournamentPublicSlug
+    ? `${window.location.origin}/tournament/${tournamentPublicSlug}`
+    : `${window.location.origin}/tournament/${tournamentId}/tv`;
+
+  const whatsappShareUrl = `https://wa.me/?text=${encodeURIComponent(
+    `Confira o resultado do torneio ${tournament.name}: ${shareUrl}`
+  )}`;
+
+  async function handleShareResult() {
+    if (isSharing) return;
+
+    setIsSharing(true);
+    setShareError(null);
+    setShareFeedback(null);
+
+    const championName = champion?.name ?? 'Campeao';
+    const runnerUpName = runnerUp?.name ?? 'Vice-campeao';
+    const championAmount = details?.championPrize ?? details?.firstPlacePrize ?? null;
+    const runnerUpAmount = details?.runnerUpPrize ?? details?.secondPlacePrize ?? null;
+    const thirdPlaceAmount = details?.thirdPlacePrize ?? null;
+    const fourthPlaceAmount = details?.fourthPlacePrize ?? null;
+
+    const lines = [
+      `Resultado oficial - ${tournament.name}`,
+      `Campeao: ${championName}`,
+      `Vice: ${runnerUpName}`,
+      championAmount != null ? `Premio do campeao: ${formatCurrency(championAmount)}` : null,
+      runnerUpAmount != null ? `Premio do vice: ${formatCurrency(runnerUpAmount)}` : null,
+      thirdPlaceAmount != null && thirdPlaceAmount > 0 ? `Premio do 3o lugar: ${formatCurrency(thirdPlaceAmount)}` : null,
+      fourthPlaceAmount != null && fourthPlaceAmount > 0 ? `Premio do 4o lugar: ${formatCurrency(fourthPlaceAmount)}` : null,
+      `Acompanhe: ${shareUrl}`,
+    ].filter(Boolean) as string[];
+    const message = lines.join('\n');
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Resultado - ${tournament.name}`,
+          text: message,
+          url: shareUrl,
+        });
+        setShareFeedback('Resultado compartilhado com sucesso.');
+        return;
+      }
+
+      await navigator.clipboard.writeText(message);
+      setShareFeedback('Resultado copiado para compartilhamento.');
+    } catch {
+      setShareError('Nao foi possivel compartilhar o resultado agora.');
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
   return (
     <div className="animate-[fadeIn_0.4s_ease-out] space-y-8">
       <style>{`
@@ -120,6 +182,39 @@ export function TournamentHistoryPage() {
           <StatusBadge status={tournament.status as 'DRAFT' | 'OPEN' | 'RUNNING' | 'FINISHED'} />
         </div>
       </header>
+
+      <section className="rounded-3xl border border-white/5 bg-gradient-to-br from-[#0b1120] via-[#0f172a] to-[#020617] p-4 sm:p-5 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ActionLoadingButton
+            type="button"
+            onClick={handleShareResult}
+            isLoading={isSharing}
+            idleLabel="Compartilhar resultado"
+            loadingLabel="Compartilhando torneio"
+            className="h-12 w-full rounded-xl bg-gray-800 px-4 text-base font-semibold text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40"
+          >
+            Compartilhar resultado
+          </ActionLoadingButton>
+          <a
+            href={whatsappShareUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-12 w-full items-center justify-center rounded-xl bg-green-600 px-4 text-base font-semibold text-white transition hover:bg-green-500 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-green-300/40"
+          >
+            Compartilhar no WhatsApp
+          </a>
+        </div>
+        {shareFeedback && (
+          <p className="mt-3 rounded-xl border border-emerald-400/35 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
+            {shareFeedback}
+          </p>
+        )}
+        {shareError && (
+          <p className="mt-3 rounded-xl border border-amber-300/35 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+            {shareError}
+          </p>
+        )}
+      </section>
 
       {/* Section 1 – Basic Info */}
       <SectionCard title="Informações básicas" subtitle="Visão geral do torneio" accent="amber">
