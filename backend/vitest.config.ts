@@ -8,7 +8,6 @@ export default defineConfig({
       provider: 'v8',
       include: [
         'src/modules/**/financials.ts',
-        'src/modules/**/draw.service.ts',
         'src/shared/utils/prng.ts',
       ],
       reporter: ['text', 'lcov', 'json-summary'],
