@@ -68,7 +68,7 @@ export async function fetchBracket(
   });
 
   if (!tournament) {
-    throw new BracketError('Tournament not found', 404);
+    throw new BracketError('Torneio nao encontrado', 404);
   }
 
   const totalRounds = tournament.rounds.length;

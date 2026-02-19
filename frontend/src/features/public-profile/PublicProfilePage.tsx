@@ -1,10 +1,12 @@
 import { useParams, Link } from 'react-router-dom';
 import { usePublicProfile } from './usePublicProfile.ts';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
+import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
+import { resolveGuidedSystemError } from '../../shared/systemErrors.ts';
 
 export function PublicProfilePage() {
   const { slug } = useParams<{ slug: string }>();
-  const { data, error, isLoading } = usePublicProfile(slug!);
+  const { data, error, isLoading, refetch } = usePublicProfile(slug!);
 
   if (isLoading) {
     return (
@@ -15,11 +17,12 @@ export function PublicProfilePage() {
   }
 
   if (error || !data) {
+    const guidedError = error ?? resolveGuidedSystemError({ context: 'public_link' });
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <p className="text-red-400 text-lg">
-          {error ?? 'Perfil nao encontrado'}
-        </p>
+      <div className="min-h-screen bg-gray-950 px-4 py-10">
+        <div className="mx-auto w-full max-w-lg">
+          <GuidedErrorCard error={guidedError} onRetry={refetch} />
+        </div>
       </div>
     );
   }

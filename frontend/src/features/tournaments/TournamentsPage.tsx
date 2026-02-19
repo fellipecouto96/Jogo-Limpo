@@ -1,8 +1,10 @@
 import { useTournaments } from './useTournaments.ts';
 import { Link } from 'react-router-dom';
+import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
+import { parseGuidedSystemErrorText } from '../../shared/systemErrors.ts';
 
 export function TournamentsPage() {
-  const { data: tournaments, error, isLoading } = useTournaments();
+  const { data: tournaments, error, isLoading, refetch } = useTournaments();
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -25,7 +27,12 @@ export function TournamentsPage() {
       )}
 
       {error && (
-        <p className="text-red-300 text-center py-12 text-lg">{error}</p>
+        <div className="py-4">
+          <GuidedErrorCard
+            error={parseGuidedSystemErrorText(error)}
+            onRetry={refetch}
+          />
+        </div>
       )}
 
       {!isLoading && !error && tournaments.length === 0 && (

@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { BracketData } from '../tv/types.ts';
-import { apiFetch } from '../../shared/api.ts';
+import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
+import {
+  formatGuidedSystemError,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 const POLL_INTERVAL = 5_000;
 
@@ -25,16 +29,17 @@ export function useManageBracket(
         `/tournaments/${tournamentId}/bracket`
       );
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(
-          (body as { error?: string }).error ?? `HTTP ${res.status}`
-        );
+        throw await buildHttpResponseError(res);
       }
       const json: BracketData = await res.json();
       setData(json);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      setError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({ error: err })
+        )
+      );
     } finally {
       setIsLoading(false);
     }

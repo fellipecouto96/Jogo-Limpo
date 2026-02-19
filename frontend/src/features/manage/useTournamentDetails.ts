@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch } from '../../shared/api.ts';
+import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
+import {
+  formatGuidedSystemError,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 export interface TournamentDetail {
   id: string;
@@ -52,16 +56,17 @@ export function useTournamentDetails(
     try {
       const res = await apiFetch(`/tournaments/${tournamentId}`);
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(
-          (body as { error?: string }).error ?? `HTTP ${res.status}`
-        );
+        throw await buildHttpResponseError(res);
       }
       const json: TournamentDetail = await res.json();
       setData(json);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      setError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({ error: err })
+        )
+      );
     } finally {
       setIsLoading(false);
     }

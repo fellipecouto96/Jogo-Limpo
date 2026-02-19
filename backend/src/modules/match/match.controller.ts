@@ -6,6 +6,7 @@ import {
   getTournamentStatistics,
   MatchError,
 } from './match.service.js';
+import { logEvent } from '../../shared/logging/log.service.js';
 
 interface MatchParams {
   tournamentId: string;
@@ -33,7 +34,7 @@ export async function updateMatchResult(
     const organizerId = request.user.sub;
 
     if (!winnerId || typeof winnerId !== 'string') {
-      return reply.status(400).send({ error: 'winnerId is required' });
+      return reply.status(400).send({ error: 'Vencedor da partida e obrigatorio' });
     }
 
     const result = await recordMatchResult(
@@ -46,6 +47,14 @@ export async function updateMatchResult(
     return reply.send(result);
   } catch (err) {
     if (err instanceof MatchError) {
+      logEvent({
+        level: 'WARN',
+        journey: 'advance_winner',
+        tournamentId: request.params.tournamentId,
+        userId: request.user.sub,
+        message: err.message,
+        metadata: { statusCode: err.statusCode, matchId: request.params.matchId },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
     throw err;
@@ -62,7 +71,7 @@ export async function patchMatchScore(
     const organizerId = request.user.sub;
 
     if (typeof player1Score !== 'number' || typeof player2Score !== 'number') {
-      return reply.status(400).send({ error: 'player1Score and player2Score are required' });
+      return reply.status(400).send({ error: 'Informe os dois placares da partida' });
     }
 
     const result = await updateMatchScore(
@@ -75,6 +84,14 @@ export async function patchMatchScore(
     return reply.send(result);
   } catch (err) {
     if (err instanceof MatchError) {
+      logEvent({
+        level: 'WARN',
+        journey: 'advance_winner',
+        tournamentId: request.params.tournamentId,
+        userId: request.user.sub,
+        message: err.message,
+        metadata: { statusCode: err.statusCode, matchId: request.params.matchId },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
     throw err;
@@ -108,6 +125,14 @@ export async function postUndoLastMatchResult(
     return reply.send(result);
   } catch (err) {
     if (err instanceof MatchError) {
+      logEvent({
+        level: 'WARN',
+        journey: 'advance_winner',
+        tournamentId: request.params.tournamentId,
+        userId: request.user.sub,
+        message: err.message,
+        metadata: { statusCode: err.statusCode },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
     throw err;

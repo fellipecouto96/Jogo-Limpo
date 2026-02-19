@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { OnboardingData, OnboardingResult } from './types.ts';
-import { apiFetch } from '../../shared/api.ts';
+import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
 import { useOnboarding } from '../../shared/useOnboarding.ts';
 import { OnboardingHint } from '../../shared/OnboardingHint.tsx';
+import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
+import {
+  getRemainingPercentageMessage,
+  isRetryableErrorMessage,
+  resolveGuidedSystemError,
+  type GuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 const MIN_PLAYERS = 2;
 const REQUIRE_DOUBLE_TAP_CONFIRM = false;
@@ -113,7 +120,7 @@ export function OnboardingPage() {
   const [playerInput, setPlayerInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDrawArmed, setIsDrawArmed] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<GuidedSystemError | null>(null);
 
   const uniquePlayers = useMemo(
     () =>
@@ -141,8 +148,15 @@ export function OnboardingPage() {
     (runnerUpPercentageValue ?? 0) +
     (typeof thirdPlacePercentageValue === 'number' ? thirdPlacePercentageValue : 0) +
     (typeof fourthPlacePercentageValue === 'number' ? fourthPlacePercentageValue : 0);
+  const percentageRemaining = Number((100 - percentageSum).toFixed(2));
 
   const percentageSumValid = Math.abs(percentageSum - 100) < 0.01;
+  const hasPercentageSumMismatch =
+    championPercentageValue != null &&
+    runnerUpPercentageValue != null &&
+    thirdPlacePercentageValue != null &&
+    fourthPlacePercentageValue != null &&
+    !percentageSumValid;
 
   const prizeValidationMessages: string[] = [];
   if (organizerPercentageValue == null) {
@@ -160,16 +174,11 @@ export function OnboardingPage() {
   if (data.fourthPlaceEnabled && fourthPlacePercentageValue == null) {
     prizeValidationMessages.push('Defina um percentual válido para o 4º lugar (0 a 100).');
   }
-  if (
-    championPercentageValue != null &&
-    runnerUpPercentageValue != null &&
-    thirdPlacePercentageValue != null &&
-    fourthPlacePercentageValue != null &&
-    !percentageSumValid
-  ) {
-    prizeValidationMessages.push(
-      `A soma da premiação está em ${percentageSum.toFixed(2)}%. Ela precisa fechar em 100%.`
-    );
+  if (hasPercentageSumMismatch) {
+    prizeValidationMessages.push('A divisao da premiacao precisa fechar 100%.');
+    prizeValidationMessages.push(`Total configurado: ${percentageSum.toFixed(2)}%`);
+    prizeValidationMessages.push(getRemainingPercentageMessage(percentageRemaining));
+    prizeValidationMessages.push('Ajuste os percentuais ate completar 100%.');
   }
 
   const isPrizeConfigValid =
@@ -268,16 +277,19 @@ export function OnboardingPage() {
       });
 
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(
-          (body as { error?: string }).error ?? `HTTP ${response.status}`
-        );
+        throw await buildHttpResponseError(response);
       }
 
       const result: OnboardingResult = await response.json();
       navigate(`/app/tournament/${result.tournamentId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      setError(
+        resolveGuidedSystemError({
+          error: err,
+          context: 'draw',
+          includeFirstTournamentHint: onboardingActive,
+        })
+      );
       setIsDrawArmed(false);
     } finally {
       setIsSubmitting(false);
@@ -438,6 +450,7 @@ export function OnboardingPage() {
                   id="organizer-percentage"
                   label="Percentual do organizador"
                   value={data.organizerPercentage}
+                  invalid={organizerPercentageValue == null}
                   onChange={(value) =>
                     setData((previous) => ({ ...previous, organizerPercentage: value }))
                   }
@@ -447,6 +460,7 @@ export function OnboardingPage() {
                   id="champion-percentage"
                   label="Percentual do campeão"
                   value={data.championPercentage}
+                  invalid={championPercentageValue == null || hasPercentageSumMismatch}
                   onChange={(value) =>
                     setData((previous) => ({ ...previous, championPercentage: value }))
                   }
@@ -456,6 +470,7 @@ export function OnboardingPage() {
                   id="runner-up-percentage"
                   label="Percentual do vice"
                   value={data.runnerUpPercentage}
+                  invalid={runnerUpPercentageValue == null || hasPercentageSumMismatch}
                   onChange={(value) =>
                     setData((previous) => ({ ...previous, runnerUpPercentage: value }))
                   }
@@ -481,6 +496,7 @@ export function OnboardingPage() {
                     id="third-place-percentage"
                     label="Percentual do 3º lugar"
                     value={data.thirdPlacePercentage}
+                    invalid={thirdPlacePercentageValue == null || hasPercentageSumMismatch}
                     onChange={(value) =>
                       setData((previous) => ({ ...previous, thirdPlacePercentage: value }))
                     }
@@ -509,6 +525,7 @@ export function OnboardingPage() {
                     id="fourth-place-percentage"
                     label="Percentual do 4º lugar"
                     value={data.fourthPlacePercentage}
+                    invalid={fourthPlacePercentageValue == null || hasPercentageSumMismatch}
                     onChange={(value) =>
                       setData((previous) => ({ ...previous, fourthPlacePercentage: value }))
                     }
@@ -518,12 +535,17 @@ export function OnboardingPage() {
             )}
 
             {prizeValidationMessages.length > 0 && (
-              <div className="mb-4 space-y-2 rounded-xl border border-red-400/40 bg-red-400/10 px-4 py-3">
+              <div className="mb-4 space-y-2 rounded-xl border border-amber-300/40 bg-amber-400/10 px-4 py-3">
                 {prizeValidationMessages.map((message) => (
-                  <p key={message} className="text-sm text-red-200">
+                  <p key={message} className="text-sm text-amber-100">
                     {message}
                   </p>
                 ))}
+                {onboardingActive && (
+                  <p className="text-xs text-amber-100/90">
+                    Se for seu primeiro torneio, revise os passos acima.
+                  </p>
+                )}
               </div>
             )}
 
@@ -620,12 +642,13 @@ export function OnboardingPage() {
             </ul>
 
             {error && (
-              <p
-                aria-live="polite"
-                className="mb-4 rounded-xl border border-red-400/40 bg-red-400/10 px-4 py-3 text-base text-red-200"
-              >
-                {error}
-              </p>
+              <GuidedErrorCard
+                error={error}
+                className="mb-4"
+                onRetry={
+                  isRetryableErrorMessage(error) ? handleDrawPress : undefined
+                }
+              />
             )}
 
             {!isPrizeConfigValid && (
@@ -655,7 +678,12 @@ export function OnboardingPage() {
                 )}
                 {!canDraw && (
                   <p className="mb-2 text-sm text-amber-200">
-                    Adicione pelo menos {MIN_PLAYERS} jogadores com regras válidas para sortear.
+                    Torneio precisa de pelo menos {MIN_PLAYERS} jogadores para sortear.
+                  </p>
+                )}
+                {!canDraw && onboardingActive && (
+                  <p className="mb-2 text-xs text-amber-100/90">
+                    Se for seu primeiro torneio, revise os passos acima.
                   </p>
                 )}
                 {REQUIRE_DOUBLE_TAP_CONFIRM && canDraw && isDrawArmed && !isSubmitting && (
@@ -683,11 +711,13 @@ function PercentageInput({
   id,
   label,
   value,
+  invalid = false,
   onChange,
 }: {
   id: string;
   label: string;
   value: string;
+  invalid?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
@@ -703,7 +733,12 @@ function PercentageInput({
           autoComplete="off"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-14 w-full rounded-2xl border border-gray-700 bg-gray-900 px-4 pr-12 text-lg text-white placeholder:text-gray-500 focus:border-emerald-400 focus:outline-none"
+          className={[
+            'h-14 w-full rounded-2xl border bg-gray-900 px-4 pr-12 text-lg text-white placeholder:text-gray-500 focus:outline-none',
+            invalid
+              ? 'border-red-400/70 focus:border-red-300'
+              : 'border-gray-700 focus:border-emerald-400',
+          ].join(' ')}
         />
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-base text-gray-400">
           %

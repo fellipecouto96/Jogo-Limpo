@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../auth/useAuth.ts';
-import { apiFetch } from '../../shared/api.ts';
+import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
+import {
+  formatGuidedSystemError,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 interface Settings {
   publicSlug: string | null;
@@ -51,14 +55,22 @@ export function SettingsPage() {
       if (res.ok) {
         setFeedback({ type: 'success', message: 'Configuracoes salvas!' });
       } else {
-        const body = await res.json().catch(() => ({}));
         setFeedback({
           type: 'error',
-          message: (body as { error?: string }).error ?? 'Erro ao salvar',
+          message: formatGuidedSystemError(
+            resolveGuidedSystemError({
+              error: await buildHttpResponseError(res),
+            })
+          ),
         });
       }
-    } catch {
-      setFeedback({ type: 'error', message: 'Erro ao salvar' });
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: formatGuidedSystemError(
+          resolveGuidedSystemError({ error })
+        ),
+      });
     } finally {
       setSaving(false);
     }
@@ -154,7 +166,7 @@ export function SettingsPage() {
                   className={`text-sm text-center ${
                     feedback.type === 'success'
                       ? 'text-emerald-400'
-                      : 'text-red-400'
+                      : 'text-amber-200 whitespace-pre-line'
                   }`}
                 >
                   {feedback.message}

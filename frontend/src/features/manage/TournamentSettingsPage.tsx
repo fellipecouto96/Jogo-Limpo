@@ -2,6 +2,11 @@ import { useState, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTournamentDetails } from './useTournamentDetails.ts';
 import { useUpdateFinancials } from './useUpdateFinancials.ts';
+import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
+import {
+  getRemainingPercentageMessage,
+  parseGuidedSystemErrorText,
+} from '../../shared/systemErrors.ts';
 
 function formatCurrency(value: number): string {
   if (!isFinite(value)) return 'R$\u00a00,00';
@@ -229,7 +234,9 @@ export function TournamentSettingsPage() {
   const thirdNumber = effectiveThirdPct;
   const fourthNumber = effectiveFourthPct;
   const pctSum = (firstNumber || 0) + (secondNumber || 0) + thirdNumber + fourthNumber;
+  const pctRemaining = Number((100 - pctSum).toFixed(2));
   const pctValid = Math.abs(pctSum - 100) < 0.01;
+  const hasPctSumMismatch = firstPct !== '' && secondPct !== '' && !pctValid;
   const organizerValid =
     organizerPct === '' || (organizerNumber >= 0 && organizerNumber <= 100);
   const firstValid = firstPct === '' || (firstNumber >= 0 && firstNumber <= 100);
@@ -238,10 +245,11 @@ export function TournamentSettingsPage() {
   const fourthValid = !fourthEnabled || fourthPct === '' || (parseFloat(fourthPct) >= 0 && parseFloat(fourthPct) <= 100);
 
   const validationMessages: string[] = [];
-  if (!pctValid && firstPct !== '' && secondPct !== '') {
-    validationMessages.push(
-      `Os percentuais somam ${pctSum.toFixed(1)}%. Eles precisam totalizar 100%.`
-    );
+  if (hasPctSumMismatch) {
+    validationMessages.push('A divisao da premiacao precisa fechar 100%.');
+    validationMessages.push(`Total configurado: ${pctSum.toFixed(2)}%`);
+    validationMessages.push(getRemainingPercentageMessage(pctRemaining));
+    validationMessages.push('Ajuste os percentuais ate completar 100%.');
   }
   if (!organizerValid) {
     validationMessages.push('O percentual do organizador deve ficar entre 0% e 100%.');
@@ -297,8 +305,11 @@ export function TournamentSettingsPage() {
   }
 
   if (loadError && !data) {
+    const guidedError = parseGuidedSystemErrorText(loadError);
     return (
-      <p className="text-red-400 text-center py-12">{loadError}</p>
+      <div className="py-12">
+        <GuidedErrorCard error={guidedError} onRetry={refetch} />
+      </div>
     );
   }
 
@@ -391,7 +402,14 @@ export function TournamentSettingsPage() {
               <legend className="text-sm text-gray-300 uppercase tracking-widest font-semibold">
                 Sua comissão
               </legend>
-              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-emerald-500/60 transition">
+              <div
+                className={[
+                  'flex items-center gap-2 bg-white/5 border rounded-2xl px-4 py-3 transition',
+                  organizerValid
+                    ? 'border-white/10 focus-within:ring-2 focus-within:ring-emerald-500/60'
+                    : 'border-red-400/70 focus-within:ring-2 focus-within:ring-red-300/60',
+                ].join(' ')}
+              >
                 <input
                   type="number"
                   min="0"
@@ -415,8 +433,18 @@ export function TournamentSettingsPage() {
               <legend className="text-sm text-gray-300 uppercase tracking-widest font-semibold">
                 Divisão de prêmios
               </legend>
+              <p className="text-xs text-gray-400">
+                Total configurado: {pctSum.toFixed(2)}%
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-emerald-500/60 transition">
+                <div
+                  className={[
+                    'bg-white/5 border rounded-2xl px-4 py-3 transition',
+                    firstValid && !hasPctSumMismatch
+                      ? 'border-white/10 focus-within:ring-2 focus-within:ring-emerald-500/60'
+                      : 'border-red-400/70 focus-within:ring-2 focus-within:ring-red-300/60',
+                  ].join(' ')}
+                >
                   <label className="block text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold mb-1">
                     1o lugar
                   </label>
@@ -435,7 +463,14 @@ export function TournamentSettingsPage() {
                     </span>
                   </div>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-emerald-500/60 transition">
+                <div
+                  className={[
+                    'bg-white/5 border rounded-2xl px-4 py-3 transition',
+                    secondValid && !hasPctSumMismatch
+                      ? 'border-white/10 focus-within:ring-2 focus-within:ring-emerald-500/60'
+                      : 'border-red-400/70 focus-within:ring-2 focus-within:ring-red-300/60',
+                  ].join(' ')}
+                >
                   <label className="block text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold mb-1">
                     2o lugar
                   </label>
@@ -467,7 +502,14 @@ export function TournamentSettingsPage() {
               </label>
 
               {thirdEnabled && (
-                <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-emerald-500/60 transition">
+                <div
+                  className={[
+                    'bg-white/5 border rounded-2xl px-4 py-3 transition',
+                    thirdValid && !hasPctSumMismatch
+                      ? 'border-white/10 focus-within:ring-2 focus-within:ring-emerald-500/60'
+                      : 'border-red-400/70 focus-within:ring-2 focus-within:ring-red-300/60',
+                  ].join(' ')}
+                >
                   <label className="block text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold mb-1">
                     3o lugar
                   </label>
@@ -501,7 +543,14 @@ export function TournamentSettingsPage() {
               )}
 
               {thirdEnabled && fourthEnabled && (
-                <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-emerald-500/60 transition">
+                <div
+                  className={[
+                    'bg-white/5 border rounded-2xl px-4 py-3 transition',
+                    fourthValid && !hasPctSumMismatch
+                      ? 'border-white/10 focus-within:ring-2 focus-within:ring-emerald-500/60'
+                      : 'border-red-400/70 focus-within:ring-2 focus-within:ring-red-300/60',
+                  ].join(' ')}
+                >
                   <label className="block text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold mb-1">
                     4o lugar
                   </label>
@@ -524,9 +573,9 @@ export function TournamentSettingsPage() {
             </fieldset>
 
             {validationMessages.length > 0 && (
-              <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 space-y-1">
+              <div className="rounded-2xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 space-y-1">
                 {validationMessages.map((msg) => (
-                  <p key={msg} className="text-xs text-red-300">
+                  <p key={msg} className="text-xs text-amber-100">
                     {msg}
                   </p>
                 ))}
@@ -534,7 +583,10 @@ export function TournamentSettingsPage() {
             )}
 
             {submitError && (
-              <p className="text-red-400 text-sm">{submitError}</p>
+              <GuidedErrorCard
+                error={parseGuidedSystemErrorText(submitError)}
+                onRetry={canSave ? handleSave : undefined}
+              />
             )}
             {saved && (
               <p className="text-emerald-400 text-sm">Configurações salvas com sucesso!</p>
@@ -560,14 +612,14 @@ export function TournamentSettingsPage() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <p className="text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold">
-                  Preview
+                  Previa
                 </p>
                 <h3 className="text-xl text-white font-semibold">
                   Simulação em tempo real
                 </h3>
               </div>
               <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                Live
+                Ao vivo
               </span>
             </div>
 

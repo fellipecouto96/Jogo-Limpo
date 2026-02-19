@@ -4,10 +4,12 @@ import { useDashboard } from './useDashboard.ts';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import { useOnboarding } from '../../shared/useOnboarding.ts';
 import { QRCodeSection } from './QRCodeSection.tsx';
+import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
+import { parseGuidedSystemErrorText } from '../../shared/systemErrors.ts';
 
 export function DashboardPage() {
   const { organizer } = useAuth();
-  const { data, error, isLoading } = useDashboard();
+  const { data, error, isLoading, refetch } = useDashboard();
   const hasTournaments = data ? data.tournaments.length > 0 : undefined;
   const { showWelcome, dismissWelcome } = useOnboarding(hasTournaments);
 
@@ -49,7 +51,12 @@ export function DashboardPage() {
       )}
 
       {error && (
-        <p className="text-red-400 text-center py-12">{error}</p>
+        <div className="py-4">
+          <GuidedErrorCard
+            error={parseGuidedSystemErrorText(error)}
+            onRetry={refetch}
+          />
+        </div>
       )}
 
       {!isLoading && data && (

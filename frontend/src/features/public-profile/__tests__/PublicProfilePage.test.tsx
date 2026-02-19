@@ -73,6 +73,7 @@ describe('PublicProfilePage – loading state', () => {
       data: null,
       error: null,
       isLoading: true,
+      refetch: vi.fn(),
     });
   });
 
@@ -86,14 +87,20 @@ describe('PublicProfilePage – error state', () => {
   beforeEach(() => {
     mockUsePublicProfile.mockReturnValue({
       data: null,
-      error: 'Perfil nao encontrado',
+      error: {
+        kind: 'public_link',
+        what: 'Link invalido ou torneio nao encontrado.',
+        why: 'O endereco pode estar incompleto ou desatualizado.',
+        next: 'Volte para a pagina principal e abra o link novamente.',
+      },
       isLoading: false,
+      refetch: vi.fn(),
     });
   });
 
   it('shows error message', () => {
     renderPage();
-    expect(screen.getByText(/perfil nao encontrado/i)).toBeInTheDocument();
+    expect(screen.getByText(/link invalido ou torneio nao encontrado/i)).toBeInTheDocument();
   });
 
   it('does not render any tournament links', () => {
@@ -111,6 +118,7 @@ describe('PublicProfilePage – success state', () => {
       },
       error: null,
       isLoading: false,
+      refetch: vi.fn(),
     });
   });
 
@@ -171,6 +179,7 @@ describe('PublicProfilePage – with financials (showFinancials=true)', () => {
       },
       error: null,
       isLoading: false,
+      refetch: vi.fn(),
     });
   });
 
@@ -186,6 +195,7 @@ describe('PublicProfilePage – empty tournaments', () => {
       data: { name: 'Sem Torneios', tournaments: [] },
       error: null,
       isLoading: false,
+      refetch: vi.fn(),
     });
   });
 
@@ -212,6 +222,7 @@ describe('PublicProfilePage – ordering', () => {
       },
       error: null,
       isLoading: false,
+      refetch: vi.fn(),
     });
     renderPage();
     const allText = document.body.textContent ?? '';

@@ -16,6 +16,20 @@ import { usePublicProfile, usePublicTournament } from '../usePublicProfile.ts';
 // Mock getApiUrl to return predictable URLs
 vi.mock('../../../shared/api.ts', () => ({
   getApiUrl: (path: string) => `https://api.test${path}`,
+  buildHttpResponseError: async (res: { status: number }) => ({
+    name: 'HttpResponseError',
+    status: res.status,
+    backendError: null,
+    message: `Falha na requisicao (${res.status})`,
+  }),
+  normalizeApiError: (error: { status?: number; backendError?: string; message?: string }) => ({
+    status: error?.status ?? null,
+    backendError: error?.backendError ?? null,
+    message: error?.message ?? '',
+    isNetwork:
+      typeof error?.message === 'string' &&
+      error.message.toLowerCase().includes('network'),
+  }),
 }));
 
 const mockFetch = vi.fn();
@@ -110,7 +124,7 @@ describe('usePublicProfile', () => {
     const { result } = renderHook(() => usePublicProfile('not-found-slug'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.data).toBeNull();
-    expect(result.current.error).toBe('Perfil nao encontrado');
+    expect(result.current.error?.what).toBe('Link invalido ou torneio nao encontrado.');
   });
 
   it('sets generic error on non-404 HTTP error', async () => {
@@ -118,7 +132,7 @@ describe('usePublicProfile', () => {
     const { result } = renderHook(() => usePublicProfile('joao-a7x2'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.data).toBeNull();
-    expect(result.current.error).toBe('Erro ao carregar perfil');
+    expect(result.current.error?.what).toBe('Ocorreu um erro inesperado.');
   });
 
   it('sets graceful error on network failure', async () => {
@@ -126,7 +140,7 @@ describe('usePublicProfile', () => {
     const { result } = renderHook(() => usePublicProfile('joao-a7x2'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.data).toBeNull();
-    expect(result.current.error).toBe('Erro ao carregar perfil');
+    expect(result.current.error?.what).toBe('Nao foi possivel concluir agora.');
   });
 
   it('never exposes financial data returned from API (passes through null)', async () => {
@@ -179,7 +193,7 @@ describe('usePublicTournament', () => {
       usePublicTournament('joao-a7x2', 'no-such-id')
     );
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.error).toBe('Torneio nao encontrado');
+    expect(result.current.error?.what).toBe('Link invalido ou torneio nao encontrado.');
   });
 
   it('handles network failure gracefully', async () => {
@@ -188,6 +202,6 @@ describe('usePublicTournament', () => {
       usePublicTournament('joao-a7x2', 't-1')
     );
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.error).toBe('Erro ao carregar torneio');
+    expect(result.current.error?.what).toBe('Nao foi possivel concluir agora.');
   });
 });

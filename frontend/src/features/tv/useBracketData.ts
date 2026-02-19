@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { BracketData } from './types.ts';
+import { buildHttpResponseError } from '../../shared/api.ts';
+import {
+  formatGuidedSystemError,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 const POLL_INTERVAL = 15_000;
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3333';
@@ -8,6 +13,7 @@ interface UseBracketDataResult {
   data: BracketData | null;
   error: string | null;
   isLoading: boolean;
+  refetch: () => Promise<void>;
 }
 
 export function useBracketData(tournamentId: string): UseBracketDataResult {
@@ -22,16 +28,20 @@ export function useBracketData(tournamentId: string): UseBracketDataResult {
         `${API_BASE}/tournaments/${tournamentId}/bracket`
       );
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(
-          (body as { error?: string }).error ?? `HTTP ${res.status}`
-        );
+        throw await buildHttpResponseError(res);
       }
       const json: BracketData = await res.json();
       setData(json);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      setError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({
+            error: err,
+            context: 'public_link',
+          })
+        )
+      );
     } finally {
       setIsLoading(false);
     }
@@ -47,5 +57,5 @@ export function useBracketData(tournamentId: string): UseBracketDataResult {
     };
   }, [fetchBracket]);
 
-  return { data, error, isLoading };
+  return { data, error, isLoading, refetch: fetchBracket };
 }

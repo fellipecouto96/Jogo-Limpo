@@ -38,7 +38,7 @@ export async function setupOnboarding(
     if (!Array.isArray(playerNames)) {
       return reply
         .status(400)
-        .send({ error: 'playerNames must be an array' });
+        .send({ error: 'Lista de jogadores invalida' });
     }
 
     const result = await runOnboardingSetup({

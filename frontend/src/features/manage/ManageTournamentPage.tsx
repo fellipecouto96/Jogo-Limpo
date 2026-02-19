@@ -6,11 +6,17 @@ import { InteractiveMatchCard } from './components/InteractiveMatchCard.tsx';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import { useTournamentDetails } from './useTournamentDetails.ts';
 import type { BracketMatch, BracketPlayer, BracketRound } from '../tv/types.ts';
-import { apiFetch } from '../../shared/api.ts';
+import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
 import { useOnboarding } from '../../shared/useOnboarding.ts';
 import { OnboardingHint } from '../../shared/OnboardingHint.tsx';
 import { useAuth } from '../auth/useAuth.ts';
 import { TournamentQRModal } from './TournamentQRModal.tsx';
+import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
+import {
+  formatGuidedSystemError,
+  parseGuidedSystemErrorText,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 interface OrderedMatch {
   match: BracketMatch;
@@ -212,16 +218,17 @@ export function ManageTournamentPage() {
         }
       );
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(
-          (body as { error?: string }).error ?? `HTTP ${response.status}`
-        );
+        throw await buildHttpResponseError(response);
       }
 
       await Promise.all([refetch(), refetchDetails()]);
       setFeedback(`Jogador atualizado: ${nextName}`);
     } catch (err) {
-      setPlayerError(err instanceof Error ? err.message : 'Erro ao atualizar jogador');
+      setPlayerError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({ error: err })
+        )
+      );
     } finally {
       setUpdatingPlayerId(null);
     }
@@ -239,17 +246,18 @@ export function ManageTournamentPage() {
         method: 'PATCH',
       });
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(
-          (body as { error?: string }).error ?? `HTTP ${response.status}`
-        );
+        throw await buildHttpResponseError(response);
       }
 
       await Promise.all([refetch(), refetchDetails()]);
       setFeedback('Torneio encerrado com sucesso.');
       setIsFinishOpen(false);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Erro ao encerrar torneio');
+      setActionError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({ error: err })
+        )
+      );
     } finally {
       setIsEndingTournament(false);
     }
@@ -280,7 +288,14 @@ export function ManageTournamentPage() {
       await Promise.all([refetch(), refetchDetails()]);
       triggerToast('toast-first-winner');
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Erro ao registrar resultado');
+      setActionError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({
+            error: err,
+            context: 'draw',
+          })
+        )
+      );
     } finally {
       setPendingMatchId(null);
     }
@@ -297,7 +312,11 @@ export function ManageTournamentPage() {
       setFeedback(`Placar atualizado: ${player1Score} x ${player2Score}`);
       await Promise.all([refetch(), refetchDetails()]);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Erro ao atualizar placar');
+      setActionError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({ error: err })
+        )
+      );
     } finally {
       setPendingMatchId(null);
     }
@@ -315,10 +334,7 @@ export function ManageTournamentPage() {
         { method: 'POST' }
       );
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(
-          (body as { error?: string }).error ?? `HTTP ${response.status}`
-        );
+        throw await buildHttpResponseError(response);
       }
 
       const payload = (await response.json()) as UndoLastResultResponse;
@@ -327,7 +343,11 @@ export function ManageTournamentPage() {
       setScrollToMatchId(payload.matchId);
       await Promise.all([refetch(), refetchDetails()]);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Erro ao desfazer ultima acao');
+      setActionError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({ error: err })
+        )
+      );
     } finally {
       setIsUndoingLastAction(false);
     }
@@ -393,8 +413,11 @@ export function ManageTournamentPage() {
   }
 
   if (error && !data) {
+    const guidedError = parseGuidedSystemErrorText(error);
     return (
-      <p className="text-red-400 text-center py-12">{error}</p>
+      <div className="py-12">
+        <GuidedErrorCard error={guidedError} onRetry={refetch} />
+      </div>
     );
   }
 
@@ -429,13 +452,13 @@ export function ManageTournamentPage() {
             to={`/tournament/${tournamentId}/tv`}
             className="flex h-11 items-center justify-center rounded-xl bg-gray-800 px-4 text-sm font-semibold text-gray-200 border border-gray-700 hover:bg-gray-700 transition-colors"
           >
-            TV Mode
+            Modo TV
           </Link>
           <Link
             to={`/tournament/${tournamentId}/mobile`}
             className="flex h-11 items-center justify-center rounded-xl bg-gray-800 px-4 text-sm font-semibold text-gray-200 border border-gray-700 hover:bg-gray-700 transition-colors"
           >
-            Mobile
+            Celular
           </Link>
           {organizer?.publicSlug && (
             <button
@@ -542,9 +565,10 @@ export function ManageTournamentPage() {
         </p>
       )}
       {actionError && (
-        <p className="mb-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {actionError}
-        </p>
+        <GuidedErrorCard
+          error={parseGuidedSystemErrorText(actionError)}
+          className="mb-4"
+        />
       )}
       {tournament.status === 'FINISHED' && (
         <p className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
@@ -746,9 +770,10 @@ export function ManageTournamentPage() {
               ))}
             </ul>
             {playerError && (
-              <p className="mb-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                {playerError}
-              </p>
+              <GuidedErrorCard
+                error={parseGuidedSystemErrorText(playerError)}
+                className="mb-4"
+              />
             )}
             <button
               type="button"
@@ -839,9 +864,9 @@ function ChampionshipClosureScreen({
 }) {
   if (error) {
     return (
-      <div className="rounded-3xl border border-red-500/40 bg-red-500/10 p-6 text-red-200">
-        {error}
-      </div>
+      <GuidedErrorCard
+        error={parseGuidedSystemErrorText(error)}
+      />
     );
   }
 

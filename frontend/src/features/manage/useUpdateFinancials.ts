@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react';
-import { apiFetch } from '../../shared/api.ts';
+import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
 import type { TournamentDetail } from './useTournamentDetails.ts';
+import {
+  formatGuidedSystemError,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 export interface FinancialsPayload {
   entryFee: number;
@@ -42,16 +46,18 @@ export function useUpdateFinancials(): UseUpdateFinancialsReturn {
           }
         );
         if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(
-            (body as { error?: string }).error ?? `HTTP ${res.status}`
-          );
+          throw await buildHttpResponseError(res);
         }
         return await res.json();
       } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : 'Erro desconhecido';
-        setError(msg);
+        setError(
+          formatGuidedSystemError(
+            resolveGuidedSystemError({
+              error: err,
+              context: 'prize',
+            })
+          )
+        );
         throw err;
       } finally {
         setIsSubmitting(false);

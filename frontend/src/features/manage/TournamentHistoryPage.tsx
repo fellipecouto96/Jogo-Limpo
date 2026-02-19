@@ -5,6 +5,8 @@ import { useBracketData } from '../tv/useBracketData.ts';
 import { BracketRound } from '../tv/components/BracketRound.tsx';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import type { BracketMatch } from '../tv/types.ts';
+import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
+import { parseGuidedSystemErrorText } from '../../shared/systemErrors.ts';
 
 function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', {
@@ -27,11 +29,13 @@ export function TournamentHistoryPage() {
     data: details,
     error: detailsError,
     isLoading: detailsLoading,
+    refetch: refetchDetails,
   } = useTournamentDetails(tournamentId!);
   const {
     data: bracket,
     error: bracketError,
     isLoading: bracketLoading,
+    refetch: refetchBracket,
   } = useBracketData(tournamentId!);
 
   const isLoading = detailsLoading || bracketLoading;
@@ -57,7 +61,16 @@ export function TournamentHistoryPage() {
   }
 
   if (error && !details && !bracket) {
-    return <p className="text-red-400 text-center py-12">{error}</p>;
+    return (
+      <div className="py-12">
+        <GuidedErrorCard
+          error={parseGuidedSystemErrorText(error)}
+          onRetry={async () => {
+            await Promise.all([refetchDetails(), refetchBracket()]);
+          }}
+        />
+      </div>
+    );
   }
 
   if (!bracket) return null;

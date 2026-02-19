@@ -2,10 +2,12 @@ import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { generateQRDataUrl } from '../../shared/qrcode.ts';
 import { usePublicProfile } from '../public-profile/usePublicProfile.ts';
+import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
+import { resolveGuidedSystemError } from '../../shared/systemErrors.ts';
 
 export function PrintableQR() {
   const { slug } = useParams<{ slug: string }>();
-  const { data } = usePublicProfile(slug!);
+  const { data, error, isLoading, refetch } = usePublicProfile(slug!);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const publicUrl = `${window.location.origin}/organizer/${slug}`;
 
@@ -14,12 +16,33 @@ export function PrintableQR() {
   }, [publicUrl]);
 
   useEffect(() => {
-    if (qrDataUrl && data) {
+    if (qrDataUrl && data && !error) {
       setTimeout(() => window.print(), 400);
     }
-  }, [qrDataUrl, data]);
+  }, [qrDataUrl, data, error]);
 
-  const organizerName = data?.name ?? '';
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-8">
+        <p className="text-gray-500 text-base">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-white p-8">
+        <div className="mx-auto mt-12 max-w-lg">
+          <GuidedErrorCard
+            error={error ?? resolveGuidedSystemError({ context: 'public_link' })}
+            onRetry={refetch}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const organizerName = data.name;
 
   return (
     <>

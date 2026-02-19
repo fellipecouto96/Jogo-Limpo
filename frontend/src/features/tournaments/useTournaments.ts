@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TournamentListItem } from './types.ts';
-import { apiFetch } from '../../shared/api.ts';
+import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
+import {
+  formatGuidedSystemError,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 interface UseTournamentsResult {
   data: TournamentListItem[];
   error: string | null;
   isLoading: boolean;
+  refetch: () => Promise<void>;
 }
 
 export function useTournaments(): UseTournamentsResult {
@@ -17,13 +22,17 @@ export function useTournaments(): UseTournamentsResult {
     try {
       const res = await apiFetch('/tournaments');
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+        throw await buildHttpResponseError(res);
       }
       const json: TournamentListItem[] = await res.json();
       setData(json);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      setError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({ error: err })
+        )
+      );
     } finally {
       setIsLoading(false);
     }
@@ -33,5 +42,5 @@ export function useTournaments(): UseTournamentsResult {
     fetchTournaments();
   }, [fetchTournaments]);
 
-  return { data, error, isLoading };
+  return { data, error, isLoading, refetch: fetchTournaments };
 }

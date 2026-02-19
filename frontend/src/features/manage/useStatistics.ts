@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch } from '../../shared/api.ts';
+import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
 import type { TournamentStatistics } from '../tv/types.ts';
+import {
+  formatGuidedSystemError,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 interface UseStatisticsReturn {
   data: TournamentStatistics | null;
@@ -20,13 +24,16 @@ export function useStatistics(tournamentId: string): UseStatisticsReturn {
     try {
       const res = await apiFetch(`/tournaments/${tournamentId}/statistics`);
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+        throw await buildHttpResponseError(res);
       }
       const stats = await res.json();
       setData(stats);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar estatísticas');
+      setError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({ error: err })
+        )
+      );
     } finally {
       setIsLoading(false);
     }

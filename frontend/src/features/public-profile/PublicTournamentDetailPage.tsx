@@ -4,13 +4,15 @@ import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import { MobileRound } from '../tv/components/MobileRound.tsx';
 import { ChampionBanner } from '../tv/components/ChampionBanner.tsx';
 import { PublicBadge } from './PublicBadge.tsx';
+import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
+import { resolveGuidedSystemError } from '../../shared/systemErrors.ts';
 
 export function PublicTournamentDetailPage() {
   const { slug, tournamentId } = useParams<{
     slug: string;
     tournamentId: string;
   }>();
-  const { data, error, isLoading } = usePublicTournament(slug!, tournamentId!);
+  const { data, error, isLoading, refetch } = usePublicTournament(slug!, tournamentId!);
 
   if (isLoading) {
     return (
@@ -21,11 +23,12 @@ export function PublicTournamentDetailPage() {
   }
 
   if (error || !data) {
+    const guidedError = error ?? resolveGuidedSystemError({ context: 'public_link' });
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <p className="text-red-400 text-lg">
-          {error ?? 'Torneio nao encontrado'}
-        </p>
+      <div className="min-h-screen bg-gray-950 px-4 py-10">
+        <div className="mx-auto w-full max-w-lg">
+          <GuidedErrorCard error={guidedError} onRetry={refetch} />
+        </div>
       </div>
     );
   }

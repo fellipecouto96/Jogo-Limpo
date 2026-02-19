@@ -47,16 +47,16 @@ export async function runOnboardingSetup(
   } = input;
 
   if (!tournamentName.trim()) {
-    throw new OnboardingError('Tournament name is required', 400);
+    throw new OnboardingError('Nome do torneio e obrigatorio', 400);
   }
   if (playerNames.length < 2) {
-    throw new OnboardingError('At least 2 players are required', 400);
+    throw new OnboardingError('Torneio precisa de pelo menos 2 jogadores para sortear', 400);
   }
   if (
     entryFee != null &&
     (!Number.isFinite(entryFee) || entryFee < 0)
   ) {
-    throw new OnboardingError('Entry fee must be a non-negative number', 400);
+    throw new OnboardingError('Taxa de inscricao deve ser um numero maior ou igual a zero', 400);
   }
 
   if (
@@ -65,7 +65,7 @@ export async function runOnboardingSetup(
       organizerPercentage < 0 ||
       organizerPercentage > 100)
   ) {
-    throw new OnboardingError('Organizer percentage must be between 0 and 100', 400);
+    throw new OnboardingError('Percentual do organizador deve ser entre 0 e 100', 400);
   }
 
   if (
@@ -74,7 +74,7 @@ export async function runOnboardingSetup(
       championPercentage < 0 ||
       championPercentage > 100)
   ) {
-    throw new OnboardingError('Champion percentage must be between 0 and 100', 400);
+    throw new OnboardingError('Percentual do campeao deve ser entre 0 e 100', 400);
   }
 
   if (
@@ -83,7 +83,7 @@ export async function runOnboardingSetup(
       runnerUpPercentage < 0 ||
       runnerUpPercentage > 100)
   ) {
-    throw new OnboardingError('Runner-up percentage must be between 0 and 100', 400);
+    throw new OnboardingError('Percentual do vice deve ser entre 0 e 100', 400);
   }
 
   if (
@@ -92,7 +92,7 @@ export async function runOnboardingSetup(
       thirdPlacePercentage < 0 ||
       thirdPlacePercentage > 100)
   ) {
-    throw new OnboardingError('Third place percentage must be between 0 and 100', 400);
+    throw new OnboardingError('Percentual do 3o lugar deve ser entre 0 e 100', 400);
   }
 
   if (
@@ -101,7 +101,7 @@ export async function runOnboardingSetup(
       fourthPlacePercentage < 0 ||
       fourthPlacePercentage > 100)
   ) {
-    throw new OnboardingError('Fourth place percentage must be between 0 and 100', 400);
+    throw new OnboardingError('Percentual do 4o lugar deve ser entre 0 e 100', 400);
   }
 
   if (
@@ -110,7 +110,7 @@ export async function runOnboardingSetup(
       firstPlacePercentage < 0 ||
       firstPlacePercentage > 100)
   ) {
-    throw new OnboardingError('First place percentage must be between 0 and 100', 400);
+    throw new OnboardingError('Percentual do 1o lugar deve ser entre 0 e 100', 400);
   }
 
   if (
@@ -119,7 +119,7 @@ export async function runOnboardingSetup(
       secondPlacePercentage < 0 ||
       secondPlacePercentage > 100)
   ) {
-    throw new OnboardingError('Second place percentage must be between 0 and 100', 400);
+    throw new OnboardingError('Percentual do 2o lugar deve ser entre 0 e 100', 400);
   }
 
   const safeEntryFee = entryFee ?? 0;
@@ -148,7 +148,7 @@ export async function runOnboardingSetup(
     ) > 0.01
   ) {
     throw new OnboardingError(
-      'Champion, runner-up, third and fourth place percentages must sum to 100',
+      'A divisao da premiacao precisa fechar 100%',
       400
     );
   }

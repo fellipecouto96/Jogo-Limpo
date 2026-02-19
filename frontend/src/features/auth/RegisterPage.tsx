@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './useAuth.ts';
 import type { AuthResponse } from './types.ts';
-import { getApiUrl } from '../../shared/api.ts';
+import { buildHttpResponseError, getApiUrl } from '../../shared/api.ts';
+import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
+import {
+  formatGuidedSystemError,
+  parseGuidedSystemErrorText,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -27,17 +33,21 @@ export function RegisterPage() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(
-          (body as { error?: string }).error ?? `HTTP ${res.status}`
-        );
+        throw await buildHttpResponseError(res);
       }
 
       const data: AuthResponse = await res.json();
       login(data.token, data.organizer);
       navigate('/app');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      setError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({
+            error: err,
+            context: 'auth',
+          })
+        )
+      );
     } finally {
       setIsLoading(false);
     }
@@ -129,7 +139,11 @@ export function RegisterPage() {
             </div>
           </div>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {error && (
+            <GuidedErrorCard
+              error={parseGuidedSystemErrorText(error)}
+            />
+          )}
 
           <button
             type="submit"

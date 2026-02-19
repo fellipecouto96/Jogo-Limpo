@@ -1,5 +1,9 @@
 import { useState, useCallback } from 'react';
-import { apiFetch } from '../../shared/api.ts';
+import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
+import {
+  formatGuidedSystemError,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 interface RecordResultResponse {
   matchId: string;
@@ -63,16 +67,18 @@ export function useRecordResult(): UseRecordResultReturn {
           }
         );
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(
-            (data as { error?: string }).error ?? `HTTP ${res.status}`
-          );
+          throw await buildHttpResponseError(res);
         }
         return await res.json();
       } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : 'Erro desconhecido';
-        setError(msg);
+        setError(
+          formatGuidedSystemError(
+            resolveGuidedSystemError({
+              error: err,
+              context: 'draw',
+            })
+          )
+        );
         throw err;
       } finally {
         setIsSubmitting(false);
@@ -99,16 +105,15 @@ export function useRecordResult(): UseRecordResultReturn {
           }
         );
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(
-            (data as { error?: string }).error ?? `HTTP ${res.status}`
-          );
+          throw await buildHttpResponseError(res);
         }
         return await res.json();
       } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : 'Erro desconhecido';
-        setError(msg);
+        setError(
+          formatGuidedSystemError(
+            resolveGuidedSystemError({ error: err })
+          )
+        );
         throw err;
       } finally {
         setIsSubmitting(false);

@@ -35,23 +35,23 @@ export async function generateDraw(
   });
 
   if (!tournament) {
-    throw new DrawError('Tournament not found', 404);
+    throw new DrawError('Torneio nao encontrado', 404);
   }
 
   if (tournament.status !== 'OPEN') {
     throw new DrawError(
-      `Draw only allowed when tournament status is OPEN (current: ${tournament.status})`,
+      'Torneio nao pode ser sorteado no status atual',
       409
     );
   }
 
   if (tournament.drawSeed) {
-    throw new DrawError('Draw already generated for this tournament', 409);
+    throw new DrawError('Sorteio ja foi realizado para este torneio', 409);
   }
 
   const numPlayers = playerIds.length;
   if (numPlayers < 2) {
-    throw new DrawError('At least 2 players are required', 400);
+    throw new DrawError('Torneio precisa de pelo menos 2 jogadores para sortear', 400);
   }
 
   // Validate all player IDs exist
@@ -63,7 +63,7 @@ export async function generateDraw(
   if (existingPlayers.length !== numPlayers) {
     const found = new Set(existingPlayers.map((p) => p.id));
     const missing = playerIds.filter((id) => !found.has(id));
-    throw new DrawError(`Players not found: ${missing.join(', ')}`, 400);
+    throw new DrawError(`Jogadores nao encontrados: ${missing.join(', ')}`, 400);
   }
 
   // Generate reproducible seed and shuffle

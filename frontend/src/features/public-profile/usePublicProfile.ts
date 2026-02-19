@@ -1,5 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getApiUrl } from '../../shared/api.ts';
+import {
+  buildHttpResponseError,
+  getApiUrl,
+  normalizeApiError,
+} from '../../shared/api.ts';
+import { logClientError } from '../../shared/logger.ts';
+import {
+  type GuidedSystemError,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 interface PublicTournament {
   id: string;
@@ -66,19 +75,26 @@ interface PublicTournamentDetail {
 
 export function usePublicProfile(slug: string) {
   const [data, setData] = useState<PublicProfile | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<GuidedSystemError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchProfile = useCallback(async () => {
     try {
       const res = await fetch(getApiUrl(`/public/organizers/${slug}`));
       if (!res.ok) {
-        setError(res.status === 404 ? 'Perfil nao encontrado' : 'Erro ao carregar perfil');
-        return;
+        throw await buildHttpResponseError(res);
       }
       setData(await res.json());
-    } catch {
-      setError('Erro ao carregar perfil');
+      setError(null);
+    } catch (error) {
+      logClientError('public_page', 'Failed to load public profile', { slug });
+      const normalized = normalizeApiError(error);
+      setError(
+        resolveGuidedSystemError({
+          error,
+          context: normalized.status === 404 ? 'public_link' : 'default',
+        })
+      );
     } finally {
       setIsLoading(false);
     }
@@ -88,12 +104,12 @@ export function usePublicProfile(slug: string) {
     fetchProfile();
   }, [fetchProfile]);
 
-  return { data, error, isLoading };
+  return { data, error, isLoading, refetch: fetchProfile };
 }
 
 export function usePublicTournament(slug: string, tournamentId: string) {
   const [data, setData] = useState<PublicTournamentDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<GuidedSystemError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchDetail = useCallback(async () => {
@@ -102,12 +118,19 @@ export function usePublicTournament(slug: string, tournamentId: string) {
         getApiUrl(`/public/organizers/${slug}/tournaments/${tournamentId}`)
       );
       if (!res.ok) {
-        setError(res.status === 404 ? 'Torneio nao encontrado' : 'Erro ao carregar torneio');
-        return;
+        throw await buildHttpResponseError(res);
       }
       setData(await res.json());
-    } catch {
-      setError('Erro ao carregar torneio');
+      setError(null);
+    } catch (error) {
+      logClientError('public_page', 'Failed to load tournament detail', { slug, tournamentId });
+      const normalized = normalizeApiError(error);
+      setError(
+        resolveGuidedSystemError({
+          error,
+          context: normalized.status === 404 ? 'public_link' : 'default',
+        })
+      );
     } finally {
       setIsLoading(false);
     }
@@ -117,5 +140,5 @@ export function usePublicTournament(slug: string, tournamentId: string) {
     fetchDetail();
   }, [fetchDetail]);
 
-  return { data, error, isLoading };
+  return { data, error, isLoading, refetch: fetchDetail };
 }

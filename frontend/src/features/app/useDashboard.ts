@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch } from '../../shared/api.ts';
+import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
+import {
+  formatGuidedSystemError,
+  resolveGuidedSystemError,
+} from '../../shared/systemErrors.ts';
 
 interface DashboardMetrics {
   totalCollectedThisMonth: number;
@@ -25,6 +29,7 @@ interface UseDashboardResult {
   data: DashboardData | null;
   error: string | null;
   isLoading: boolean;
+  refetch: () => Promise<void>;
 }
 
 const emptyData: DashboardData = {
@@ -41,21 +46,16 @@ export function useDashboard(): UseDashboardResult {
     try {
       const res = await apiFetch('/dashboard-summary');
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        const backendMessage =
-          (body as { error?: string }).error ??
-          `Não foi possível carregar o painel agora. (HTTP ${res.status})`;
-        throw new Error(backendMessage);
+        throw await buildHttpResponseError(res);
       }
       const json: DashboardData = await res.json();
       setData(json);
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(
-        message.startsWith('HTTP')
-          ? 'Não foi possível atualizar os indicadores agora.'
-          : message
+        formatGuidedSystemError(
+          resolveGuidedSystemError({ error: err })
+        )
       );
       setData(emptyData);
     } finally {
@@ -67,5 +67,5 @@ export function useDashboard(): UseDashboardResult {
     fetchDashboard();
   }, [fetchDashboard]);
 
-  return { data, error, isLoading };
+  return { data, error, isLoading, refetch: fetchDashboard };
 }
