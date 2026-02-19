@@ -7,7 +7,7 @@ import {
   parseGuidedSystemErrorText,
   resolveGuidedSystemError,
 } from '../../shared/systemErrors.ts';
-import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
+import { FullScreenLoading } from '../../shared/loading/LoadingSystem.tsx';
 
 interface TournamentPublicViewProps {
   mode: 'tv' | 'mobile';
@@ -18,14 +18,7 @@ export function TournamentPublicView({ mode }: TournamentPublicViewProps) {
   const { data, error, isLoading, refetch } = useBracketData(tournamentId!);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <ProgressiveLoadingMessage
-          initialMessage="Carregando torneio"
-          className="text-white text-2xl min-h-8"
-        />
-      </div>
-    );
+    return <FullScreenLoading message="Carregando torneio" />;
   }
 
   if (error || !data) {

@@ -13,6 +13,7 @@ interface OnboardingBody {
   championPercentage?: number;
   runnerUpPercentage?: number;
   thirdPlacePercentage?: number | null;
+  fourthPlacePercentage?: number | null;
   firstPlacePercentage?: number;
   secondPlacePercentage?: number;
 }
@@ -31,6 +32,7 @@ export async function setupOnboarding(
       championPercentage,
       runnerUpPercentage,
       thirdPlacePercentage,
+      fourthPlacePercentage,
       firstPlacePercentage,
       secondPlacePercentage,
     } = request.body;
@@ -50,6 +52,7 @@ export async function setupOnboarding(
       championPercentage,
       runnerUpPercentage,
       thirdPlacePercentage,
+      fourthPlacePercentage,
       firstPlacePercentage,
       secondPlacePercentage,
     });

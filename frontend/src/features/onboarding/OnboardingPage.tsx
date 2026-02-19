@@ -11,6 +11,7 @@ import {
   resolveGuidedSystemError,
   type GuidedSystemError,
 } from '../../shared/systemErrors.ts';
+import { ActionLoadingButton } from '../../shared/loading/LoadingSystem.tsx';
 
 const MIN_PLAYERS = 2;
 const REQUIRE_DOUBLE_TAP_CONFIRM = false;
@@ -691,13 +692,16 @@ export function OnboardingPage() {
                     Toque novamente para confirmar o sorteio.
                   </p>
                 )}
-                <button
+                <ActionLoadingButton
                   onClick={handleDrawPress}
                   disabled={!canDraw || isSubmitting}
+                  isLoading={isSubmitting}
+                  idleLabel={drawButtonText}
+                  loadingLabel="Organizando chave"
                   className="h-14 w-full rounded-2xl bg-emerald-500 text-lg font-bold text-gray-950 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/60 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400 [touch-action:manipulation]"
                 >
                   {drawButtonText}
-                </button>
+                </ActionLoadingButton>
               </div>
             </div>
           </section>

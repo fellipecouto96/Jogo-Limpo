@@ -7,6 +7,8 @@ interface InteractiveMatchCardProps {
   roundLabel: string;
   tournamentStatus: string;
   isBusy: boolean;
+  recentWinnerId?: string | null;
+  animateConnector?: boolean;
   onSelectWinner: (winnerId: string, winnerName: string, score1?: number, score2?: number) => void;
   onUpdateScore?: (matchId: string, score1: number, score2: number) => void;
 }
@@ -16,6 +18,8 @@ export function InteractiveMatchCard({
   roundLabel,
   tournamentStatus,
   isBusy,
+  recentWinnerId = null,
+  animateConnector = false,
   onSelectWinner,
   onUpdateScore,
 }: InteractiveMatchCardProps) {
@@ -100,20 +104,24 @@ export function InteractiveMatchCard({
 
       <div className="divide-y divide-gray-800">
         <PlayerRow
+          playerId={match.player1.id}
           name={match.player1.name}
           score={match.player1Score}
           isWinner={player1IsWinner}
           isLoser={Boolean(match.winner && !player1IsWinner)}
+          isRecentlyAdvanced={recentWinnerId === match.player1.id}
           disabled={!canInteract}
           onClick={() => handlePlayerClick(match.player1.id, match.player1.name)}
         />
 
         {match.player2 ? (
           <PlayerRow
+            playerId={match.player2.id}
             name={match.player2.name}
             score={match.player2Score}
             isWinner={player2IsWinner}
             isLoser={Boolean(match.winner && !player2IsWinner)}
+            isRecentlyAdvanced={recentWinnerId === match.player2.id}
             disabled={!canInteract}
             onClick={() => handlePlayerClick(match.player2!.id, match.player2!.name)}
           />
@@ -143,22 +151,32 @@ export function InteractiveMatchCard({
           </button>
         </footer>
       )}
+
+      {animateConnector && (
+        <div className="px-4 pb-2">
+          <div className="jl-connector-flow h-[2px] w-full rounded-full bg-emerald-400/70" />
+        </div>
+      )}
     </article>
   );
 }
 
 function PlayerRow({
+  playerId,
   name,
   score,
   isWinner,
   isLoser,
+  isRecentlyAdvanced,
   disabled,
   onClick,
 }: {
+  playerId: string;
   name: string;
   score: number | null;
   isWinner: boolean;
   isLoser: boolean;
+  isRecentlyAdvanced: boolean;
   disabled: boolean;
   onClick: () => void;
 }) {
@@ -169,6 +187,7 @@ function PlayerRow({
     isLoser && 'bg-transparent text-gray-500',
     !isWinner && !isLoser && !disabled && 'bg-[#111827] text-white active:bg-[#1f2937]',
     !isWinner && !isLoser && disabled && 'bg-[#0f172a] text-gray-200',
+    isWinner && isRecentlyAdvanced && 'jl-winner-pulse',
   ]
     .filter(Boolean)
     .join(' ');
@@ -180,6 +199,7 @@ function PlayerRow({
       disabled={disabled}
       onClick={onClick}
       aria-label={`Selecionar ${name} como vencedor`}
+      data-player-id={playerId}
     >
       <span className="truncate flex-1">{name}</span>
       {score !== null && (

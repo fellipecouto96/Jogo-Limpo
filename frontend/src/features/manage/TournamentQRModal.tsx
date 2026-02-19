@@ -5,6 +5,7 @@ import {
   downloadDataUrl,
 } from '../../shared/qrcode.ts';
 import { logClientError } from '../../shared/logger.ts';
+import { QRLoadingPlaceholder } from '../../shared/loading/LoadingSystem.tsx';
 
 interface TournamentQRModalProps {
   tournamentSlug: string;
@@ -63,16 +64,11 @@ export function TournamentQRModal({
         <div className="mx-auto mb-4 w-48 h-48 rounded-xl bg-white p-3 flex items-center justify-center">
           {svgHtml ? (
             <div
-              className="w-full h-full [&>svg]:w-full [&>svg]:h-full"
+              className="jl-fade-in w-full h-full [&>svg]:w-full [&>svg]:h-full"
               dangerouslySetInnerHTML={{ __html: svgHtml }}
             />
           ) : (
-            <div className="relative w-full h-full rounded flex items-center justify-center">
-              <div className="absolute inset-0 bg-gray-100 animate-pulse rounded" />
-              <p className="relative text-[11px] font-medium text-gray-500">
-                Preparando QR Code
-              </p>
-            </div>
+            <QRLoadingPlaceholder className="h-full w-full" />
           )}
         </div>
 

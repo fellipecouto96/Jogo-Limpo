@@ -5,7 +5,10 @@ import { usePublicProfile } from '../public-profile/usePublicProfile.ts';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { resolveGuidedSystemError } from '../../shared/systemErrors.ts';
 import { logClientPerformance } from '../../shared/logger.ts';
-import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
+import {
+  LoadingAssistText,
+  QRLoadingPlaceholder,
+} from '../../shared/loading/LoadingSystem.tsx';
 
 export function PrintableQR() {
   const startedAtRef = useRef<number | null>(null);
@@ -37,10 +40,14 @@ export function PrintableQR() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-8">
-        <ProgressiveLoadingMessage
-          initialMessage="Preparando QR Code"
-          className="text-gray-600 text-base min-h-6"
-        />
+        <div className="w-full max-w-xs">
+          <QRLoadingPlaceholder className="h-64 w-full" />
+          <LoadingAssistText
+            initialMessage="Preparando QR Code"
+            className="mt-4 text-center text-sm text-gray-600"
+            withVisibilityDelay={false}
+          />
+        </div>
       </div>
     );
   }
@@ -98,14 +105,11 @@ export function PrintableQR() {
               <img
                 src={qrDataUrl}
                 alt="QR Code"
-                className="mx-auto"
+                className="jl-fade-in mx-auto"
                 style={{ width: '280px', height: '280px' }}
               />
             ) : (
-              <div
-                className="mx-auto bg-gray-200 animate-pulse"
-                style={{ width: '280px', height: '280px' }}
-              />
+              <QRLoadingPlaceholder className="mx-auto h-[280px] w-[280px]" />
             )}
           </div>
 

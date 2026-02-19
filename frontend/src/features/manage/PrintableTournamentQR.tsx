@@ -5,7 +5,10 @@ import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { resolveGuidedSystemError } from '../../shared/systemErrors.ts';
 import { usePublicTournament } from '../public-profile/usePublicProfile.ts';
 import { logClientPerformance } from '../../shared/logger.ts';
-import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
+import {
+  LoadingAssistText,
+  QRLoadingPlaceholder,
+} from '../../shared/loading/LoadingSystem.tsx';
 
 export function PrintableTournamentQR() {
   const mountStartedAt = useRef<number | null>(null);
@@ -37,10 +40,14 @@ export function PrintableTournamentQR() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-8">
-        <ProgressiveLoadingMessage
-          initialMessage="Preparando QR Code"
-          className="text-gray-600 text-base min-h-6"
-        />
+        <div className="w-full max-w-xs">
+          <QRLoadingPlaceholder className="h-64 w-full" />
+          <LoadingAssistText
+            initialMessage="Preparando QR Code"
+            className="mt-4 text-center text-sm text-gray-600"
+            withVisibilityDelay={false}
+          />
+        </div>
       </div>
     );
   }
@@ -99,14 +106,11 @@ export function PrintableTournamentQR() {
               <img
                 src={qrDataUrl}
                 alt="QR Code do torneio"
-                className="mx-auto"
+                className="jl-fade-in mx-auto"
                 style={{ width: '340px', height: '340px' }}
               />
             ) : (
-              <div
-                className="mx-auto bg-gray-200 animate-pulse"
-                style={{ width: '340px', height: '340px' }}
-              />
+              <QRLoadingPlaceholder className="mx-auto h-[340px] w-[340px]" />
             )}
           </div>
 

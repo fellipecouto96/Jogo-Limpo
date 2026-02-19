@@ -7,7 +7,10 @@ import {
   getRemainingPercentageMessage,
   parseGuidedSystemErrorText,
 } from '../../shared/systemErrors.ts';
-import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
+import {
+  ActionLoadingButton,
+  TournamentPageSkeleton,
+} from '../../shared/loading/LoadingSystem.tsx';
 
 function formatCurrency(value: number): string {
   if (!isFinite(value)) return 'R$\u00a00,00';
@@ -300,11 +303,7 @@ export function TournamentSettingsPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="py-12 text-center">
-        <ProgressiveLoadingMessage className="text-gray-400 text-sm min-h-6" />
-      </div>
-    );
+    return <TournamentPageSkeleton />;
   }
 
   if (loadError && !data) {
@@ -595,17 +594,18 @@ export function TournamentSettingsPage() {
               <p className="text-emerald-400 text-sm">Configurações salvas com sucesso!</p>
             )}
 
-            <button
+            <ActionLoadingButton
               onClick={handleSave}
               disabled={!canSave || isTournamentFinished}
+              isLoading={isSubmitting}
+              idleLabel={
+                isTournamentFinished ? 'Torneio finalizado' : 'Salvar configuracoes'
+              }
+              loadingLabel="Salvando configuracoes"
               className="w-full py-4 rounded-2xl font-semibold text-base bg-emerald-500 text-gray-900 hover:bg-emerald-400 transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isTournamentFinished
-                ? 'Torneio finalizado'
-                : isSubmitting
-                  ? 'Salvando configuracoes'
-                  : 'Salvar configurações'}
-            </button>
+              Salvar configuracoes
+            </ActionLoadingButton>
           </fieldset>
         </section>
 

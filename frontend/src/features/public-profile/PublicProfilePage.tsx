@@ -4,7 +4,12 @@ import { usePublicProfile } from './usePublicProfile.ts';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { resolveGuidedSystemError } from '../../shared/systemErrors.ts';
-import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
+import {
+  ActionLoadingButton,
+  LoadingAssistText,
+  PublicProfileSkeleton,
+  SkeletonBlock,
+} from '../../shared/loading/LoadingSystem.tsx';
 
 export function PublicProfilePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -28,11 +33,7 @@ export function PublicProfilePage() {
   );
 
   if (runningProfile.isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <ProgressiveLoadingMessage className="text-white text-lg min-h-7" />
-      </div>
-    );
+    return <PublicProfileSkeleton />;
   }
 
   if (runningProfile.error || !runningProfile.data) {
@@ -96,16 +97,16 @@ export function PublicProfilePage() {
             ))}
 
             {runningProfile.hasMore && (
-              <button
+              <ActionLoadingButton
                 type="button"
                 onClick={runningProfile.loadMore}
-                disabled={runningProfile.isLoadingMore}
+                isLoading={runningProfile.isLoadingMore}
+                idleLabel="Carregar mais em andamento"
+                loadingLabel="Atualizando dados"
                 className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {runningProfile.isLoadingMore
-                  ? 'Atualizando dados'
-                  : 'Carregar mais em andamento'}
-              </button>
+                Carregar mais em andamento
+              </ActionLoadingButton>
             )}
           </div>
         )}
@@ -123,7 +124,15 @@ export function PublicProfilePage() {
         {showHistory && (
           <section className="mt-4 space-y-3">
             {finishedProfile.isLoading && (
-              <p className="text-center text-sm text-gray-400 min-h-5">Atualizando dados</p>
+              <div className="space-y-2">
+                <SkeletonBlock className="h-20" />
+                <SkeletonBlock className="h-20" />
+                <LoadingAssistText
+                  initialMessage="Atualizando dados"
+                  className="text-center text-sm text-gray-400"
+                  withVisibilityDelay={false}
+                />
+              </div>
             )}
 
             {finished.map((t) => (
@@ -154,16 +163,16 @@ export function PublicProfilePage() {
             ))}
 
             {finishedProfile.hasMore && (
-              <button
+              <ActionLoadingButton
                 type="button"
                 onClick={finishedProfile.loadMore}
-                disabled={finishedProfile.isLoadingMore}
+                isLoading={finishedProfile.isLoadingMore}
+                idleLabel="Carregar mais historico"
+                loadingLabel="Atualizando dados"
                 className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {finishedProfile.isLoadingMore
-                  ? 'Atualizando dados'
-                  : 'Carregar mais histórico'}
-              </button>
+                Carregar mais historico
+              </ActionLoadingButton>
             )}
           </section>
         )}

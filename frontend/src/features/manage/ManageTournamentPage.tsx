@@ -16,7 +16,10 @@ import {
   parseGuidedSystemErrorText,
   resolveGuidedSystemError,
 } from '../../shared/systemErrors.ts';
-import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
+import {
+  ActionLoadingButton,
+  TournamentPageSkeleton,
+} from '../../shared/loading/LoadingSystem.tsx';
 
 interface OrderedMatch {
   match: BracketMatch;
@@ -32,6 +35,11 @@ interface OptimisticMatchState {
   winnerId: string;
   player1Score: number | null;
   player2Score: number | null;
+}
+
+interface RecentAdvanceState {
+  matchId: string;
+  winnerId: string;
 }
 
 const ACTION_DEBOUNCE_MS = 180;
@@ -67,6 +75,7 @@ export function ManageTournamentPage() {
   const [updatingPlayerId, setUpdatingPlayerId] = useState<string | null>(null);
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [isChampionshipCelebrating, setIsChampionshipCelebrating] = useState(false);
+  const [recentAdvance, setRecentAdvance] = useState<RecentAdvanceState | null>(null);
   const [optimisticMatches, setOptimisticMatches] = useState<
     Record<string, OptimisticMatchState>
   >({});
@@ -164,6 +173,14 @@ export function ManageTournamentPage() {
     }, 2200);
     return () => clearTimeout(timeout);
   }, [isChampionshipCelebrating]);
+
+  useEffect(() => {
+    if (!recentAdvance) return;
+    const timer = setTimeout(() => {
+      setRecentAdvance(null);
+    }, 340);
+    return () => clearTimeout(timer);
+  }, [recentAdvance]);
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent | TouchEvent) {
@@ -346,6 +363,7 @@ export function ManageTournamentPage() {
         : '';
       setLastActionLabel(`${winnerName} venceu${scoreLabel}`);
       setFeedback('\u2714 Resultado registrado');
+      setRecentAdvance({ matchId: entry.match.id, winnerId });
       setScrollFromMatch({
         roundNumber: entry.roundNumber,
         positionInBracket: entry.match.positionInBracket,
@@ -506,11 +524,7 @@ export function ManageTournamentPage() {
   }, [data, orderedMatchesLive, triggerToast]);
 
   if (isLoading) {
-    return (
-      <div className="py-12 text-center">
-        <ProgressiveLoadingMessage className="text-gray-400 text-sm min-h-6" />
-      </div>
-    );
+    return <TournamentPageSkeleton />;
   }
 
   if (error && !data) {
@@ -759,6 +773,12 @@ export function ManageTournamentPage() {
                           roundLabel={round.label}
                           tournamentStatus={tournament.status}
                           isBusy={pendingMatchId !== null || isUndoingLastAction}
+                          recentWinnerId={
+                            recentAdvance?.matchId === match.id
+                              ? recentAdvance.winnerId
+                              : null
+                          }
+                          animateConnector={recentAdvance?.matchId === match.id}
                           onSelectWinner={(winnerId, winnerName, score1, score2) =>
                             handleSelectWinner(entry, winnerId, winnerName, score1, score2)
                           }
@@ -781,14 +801,17 @@ export function ManageTournamentPage() {
       )}
 
       {lastActionLabel && tournament.status === 'RUNNING' && (
-        <button
+        <ActionLoadingButton
           type="button"
           onClick={handleUndoLastAction}
-          disabled={isUndoingLastAction || pendingMatchId !== null}
+          disabled={pendingMatchId !== null}
+          isLoading={isUndoingLastAction}
+          idleLabel="Desfazer ultima acao"
+          loadingLabel="Atualizando dados"
           className="fixed bottom-6 right-4 z-50 h-12 min-w-[190px] rounded-full border border-gray-700 bg-[#111827] px-4 text-sm font-semibold text-white shadow-[0_15px_35px_rgba(0,0,0,0.45)] transition hover:bg-[#1f2937] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/50 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400 [touch-action:manipulation]"
         >
-          {isUndoingLastAction ? 'Atualizando dados' : 'Desfazer última ação'}
-        </button>
+          Desfazer ultima acao
+        </ActionLoadingButton>
       )}
 
       {isSeedOpen && (

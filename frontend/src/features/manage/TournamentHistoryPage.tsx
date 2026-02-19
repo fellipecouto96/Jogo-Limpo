@@ -7,7 +7,7 @@ import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import type { BracketMatch } from '../tv/types.ts';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { parseGuidedSystemErrorText } from '../../shared/systemErrors.ts';
-import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
+import { HistoryPageSkeleton } from '../../shared/loading/LoadingSystem.tsx';
 
 function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', {
@@ -56,11 +56,7 @@ export function TournamentHistoryPage() {
   }, [finalMatch]);
 
   if (isLoading) {
-    return (
-      <div className="py-12 text-center">
-        <ProgressiveLoadingMessage className="text-gray-400 text-sm min-h-6" />
-      </div>
-    );
+    return <HistoryPageSkeleton />;
   }
 
   if (error && !details && !bracket) {

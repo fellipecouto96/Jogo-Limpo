@@ -9,6 +9,7 @@ import {
   parseGuidedSystemErrorText,
   resolveGuidedSystemError,
 } from '../../shared/systemErrors.ts';
+import { ActionLoadingButton } from '../../shared/loading/LoadingSystem.tsx';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -126,13 +127,15 @@ export function LoginPage() {
             />
           )}
 
-          <button
+          <ActionLoadingButton
             type="submit"
-            disabled={isLoading}
+            isLoading={isLoading}
+            idleLabel="Entrar"
+            loadingLabel="Entrando"
             className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-700 disabled:text-gray-500 text-gray-950 font-bold py-3 rounded-lg transition-colors"
           >
-            {isLoading ? 'Entrando' : 'Entrar'}
-          </button>
+            Entrar
+          </ActionLoadingButton>
         </form>
 
         <p className="text-center text-gray-400 text-sm mt-6">

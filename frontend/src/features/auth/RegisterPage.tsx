@@ -9,6 +9,7 @@ import {
   parseGuidedSystemErrorText,
   resolveGuidedSystemError,
 } from '../../shared/systemErrors.ts';
+import { ActionLoadingButton } from '../../shared/loading/LoadingSystem.tsx';
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -145,13 +146,15 @@ export function RegisterPage() {
             />
           )}
 
-          <button
+          <ActionLoadingButton
             type="submit"
-            disabled={isLoading}
+            isLoading={isLoading}
+            idleLabel="Criar conta"
+            loadingLabel="Criando conta"
             className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-700 disabled:text-gray-500 text-gray-950 font-bold py-3 rounded-lg transition-colors"
           >
-            {isLoading ? 'Criando conta' : 'Criar conta'}
-          </button>
+            Criar conta
+          </ActionLoadingButton>
         </form>
 
         <p className="text-center text-gray-400 text-sm mt-6">

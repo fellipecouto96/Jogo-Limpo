@@ -6,7 +6,7 @@ import { useOnboarding } from '../../shared/useOnboarding.ts';
 import { QRCodeSection } from './QRCodeSection.tsx';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { parseGuidedSystemErrorText } from '../../shared/systemErrors.ts';
-import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
+import { DashboardSkeleton } from '../../shared/loading/LoadingSystem.tsx';
 
 export function DashboardPage() {
   const { organizer } = useAuth();
@@ -47,9 +47,7 @@ export function DashboardPage() {
       </h1>
       <p className="text-gray-400 mb-8">Seu painel de torneios.</p>
 
-      {isLoading && (
-        <ProgressiveLoadingMessage className="text-gray-400 text-sm min-h-6" />
-      )}
+      {isLoading && <DashboardSkeleton />}
 
       {error && (
         <div className="py-4">

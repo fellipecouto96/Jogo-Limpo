@@ -5,6 +5,7 @@ import {
   downloadDataUrl,
 } from '../../shared/qrcode.ts';
 import { logClientError } from '../../shared/logger.ts';
+import { QRLoadingPlaceholder } from '../../shared/loading/LoadingSystem.tsx';
 
 interface QRCodeSectionProps {
   slug: string;
@@ -55,11 +56,11 @@ export function QRCodeSection({ slug, organizerName }: QRCodeSectionProps) {
         <div className="shrink-0 rounded-xl bg-white p-3 w-40 h-40 flex items-center justify-center">
           {svgHtml ? (
             <div
-              className="w-full h-full [&>svg]:w-full [&>svg]:h-full"
+              className="jl-fade-in w-full h-full [&>svg]:w-full [&>svg]:h-full"
               dangerouslySetInnerHTML={{ __html: svgHtml }}
             />
           ) : (
-            <div className="w-full h-full bg-gray-100 animate-pulse rounded" />
+            <QRLoadingPlaceholder className="h-full w-full" />
           )}
         </div>
 

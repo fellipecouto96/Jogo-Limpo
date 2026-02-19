@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PublicProfilePage } from '../PublicProfilePage.tsx';
 
@@ -67,14 +67,23 @@ describe('PublicProfilePage', () => {
   });
 
   it('shows loading state while running list is loading', () => {
-    mockUsePublicProfile.mockImplementation((_, options) =>
-      makeHookResult({
-        isLoading: options?.status === 'RUNNING',
-      })
-    );
+    vi.useFakeTimers();
+    try {
+      mockUsePublicProfile.mockImplementation((_, options) =>
+        makeHookResult({
+          isLoading: options?.status === 'RUNNING',
+        })
+      );
 
-    renderPage();
-    expect(screen.getByText(/carregando/i)).toBeInTheDocument();
+      renderPage();
+      expect(screen.queryByText(/carregando/i)).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(350);
+      });
+      expect(document.querySelector('.jl-skeleton')).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows guided error when running list fails', () => {

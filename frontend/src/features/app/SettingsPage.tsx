@@ -5,7 +5,10 @@ import {
   formatGuidedSystemError,
   resolveGuidedSystemError,
 } from '../../shared/systemErrors.ts';
-import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
+import {
+  ActionLoadingButton,
+  ListPageSkeleton,
+} from '../../shared/loading/LoadingSystem.tsx';
 
 interface Settings {
   publicSlug: string | null;
@@ -107,7 +110,7 @@ export function SettingsPage() {
           <h2 className="text-lg font-bold text-white mb-4">Perfil publico</h2>
 
           {loading ? (
-            <ProgressiveLoadingMessage className="text-sm text-gray-400 min-h-6" />
+            <ListPageSkeleton rows={2} />
           ) : (
             <div className="space-y-5">
               {/* Slug */}
@@ -152,14 +155,16 @@ export function SettingsPage() {
               />
 
               {/* Save button */}
-              <button
+              <ActionLoadingButton
                 type="button"
                 onClick={handleSave}
-                disabled={saving}
+                isLoading={saving}
+                idleLabel="Salvar configuracoes"
+                loadingLabel="Atualizando dados"
                 className="flex h-11 w-full items-center justify-center rounded-xl bg-emerald-500 text-sm font-semibold text-gray-950 transition hover:bg-emerald-400 disabled:opacity-50 [touch-action:manipulation]"
               >
-                {saving ? 'Salvando configuracoes' : 'Salvar configuracoes'}
-              </button>
+                Salvar configuracoes
+              </ActionLoadingButton>
 
               {/* Feedback */}
               {feedback && (

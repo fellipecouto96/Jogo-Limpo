@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { parseGuidedSystemErrorText } from '../../shared/systemErrors.ts';
-import { ProgressiveLoadingMessage } from '../../shared/ProgressiveLoadingMessage.tsx';
+import {
+  ActionLoadingButton,
+  ListPageSkeleton,
+} from '../../shared/loading/LoadingSystem.tsx';
 
 export function TournamentsPage() {
   const {
@@ -43,8 +46,8 @@ export function TournamentsPage() {
       </Link>
 
       {isLoading && (
-        <div className="py-12 text-center">
-          <ProgressiveLoadingMessage className="text-gray-300 text-lg min-h-7" />
+        <div className="py-2">
+          <ListPageSkeleton rows={6} />
         </div>
       )}
 
@@ -130,14 +133,16 @@ export function TournamentsPage() {
 
       {!isLoading && !error && hasMore && (
         <div className="mt-6">
-          <button
+          <ActionLoadingButton
             type="button"
             onClick={loadMore}
-            disabled={isLoadingMore}
+            isLoading={isLoadingMore}
+            idleLabel="Carregar mais torneios"
+            loadingLabel="Atualizando dados"
             className="flex h-12 w-full items-center justify-center rounded-2xl border border-gray-700 bg-gray-900 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isLoadingMore ? 'Atualizando dados' : 'Carregar mais torneios'}
-          </button>
+            Carregar mais torneios
+          </ActionLoadingButton>
           <p className="mt-2 text-center text-xs text-gray-500">
             Exibindo {tournaments.length} de {total}
           </p>
