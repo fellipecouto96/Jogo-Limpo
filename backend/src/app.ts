@@ -10,6 +10,8 @@ import { tournamentRoutes } from './modules/tournament/tournament.routes.js';
 import { onboardingRoutes } from './modules/onboarding/onboarding.routes.js';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js';
 import { matchRoutes } from './modules/match/match.routes.js';
+import { publicProfileRoutes } from './modules/public-profile/public-profile.routes.js';
+import { settingsRoutes } from './modules/settings/settings.routes.js';
 
 export async function buildApp() {
   const app = fastify({
@@ -29,6 +31,7 @@ export async function buildApp() {
   await app.register(healthRoutes);
   await app.register(authRoutes);
   await app.register(bracketRoutes);
+  await app.register(publicProfileRoutes);
 
   // Protected routes
   await app.register(tournamentRoutes);
@@ -36,6 +39,7 @@ export async function buildApp() {
   await app.register(matchRoutes);
   await app.register(onboardingRoutes);
   await app.register(dashboardRoutes);
+  await app.register(settingsRoutes);
 
   return app;
 }

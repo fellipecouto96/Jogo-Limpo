@@ -3,6 +3,7 @@ import { useAuth } from '../auth/useAuth.ts';
 import { useDashboard } from './useDashboard.ts';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import { useOnboarding } from '../../shared/useOnboarding.ts';
+import { QRCodeSection } from './QRCodeSection.tsx';
 
 export function DashboardPage() {
   const { organizer } = useAuth();
@@ -39,7 +40,7 @@ export function DashboardPage() {
   return (
     <div>
       <h1 className="font-display text-3xl text-white mb-1">
-        Olá, {organizer?.name}
+        Ola, {organizer?.name}
       </h1>
       <p className="text-gray-400 mb-8">Seu painel de torneios.</p>
 
@@ -63,6 +64,16 @@ export function DashboardPage() {
               value={formatCurrency(data.metrics.totalPrizePaid)}
             />
           </div>
+
+          {/* QR / Divulgacao section */}
+          {organizer?.publicSlug && (
+            <div className="mb-8">
+              <QRCodeSection
+                slug={organizer.publicSlug}
+                organizerName={organizer.name}
+              />
+            </div>
+          )}
 
           <section>
             <h2 className="font-display text-xl text-white mb-4">

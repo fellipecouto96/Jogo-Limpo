@@ -2,6 +2,7 @@ export interface Organizer {
   id: string;
   name: string;
   email: string;
+  publicSlug?: string;
 }
 
 export interface AuthResponse {

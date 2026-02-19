@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../shared/database/prisma.js';
+import { generateSlug } from '../../utils/slug.js';
 
 export interface RegisterInput {
   name: string;
@@ -17,6 +18,7 @@ export interface AuthResult {
     id: string;
     name: string;
     email: string;
+    publicSlug: string | null;
   };
 }
 
@@ -48,19 +50,35 @@ export async function registerOrganizer(
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  const organizer = await prisma.organizer.create({
-    data: {
-      name: name.trim(),
-      email: normalizedEmail,
-      passwordHash,
-    },
-  });
+  const trimmedName = name.trim();
+  let organizer;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const publicSlug = generateSlug(trimmedName);
+    try {
+      organizer = await prisma.organizer.create({
+        data: {
+          name: trimmedName,
+          email: normalizedEmail,
+          passwordHash,
+          publicSlug,
+        },
+      });
+      break;
+    } catch (err: unknown) {
+      const isUniqueViolation =
+        err instanceof Error &&
+        err.message.includes('Unique constraint failed');
+      if (!isUniqueViolation || attempt === 2) throw err;
+    }
+  }
 
   return {
     organizer: {
-      id: organizer.id,
-      name: organizer.name,
-      email: organizer.email,
+      id: organizer!.id,
+      name: organizer!.name,
+      email: organizer!.email,
+      publicSlug: organizer!.publicSlug,
     },
   };
 }
@@ -90,6 +108,7 @@ export async function loginOrganizer(
       id: organizer.id,
       name: organizer.name,
       email: organizer.email,
+      publicSlug: organizer.publicSlug,
     },
   };
 }

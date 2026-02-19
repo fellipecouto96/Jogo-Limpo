@@ -9,6 +9,8 @@ import type { BracketMatch, BracketPlayer, BracketRound } from '../tv/types.ts';
 import { apiFetch } from '../../shared/api.ts';
 import { useOnboarding } from '../../shared/useOnboarding.ts';
 import { OnboardingHint } from '../../shared/OnboardingHint.tsx';
+import { useAuth } from '../auth/useAuth.ts';
+import { TournamentQRModal } from './TournamentQRModal.tsx';
 
 interface OrderedMatch {
   match: BracketMatch;
@@ -21,6 +23,7 @@ interface UndoLastResultResponse {
 }
 
 export function ManageTournamentPage() {
+  const { organizer } = useAuth();
   const { tournamentId } = useParams<{ tournamentId: string }>();
   const { data, error, isLoading, refetch } = useManageBracket(
     tournamentId!
@@ -32,6 +35,7 @@ export function ManageTournamentPage() {
     refetch: refetchDetails,
   } = useTournamentDetails(tournamentId!);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isQROpen, setIsQROpen] = useState(false);
   const [isSeedOpen, setIsSeedOpen] = useState(false);
   const [isPlayersOpen, setIsPlayersOpen] = useState(false);
   const [isFinishOpen, setIsFinishOpen] = useState(false);
@@ -433,6 +437,16 @@ export function ManageTournamentPage() {
           >
             Mobile
           </Link>
+          {organizer?.publicSlug && (
+            <button
+              type="button"
+              onClick={() => setIsQROpen(true)}
+              className="flex h-11 items-center justify-center rounded-xl bg-gray-800 px-3 text-sm font-semibold text-gray-200 border border-gray-700 hover:bg-gray-700 transition-colors [touch-action:manipulation]"
+              title="QR Code do torneio"
+            >
+              <QRIcon />
+            </button>
+          )}
           <div className="relative" ref={menuRef}>
             <button
               type="button"
@@ -775,6 +789,15 @@ export function ManageTournamentPage() {
           </div>
         </div>
       )}
+
+      {isQROpen && organizer?.publicSlug && (
+        <TournamentQRModal
+          tournamentId={tournamentId!}
+          tournamentName={tournament.name}
+          slug={organizer.publicSlug}
+          onClose={() => setIsQROpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1083,6 +1106,20 @@ function deriveRunnerUp(rounds: BracketRound[], totalRounds: number) {
   return finalMatch.winner.id === finalMatch.player1.id
     ? finalMatch.player2
     : finalMatch.player1;
+}
+
+function QRIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" />
+      <rect x="14" y="3" width="7" height="7" />
+      <rect x="3" y="14" width="7" height="7" />
+      <path d="M14 14h3v3h-3z" />
+      <path d="M17 17h3v3h-3z" />
+      <path d="M14 20v1" />
+      <path d="M20 14v1" />
+    </svg>
+  );
 }
 
 function extractTournamentPlayers(rounds: BracketRound[]): BracketPlayer[] {

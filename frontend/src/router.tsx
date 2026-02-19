@@ -12,6 +12,9 @@ import { TournamentPublicView } from './features/tv/TournamentPublicView.tsx';
 import { ManageTournamentPage } from './features/manage/ManageTournamentPage.tsx';
 import { TournamentSettingsPage } from './features/manage/TournamentSettingsPage.tsx';
 import { TournamentHistoryPage } from './features/manage/TournamentHistoryPage.tsx';
+import { PublicProfilePage } from './features/public-profile/PublicProfilePage.tsx';
+import { PublicTournamentDetailPage } from './features/public-profile/PublicTournamentDetailPage.tsx';
+import { PrintableQR } from './features/app/PrintableQR.tsx';
 
 export function AppRouter() {
   return (
@@ -28,6 +31,12 @@ export function AppRouter() {
         path="/tournament/:tournamentId/mobile"
         element={<TournamentPublicView mode="mobile" />}
       />
+      <Route path="/organizer/:slug" element={<PublicProfilePage />} />
+      <Route
+        path="/organizer/:slug/tournament/:tournamentId"
+        element={<PublicTournamentDetailPage />}
+      />
+      <Route path="/print/qr/:slug" element={<PrintableQR />} />
 
       {/* Protected app shell */}
       <Route

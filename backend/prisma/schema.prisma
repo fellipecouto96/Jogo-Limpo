@@ -22,6 +22,10 @@ model Organizer {
   passwordHash String   @map("password_hash")
   createdAt    DateTime @default(now()) @map("created_at")
 
+  publicSlug             String?  @unique @map("public_slug")
+  isPublicProfileEnabled Boolean  @default(true) @map("is_public_profile_enabled")
+  showFinancials         Boolean  @default(false) @map("show_financials")
+
   tournaments Tournament[]
 
   @@map("organizers")
