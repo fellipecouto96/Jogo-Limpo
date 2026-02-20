@@ -20,6 +20,25 @@ export default async function handler(
   res: VercelResponse
 ) {
   const fastify = await getApp();
+  const requestUrl = req.url && req.url.length > 0 ? req.url : '/';
+
+  const normalizedHeaders: Record<string, string> = {};
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (typeof value === 'string') {
+      normalizedHeaders[key] = value;
+      continue;
+    }
+    if (Array.isArray(value)) {
+      normalizedHeaders[key] = value.join(', ');
+    }
+  }
+
+  const payload =
+    req.body == null
+      ? undefined
+      : typeof req.body === 'string'
+        ? req.body
+        : JSON.stringify(req.body);
 
   const response = await fastify.inject({
     method: req.method as
@@ -30,9 +49,9 @@ export default async function handler(
       | 'DELETE'
       | 'OPTIONS'
       | 'HEAD',
-    url: req.url!,
-    headers: req.headers as Record<string, string>,
-    payload: req.body ? JSON.stringify(req.body) : undefined,
+    url: requestUrl,
+    headers: normalizedHeaders,
+    payload,
   });
 
   res.status(response.statusCode);
