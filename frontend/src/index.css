@@ -85,6 +85,25 @@ body {
   }
 }
 
+@keyframes jl-pending-ring {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.2), 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18), 0 0 12px 0 rgba(52, 211, 153, 0.12);
+  }
+}
+
+@keyframes jl-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes jl-round-advance {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes jl-connector-flow {
   0% {
     transform: scaleX(0);
@@ -150,6 +169,18 @@ body {
   animation: jl-fade-in 320ms ease-out both;
 }
 
+.jl-pending-ring {
+  animation: jl-pending-ring 1.4s ease-in-out infinite;
+}
+
+.jl-spin {
+  animation: jl-spin 0.9s linear infinite;
+}
+
+.jl-round-advance {
+  animation: jl-round-advance 280ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .jl-skeleton::after,
   .jl-button-progress,
@@ -157,7 +188,10 @@ body {
   .jl-qr-border,
   .jl-winner-pulse,
   .jl-connector-flow,
-  .jl-fade-in {
+  .jl-fade-in,
+  .jl-pending-ring,
+  .jl-spin,
+  .jl-round-advance {
     animation: none !important;
   }
 }

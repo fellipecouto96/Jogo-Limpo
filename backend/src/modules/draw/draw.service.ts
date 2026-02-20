@@ -82,60 +82,54 @@ export async function generateDraw(
   // - First normalMatchCount slots get 2 players each (normal matches)
   // - Last byeCount slots get 1 player each (bye matches, auto-advance)
   const result = await prisma.$transaction(async (tx) => {
-    // Create all rounds upfront
-    const rounds = await Promise.all(
-      Array.from({ length: totalRounds }, (_, i) =>
-        tx.round.create({
-          data: {
-            tournamentId,
-            roundNumber: i + 1,
-          },
-        })
-      )
-    );
+    // Create all rounds in a single bulk insert
+    await tx.round.createMany({
+      data: Array.from({ length: totalRounds }, (_, i) => ({
+        tournamentId,
+        roundNumber: i + 1,
+      })),
+    });
 
-    const firstRound = rounds[0];
+    const firstRound = await tx.round.findUniqueOrThrow({
+      where: {
+        tournamentId_roundNumber: { tournamentId, roundNumber: 1 },
+      },
+      select: { id: true },
+    });
 
-    // Create normal matches (two players each)
+    // Build all match data in memory, then insert in one bulk operation
     let playerIndex = 0;
-    const matchPromises = [];
+    const matchData = [];
 
+    // Normal matches (two players each)
     for (let slot = 0; slot < normalMatchCount; slot++) {
-      matchPromises.push(
-        tx.match.create({
-          data: {
-            tournamentId,
-            roundId: firstRound.id,
-            player1Id: shuffled[playerIndex],
-            player2Id: shuffled[playerIndex + 1],
-            positionInBracket: slot + 1,
-          },
-        })
-      );
+      matchData.push({
+        tournamentId,
+        roundId: firstRound.id,
+        player1Id: shuffled[playerIndex],
+        player2Id: shuffled[playerIndex + 1],
+        positionInBracket: slot + 1,
+      });
       playerIndex += 2;
     }
 
-    // Create bye matches (one player, auto-advance)
+    // Bye matches (one player, auto-advance)
     for (let slot = 0; slot < byeCount; slot++) {
       const playerId = shuffled[playerIndex];
-      matchPromises.push(
-        tx.match.create({
-          data: {
-            tournamentId,
-            roundId: firstRound.id,
-            player1Id: playerId,
-            player2Id: null,
-            winnerId: playerId,
-            isBye: true,
-            positionInBracket: normalMatchCount + slot + 1,
-            finishedAt: generatedAt,
-          },
-        })
-      );
+      matchData.push({
+        tournamentId,
+        roundId: firstRound.id,
+        player1Id: playerId,
+        player2Id: null,
+        winnerId: playerId,
+        isBye: true,
+        positionInBracket: normalMatchCount + slot + 1,
+        finishedAt: generatedAt,
+      });
       playerIndex += 1;
     }
 
-    await Promise.all(matchPromises);
+    await tx.match.createMany({ data: matchData });
 
     // Update tournament
     await tx.tournament.update({

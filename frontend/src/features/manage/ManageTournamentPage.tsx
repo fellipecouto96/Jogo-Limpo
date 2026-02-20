@@ -674,7 +674,7 @@ export function ManageTournamentPage() {
       </div>
 
       {feedback && (
-        <p className="mb-4 rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+        <p className="jl-fade-in mb-4 rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
           {feedback}
         </p>
       )}
@@ -743,9 +743,10 @@ export function ManageTournamentPage() {
             const matches = [...round.matches].sort(
               (a, b) => a.positionInBracket - b.positionInBracket
             );
+            const isNewRound = matches.length > 0 && matches.every((m) => !m.winner && !m.isBye);
 
             return (
-              <div key={round.id} className="space-y-3">
+              <div key={round.id} className={['space-y-3', isNewRound ? 'jl-round-advance' : ''].join(' ')}>
                 <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-400">
                   {round.label}
                 </h2>
@@ -773,6 +774,7 @@ export function ManageTournamentPage() {
                           roundLabel={round.label}
                           tournamentStatus={tournament.status}
                           isBusy={pendingMatchId !== null || isUndoingLastAction}
+                          isPending={pendingMatchId === match.id}
                           recentWinnerId={
                             recentAdvance?.matchId === match.id
                               ? recentAdvance.winnerId

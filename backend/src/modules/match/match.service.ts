@@ -138,12 +138,13 @@ export async function recordMatchResult(
       },
     });
 
-    // 6. Check if round is complete
-    const unfinished = await tx.match.count({
+    // 6. Check if round is complete — short-circuit on first unfinished match
+    const anyUnfinished = await tx.match.findFirst({
       where: { roundId: match.roundId, winnerId: null },
+      select: { id: true },
     });
 
-    if (unfinished > 0) {
+    if (anyUnfinished) {
       return {
         matchId,
         winnerId,

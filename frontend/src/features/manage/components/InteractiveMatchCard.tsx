@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import type { BracketMatch } from '../../tv/types.ts';
 import { ScoreInput } from './ScoreInput.tsx';
+import { Spinner } from '../../../shared/loading/LoadingSystem.tsx';
 
 interface InteractiveMatchCardProps {
   match: BracketMatch;
   roundLabel: string;
   tournamentStatus: string;
   isBusy: boolean;
+  isPending?: boolean;
   recentWinnerId?: string | null;
   animateConnector?: boolean;
   onSelectWinner: (winnerId: string, winnerName: string, score1?: number, score2?: number) => void;
@@ -18,6 +20,7 @@ export function InteractiveMatchCard({
   roundLabel,
   tournamentStatus,
   isBusy,
+  isPending = false,
   recentWinnerId = null,
   animateConnector = false,
   onSelectWinner,
@@ -47,11 +50,13 @@ export function InteractiveMatchCard({
 
   const rootClasses = [
     'w-full overflow-hidden rounded-2xl border bg-[#0b1120] transition-all duration-200',
-    isComplete
-      ? 'border-gray-700/80 opacity-85'
-      : canInteract
-        ? 'border-emerald-400/50 shadow-[0_16px_30px_rgba(0,0,0,0.35)]'
-        : 'border-gray-700/80',
+    isPending
+      ? 'border-emerald-400/60 jl-pending-ring'
+      : isComplete
+        ? 'border-gray-700/80 opacity-85'
+        : canInteract
+          ? 'border-emerald-400/50 shadow-[0_16px_30px_rgba(0,0,0,0.35)]'
+          : 'border-gray-700/80',
   ]
     .filter(Boolean)
     .join(' ');
@@ -99,7 +104,14 @@ export function InteractiveMatchCard({
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-300">
           {roundLabel}
         </p>
-        <p className="text-xs text-gray-400">Partida {match.positionInBracket}</p>
+        {isPending ? (
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300">
+            <Spinner className="h-3.5 w-3.5" />
+            Registrando
+          </span>
+        ) : (
+          <p className="text-xs text-gray-400">Partida {match.positionInBracket}</p>
+        )}
       </header>
 
       <div className="divide-y divide-gray-800">

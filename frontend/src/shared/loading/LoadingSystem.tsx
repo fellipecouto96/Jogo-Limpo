@@ -1,4 +1,4 @@
-import { useEffect, useState, type ButtonHTMLAttributes } from 'react';
+import { useEffect, useState, type ButtonHTMLAttributes, type SVGProps } from 'react';
 import {
   LOADING_VISIBILITY_DELAY_MS,
   useLoadingVisibility,
@@ -264,7 +264,8 @@ export function ActionLoadingButton({
       disabled={disabled || isLoading}
       className={['relative overflow-hidden', className].join(' ')}
     >
-      <span className="relative z-10 inline-flex min-w-[13ch] justify-center">
+      <span className="relative z-10 inline-flex min-w-[13ch] items-center justify-center gap-2">
+        {isLoading && <Spinner className="opacity-80" />}
         {isLoading ? loadingLabel : idleLabel}
       </span>
       {isLoading && (
@@ -273,6 +274,31 @@ export function ActionLoadingButton({
         </span>
       )}
     </button>
+  );
+}
+
+export function Spinner({
+  className = '',
+  ...props
+}: SVGProps<SVGSVGElement> & { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={['jl-spin h-4 w-4', className].join(' ')}
+      {...props}
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeDasharray="47 15"
+      />
+    </svg>
   );
 }
 
