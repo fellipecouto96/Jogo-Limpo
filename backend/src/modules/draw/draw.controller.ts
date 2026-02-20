@@ -1,6 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { generateDraw, DrawError } from './draw.service.js';
 import { logEvent } from '../../shared/logging/log.service.js';
+import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
 
 interface DrawParams {
   tournamentId: string;
@@ -28,7 +29,7 @@ export async function createDraw(
     if (err instanceof DrawError) {
       logEvent({
         level: 'WARN',
-        journey: 'draw',
+        journey: LOG_JOURNEYS.DRAW,
         tournamentId: request.params.tournamentId,
         message: err.message,
         metadata: { statusCode: err.statusCode },

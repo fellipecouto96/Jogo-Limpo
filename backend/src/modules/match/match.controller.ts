@@ -7,6 +7,7 @@ import {
   MatchError,
 } from './match.service.js';
 import { logEvent } from '../../shared/logging/log.service.js';
+import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
 
 interface MatchParams {
   tournamentId: string;
@@ -49,7 +50,7 @@ export async function updateMatchResult(
     if (err instanceof MatchError) {
       logEvent({
         level: 'WARN',
-        journey: 'advance_winner',
+        journey: LOG_JOURNEYS.ADVANCE_WINNER,
         tournamentId: request.params.tournamentId,
         userId: request.user.sub,
         message: err.message,
@@ -86,7 +87,7 @@ export async function patchMatchScore(
     if (err instanceof MatchError) {
       logEvent({
         level: 'WARN',
-        journey: 'advance_winner',
+        journey: LOG_JOURNEYS.ADVANCE_WINNER,
         tournamentId: request.params.tournamentId,
         userId: request.user.sub,
         message: err.message,
@@ -108,8 +109,24 @@ export async function getStatistics(
     return reply.send(stats);
   } catch (err) {
     if (err instanceof MatchError) {
+      logEvent({
+        level: 'WARN',
+        journey: LOG_JOURNEYS.TOURNAMENT_STATS,
+        tournamentId: request.params.tournamentId,
+        message: err.message,
+        metadata: { statusCode: err.statusCode },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.TOURNAMENT_STATS,
+      tournamentId: request.params.tournamentId,
+      message: 'Unexpected statistics error',
+      metadata: {
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
     throw err;
   }
 }
@@ -127,7 +144,7 @@ export async function postUndoLastMatchResult(
     if (err instanceof MatchError) {
       logEvent({
         level: 'WARN',
-        journey: 'advance_winner',
+        journey: LOG_JOURNEYS.ADVANCE_WINNER,
         tournamentId: request.params.tournamentId,
         userId: request.user.sub,
         message: err.message,

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { prisma } from '../../shared/database/prisma.js';
 import { Decimal } from '@prisma/client/runtime/library';
 import { generateDraw } from '../draw/draw.service.js';
@@ -197,18 +198,19 @@ export async function runOnboardingSetup(
       },
     });
 
-    const players = await Promise.all(
-      playerNames.map((name) =>
-        tx.player.create({ data: { name: name.trim() } })
-      )
-    );
+    const playersData = playerNames.map((name) => ({
+      id: crypto.randomUUID(),
+      name: name.trim(),
+    }));
+
+    await tx.player.createMany({ data: playersData });
 
     return {
       organizerId,
       tournamentId: tournament.id,
-      playerIds: players.map((p) => p.id),
+      playerIds: playersData.map((p) => p.id),
     };
-  });
+  }, { timeout: 15_000, maxWait: 5_000 });
 
   // Run draw (this has its own transaction internally)
   await generateDraw(result.tournamentId, result.playerIds);

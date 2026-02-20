@@ -1,5 +1,6 @@
 import { prisma } from '../../shared/database/prisma.js';
 import { withPerformanceLog } from '../../shared/logging/performance.service.js';
+import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
 
 export interface DashboardSummary {
   metrics: {
@@ -48,7 +49,7 @@ export async function getDashboardSummary(
 
   const [tournamentsRaw, totalTournaments, collectedAgg, prizeAgg] =
     await withPerformanceLog(
-      'dashboard',
+      LOG_JOURNEYS.DASHBOARD,
       'dashboard_summary',
       () =>
         Promise.all([

@@ -3,6 +3,7 @@ import { prisma } from '../../shared/database/prisma.js';
 import { calculateFinancials } from './financials.js';
 import { generateUniqueTournamentSlug } from './public-slug.js';
 import { withPerformanceLog } from '../../shared/logging/performance.service.js';
+import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
 
 /** Count real players from round 1 matches: normal matches have 2, bye matches have 1. */
 function countPlayers(matches: { isBye: boolean }[]): number {
@@ -113,7 +114,7 @@ export async function listTournaments(
   const skip = (safePage - 1) * safeLimit;
 
   const [tournaments, total] = await withPerformanceLog(
-    'dashboard',
+    LOG_JOURNEYS.DASHBOARD,
     'list_tournaments',
     () =>
       Promise.all([

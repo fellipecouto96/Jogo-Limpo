@@ -3,6 +3,7 @@ import { fetchBracket } from '../bracket/bracket.service.js';
 import { getTournamentStatistics } from '../match/match.service.js';
 import { generateUniqueTournamentSlug } from '../tournament/public-slug.js';
 import { withPerformanceLog } from '../../shared/logging/performance.service.js';
+import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
 
 export interface PublicProfileTournament {
   publicSlug: string;
@@ -127,7 +128,7 @@ export async function getPublicProfile(
   const skip = (safePage - 1) * safeLimit;
 
   const organizer = await withPerformanceLog(
-    'public_page',
+    LOG_JOURNEYS.PUBLIC_PAGE,
     'public_profile_organizer_lookup',
     () =>
       prisma.organizer.findUnique({
@@ -155,7 +156,7 @@ export async function getPublicProfile(
   };
 
   const [tournaments, total] = await withPerformanceLog(
-    'public_page',
+    LOG_JOURNEYS.PUBLIC_PAGE,
     'public_profile_tournaments',
     () =>
       Promise.all([
@@ -220,7 +221,7 @@ export async function getPublicTournamentDetail(
   tournamentId: string
 ): Promise<PublicTournamentDetail | null> {
   const organizer = await withPerformanceLog(
-    'public_page',
+    LOG_JOURNEYS.PUBLIC_PAGE,
     'public_tournament_organizer_lookup',
     () =>
       prisma.organizer.findUnique({
@@ -238,7 +239,7 @@ export async function getPublicTournamentDetail(
   }
 
   const tournament = await withPerformanceLog(
-    'public_page',
+    LOG_JOURNEYS.PUBLIC_PAGE,
     'public_tournament_detail',
     () =>
       prisma.tournament.findUnique({
@@ -281,7 +282,7 @@ export async function getPublicTournamentBySlug(
   tournamentSlug: string
 ): Promise<PublicTournamentDetail | null> {
   const tournament = await withPerformanceLog(
-    'public_page',
+    LOG_JOURNEYS.PUBLIC_PAGE,
     'public_tournament_slug_lookup',
     () =>
       prisma.tournament.findUnique({

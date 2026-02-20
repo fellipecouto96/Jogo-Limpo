@@ -5,6 +5,8 @@ import {
   SettingsError,
   type SettingsInput,
 } from './settings.service.js';
+import { logEvent } from '../../shared/logging/log.service.js';
+import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
 
 export async function getSettingsHandler(
   request: FastifyRequest,
@@ -16,8 +18,25 @@ export async function getSettingsHandler(
     return reply.send(settings);
   } catch (err) {
     if (err instanceof SettingsError) {
+      logEvent({
+        level: 'WARN',
+        journey: LOG_JOURNEYS.SETTINGS,
+        userId: (request.user as { sub: string }).sub,
+        message: err.message,
+        metadata: { statusCode: err.statusCode, action: 'get' },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.SETTINGS,
+      userId: (request.user as { sub: string }).sub,
+      message: 'Unexpected settings error',
+      metadata: {
+        action: 'get',
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
     throw err;
   }
 }
@@ -32,8 +51,25 @@ export async function updateSettingsHandler(
     return reply.send(settings);
   } catch (err) {
     if (err instanceof SettingsError) {
+      logEvent({
+        level: 'WARN',
+        journey: LOG_JOURNEYS.SETTINGS,
+        userId: (request.user as { sub: string }).sub,
+        message: err.message,
+        metadata: { statusCode: err.statusCode, action: 'update' },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.SETTINGS,
+      userId: (request.user as { sub: string }).sub,
+      message: 'Unexpected settings update error',
+      metadata: {
+        action: 'update',
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
     throw err;
   }
 }

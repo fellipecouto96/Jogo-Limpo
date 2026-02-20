@@ -1,5 +1,6 @@
 import { prisma } from '../../shared/database/prisma.js';
 import { withPerformanceLog } from '../../shared/logging/performance.service.js';
+import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
 
 export interface BracketResponse {
   tournament: {
@@ -37,7 +38,7 @@ export async function fetchBracket(
   tournamentId: string
 ): Promise<BracketResponse> {
   const tournament = await withPerformanceLog(
-    'public_page',
+    LOG_JOURNEYS.PUBLIC_PAGE,
     'fetch_bracket',
     () =>
       prisma.tournament.findUnique({

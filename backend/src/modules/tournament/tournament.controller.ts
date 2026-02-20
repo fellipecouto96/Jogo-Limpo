@@ -8,6 +8,7 @@ import {
   TournamentError,
 } from './tournament.service.js';
 import { logEvent } from '../../shared/logging/log.service.js';
+import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
 
 export async function getTournaments(
   request: FastifyRequest<{
@@ -18,11 +19,24 @@ export async function getTournaments(
   }>,
   reply: FastifyReply
 ) {
-  const organizerId = request.user.sub;
-  const page = request.query.page ? Number(request.query.page) : 1;
-  const limit = request.query.limit ? Number(request.query.limit) : 20;
-  const tournaments = await listTournaments(organizerId, page, limit);
-  return reply.send(tournaments);
+  try {
+    const organizerId = request.user.sub;
+    const page = request.query.page ? Number(request.query.page) : 1;
+    const limit = request.query.limit ? Number(request.query.limit) : 20;
+    const tournaments = await listTournaments(organizerId, page, limit);
+    return reply.send(tournaments);
+  } catch (err) {
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.TOURNAMENT_LIST,
+      userId: request.user.sub,
+      message: 'Failed to list tournaments',
+      metadata: {
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
+    throw err;
+  }
 }
 
 interface TournamentParams {
@@ -40,8 +54,26 @@ export async function getTournament(
     return reply.send(tournament);
   } catch (err) {
     if (err instanceof TournamentError) {
+      logEvent({
+        level: 'WARN',
+        journey: LOG_JOURNEYS.TOURNAMENT_DETAIL,
+        tournamentId: request.params.tournamentId,
+        userId: request.user.sub,
+        message: err.message,
+        metadata: { statusCode: err.statusCode },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.TOURNAMENT_DETAIL,
+      tournamentId: request.params.tournamentId,
+      userId: request.user.sub,
+      message: 'Unexpected tournament detail error',
+      metadata: {
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
     throw err;
   }
 }
@@ -108,7 +140,7 @@ export async function patchTournamentFinancials(
     if (err instanceof TournamentError) {
       logEvent({
         level: 'WARN',
-        journey: 'create_tournament',
+        journey: LOG_JOURNEYS.TOURNAMENT_FINANCIALS,
         tournamentId: request.params.tournamentId,
         userId: request.user.sub,
         message: err.message,
@@ -116,6 +148,16 @@ export async function patchTournamentFinancials(
       });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.TOURNAMENT_FINANCIALS,
+      tournamentId: request.params.tournamentId,
+      userId: request.user.sub,
+      message: 'Unexpected tournament financials error',
+      metadata: {
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
     throw err;
   }
 }
@@ -133,7 +175,7 @@ export async function patchTournamentFinish(
     if (err instanceof TournamentError) {
       logEvent({
         level: 'WARN',
-        journey: 'create_tournament',
+        journey: LOG_JOURNEYS.TOURNAMENT_FINISH,
         tournamentId: request.params.tournamentId,
         userId: request.user.sub,
         message: err.message,
@@ -141,6 +183,16 @@ export async function patchTournamentFinish(
       });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.TOURNAMENT_FINISH,
+      tournamentId: request.params.tournamentId,
+      userId: request.user.sub,
+      message: 'Unexpected tournament finish error',
+      metadata: {
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
     throw err;
   }
 }
@@ -181,7 +233,7 @@ export async function patchTournamentPlayer(
     if (err instanceof TournamentError) {
       logEvent({
         level: 'WARN',
-        journey: 'create_tournament',
+        journey: LOG_JOURNEYS.TOURNAMENT_PLAYER,
         tournamentId: request.params.tournamentId,
         userId: request.user.sub,
         message: err.message,
@@ -189,6 +241,17 @@ export async function patchTournamentPlayer(
       });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.TOURNAMENT_PLAYER,
+      tournamentId: request.params.tournamentId,
+      userId: request.user.sub,
+      message: 'Unexpected player update error',
+      metadata: {
+        playerId: request.params.playerId,
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
     throw err;
   }
 }

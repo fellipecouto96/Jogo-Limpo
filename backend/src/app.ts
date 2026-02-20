@@ -14,6 +14,7 @@ import { publicProfileRoutes } from './modules/public-profile/public-profile.rou
 import { settingsRoutes } from './modules/settings/settings.routes.js';
 import { logsRoutes } from './modules/logs/logs.routes.js';
 import { logEvent } from './shared/logging/log.service.js';
+import { LOG_JOURNEYS } from './shared/logging/journeys.js';
 
 export async function buildApp() {
   const app = fastify({
@@ -47,7 +48,7 @@ export async function buildApp() {
   app.setErrorHandler((error: FastifyError, _request, reply) => {
     logEvent({
       level: 'ERROR',
-      journey: 'server_error',
+      journey: LOG_JOURNEYS.SERVER_ERROR,
       message: error.message ?? 'Erro interno desconhecido',
       metadata: {
         statusCode: error.statusCode,

@@ -4,6 +4,8 @@ import {
   loginOrganizer,
   AuthError,
 } from './auth.service.js';
+import { logEvent } from '../../shared/logging/log.service.js';
+import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
 
 interface RegisterBody {
   name: string;
@@ -36,8 +38,23 @@ export async function register(
     });
   } catch (err) {
     if (err instanceof AuthError) {
+      logEvent({
+        level: 'WARN',
+        journey: LOG_JOURNEYS.AUTH,
+        message: err.message,
+        metadata: { statusCode: err.statusCode, action: 'register' },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.AUTH,
+      message: 'Unexpected register error',
+      metadata: {
+        action: 'register',
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
     throw err;
   }
 }
@@ -62,8 +79,23 @@ export async function login(
     });
   } catch (err) {
     if (err instanceof AuthError) {
+      logEvent({
+        level: 'WARN',
+        journey: LOG_JOURNEYS.AUTH,
+        message: err.message,
+        metadata: { statusCode: err.statusCode, action: 'login' },
+      });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.AUTH,
+      message: 'Unexpected login error',
+      metadata: {
+        action: 'login',
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
     throw err;
   }
 }

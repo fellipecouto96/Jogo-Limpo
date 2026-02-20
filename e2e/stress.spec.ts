@@ -44,6 +44,50 @@ test.describe('Scenario B — Large Tournament (32 players)', () => {
   });
 });
 
+test.describe('Scenario B2 — Large Tournament With 4th Place Prize', () => {
+  test('32-player tournament with 4th place prize completes draw', async ({ page }) => {
+    test.setTimeout(120_000);
+    const errors = collectConsoleErrors(page);
+
+    await registerAndLogin(page);
+    await page.goto('/app/new');
+
+    // Fill basic info + prize rules
+    await page.getByPlaceholder('Ex: Copa de Domingo').fill('Copa 32 + 4º');
+    await page.locator('#entry-fee').fill('50');
+    await page.locator('#organizer-percentage').fill('10');
+    await page.locator('#champion-percentage').fill('50');
+    await page.locator('#runner-up-percentage').fill('30');
+
+    // Enable 3rd + 4th place payouts
+    await page.getByLabel('Incluir premiação para 3º lugar').check();
+    await page.locator('#third-place-percentage').fill('15');
+    await page.getByLabel('Incluir premiação para 4º lugar').check();
+    await page.locator('#fourth-place-percentage').fill('5');
+
+    await page.getByRole('button', { name: /continuar/i }).click();
+
+    // Add 32 players
+    for (let i = 1; i <= 32; i++) {
+      await page.getByPlaceholder('Nome do jogador').fill(`Jogador ${i}`);
+      await page.getByRole('button', { name: /adicionar/i }).click();
+    }
+
+    await expect(page.locator('text=Total: 32 jogadores')).toBeVisible();
+
+    // Draw
+    await page.getByRole('button', { name: /sortear/i }).click();
+    await page.waitForURL('**/app/tournament/*', { timeout: 30_000 });
+
+    // Ensure page renders and no console errors
+    await expect(page.locator('h1')).toBeVisible();
+    const realErrors = errors.filter(
+      (e) => !e.includes('favicon') && !e.includes('404')
+    );
+    expect(realErrors).toHaveLength(0);
+  });
+});
+
 test.describe('Scenario C — Stress Tests', () => {
   test('rapid winner taps do not corrupt state', async ({ page }) => {
     const errors = collectConsoleErrors(page);

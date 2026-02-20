@@ -1,5 +1,6 @@
 import { prisma } from '../../shared/database/prisma.js';
 import { withPerformanceLog } from '../../shared/logging/performance.service.js';
+import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
 
 export interface RecordResultInput {
   winnerId: string;
@@ -34,7 +35,7 @@ export async function recordMatchResult(
   return await prisma.$transaction(async (tx) => {
     // 1. Validate tournament
     const tournament = await withPerformanceLog(
-      'record_result',
+      LOG_JOURNEYS.RECORD_RESULT,
       'match_tournament_lookup',
       () =>
         tx.tournament.findUnique({
@@ -60,7 +61,7 @@ export async function recordMatchResult(
 
     // 2. Validate match
     const match = await withPerformanceLog(
-      'record_result',
+      LOG_JOURNEYS.RECORD_RESULT,
       'match_lookup',
       () =>
         tx.match.findUnique({
@@ -259,7 +260,7 @@ export async function undoLastMatchResult(
 ): Promise<UndoLastResultResponse> {
   return await prisma.$transaction(async (tx) => {
     const tournament = await withPerformanceLog(
-      'record_result',
+      LOG_JOURNEYS.RECORD_RESULT,
       'undo_tournament_lookup',
       () =>
         tx.tournament.findUnique({
@@ -284,7 +285,7 @@ export async function undoLastMatchResult(
     }
 
     const latestMatch = await withPerformanceLog(
-      'record_result',
+      LOG_JOURNEYS.RECORD_RESULT,
       'undo_latest_match_lookup',
       () =>
         tx.match.findFirst({
@@ -388,7 +389,7 @@ export async function updateMatchScore(
   const { player1Score, player2Score } = input;
 
   const tournament = await withPerformanceLog(
-    'record_result',
+    LOG_JOURNEYS.RECORD_RESULT,
     'update_score_tournament_lookup',
     () =>
       prisma.tournament.findUnique({
@@ -412,7 +413,7 @@ export async function updateMatchScore(
   }
 
   const match = await withPerformanceLog(
-    'record_result',
+    LOG_JOURNEYS.RECORD_RESULT,
     'update_score_match_lookup',
     () =>
       prisma.match.findUnique({
@@ -474,7 +475,7 @@ export async function getTournamentStatistics(
   tournamentId: string
 ): Promise<TournamentStatistics> {
   const tournament = await withPerformanceLog(
-    'public_page',
+    LOG_JOURNEYS.PUBLIC_PAGE,
     'tournament_statistics',
     () =>
       prisma.tournament.findUnique({

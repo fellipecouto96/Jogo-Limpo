@@ -36,6 +36,10 @@ vi.mock('../../draw/draw.service.js', () => {
   return { DrawError };
 });
 
+vi.mock('../../../shared/logging/log.service.js', () => ({
+  logEvent: vi.fn(),
+}));
+
 import { setupOnboarding } from '../onboarding.controller.js';
 import { OnboardingError } from '../onboarding.service.js';
 

@@ -2,9 +2,11 @@ import { prisma } from '../database/prisma.js';
 
 export type LogLevel = 'INFO' | 'WARN' | 'ERROR';
 
+import type { LogJourney } from './journeys.js';
+
 export interface LogEventInput {
   level: LogLevel;
-  journey: string;
+  journey: LogJourney;
   userId?: string;
   tournamentId?: string;
   message: string;
