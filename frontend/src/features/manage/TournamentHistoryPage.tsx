@@ -5,6 +5,7 @@ import { useBracketData } from '../tv/useBracketData.ts';
 import { BracketRound } from '../tv/components/BracketRound.tsx';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import type { BracketMatch } from '../tv/types.ts';
+import { deriveRunnerUp, deriveThirdAndFourth } from './podium.ts';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { parseGuidedSystemErrorText } from '../../shared/systemErrors.ts';
 import {
@@ -54,13 +55,6 @@ export function TournamentHistoryPage() {
     return finalRound?.matches.length === 1 ? finalRound.matches[0] : null;
   }, [bracket]);
 
-  const computedRunnerUp = useMemo(() => {
-    if (!finalMatch || !finalMatch.winner || !finalMatch.player2) return null;
-    return finalMatch.winner.id === finalMatch.player1.id
-      ? finalMatch.player2
-      : finalMatch.player1;
-  }, [finalMatch]);
-
   if (isLoading) {
     return <HistoryPageSkeleton />;
   }
@@ -81,6 +75,7 @@ export function TournamentHistoryPage() {
   if (!bracket) return null;
 
   const { tournament, rounds, totalRounds, champion: bracketChampion } = bracket;
+  const runnerUpFromBracket = deriveRunnerUp(rounds, totalRounds);
   const champion =
     details?.champion ??
     (bracketChampion
@@ -88,9 +83,15 @@ export function TournamentHistoryPage() {
       : null);
   const runnerUp =
     details?.runnerUp ??
-    (computedRunnerUp
-      ? { id: computedRunnerUp.id, name: computedRunnerUp.name }
+    (runnerUpFromBracket
+      ? {
+          id: runnerUpFromBracket.id,
+          name: runnerUpFromBracket.name,
+        }
       : null);
+  const thirdAndFourth = deriveThirdAndFourth(rounds, totalRounds);
+  const thirdPlace = thirdAndFourth.thirdPlace;
+  const fourthPlace = thirdAndFourth.fourthPlace;
 
   const tournamentPublicSlug = details?.publicSlug ?? null;
   const shareUrl = tournamentPublicSlug
@@ -110,6 +111,8 @@ export function TournamentHistoryPage() {
 
     const championName = champion?.name ?? 'Campeao';
     const runnerUpName = runnerUp?.name ?? 'Vice-campeao';
+    const thirdPlaceName = thirdPlace?.name ?? null;
+    const fourthPlaceName = fourthPlace?.name ?? null;
     const championAmount = details?.championPrize ?? details?.firstPlacePrize ?? null;
     const runnerUpAmount = details?.runnerUpPrize ?? details?.secondPlacePrize ?? null;
     const thirdPlaceAmount = details?.thirdPlacePrize ?? null;
@@ -121,7 +124,13 @@ export function TournamentHistoryPage() {
       `Vice: ${runnerUpName}`,
       championAmount != null ? `Premio do campeao: ${formatCurrency(championAmount)}` : null,
       runnerUpAmount != null ? `Premio do vice: ${formatCurrency(runnerUpAmount)}` : null,
+      thirdPlaceAmount != null && thirdPlaceAmount > 0
+        ? `3o lugar: ${thirdPlaceName ?? 'Definicao pendente'}`
+        : null,
       thirdPlaceAmount != null && thirdPlaceAmount > 0 ? `Premio do 3o lugar: ${formatCurrency(thirdPlaceAmount)}` : null,
+      fourthPlaceAmount != null && fourthPlaceAmount > 0
+        ? `4o lugar: ${fourthPlaceName ?? 'Definicao pendente'}`
+        : null,
       fourthPlaceAmount != null && fourthPlaceAmount > 0 ? `Premio do 4o lugar: ${formatCurrency(fourthPlaceAmount)}` : null,
       `Acompanhe: ${shareUrl}`,
     ].filter(Boolean) as string[];
@@ -244,6 +253,28 @@ export function TournamentHistoryPage() {
                 : undefined
             }
           />
+          {(details?.thirdPlacePrize ?? 0) > 0 && (
+            <ResultTile
+              label="3º lugar"
+              value={thirdPlace?.name ?? '—'}
+              helper={
+                details?.thirdPlacePrize != null
+                  ? formatCurrency(details.thirdPlacePrize)
+                  : undefined
+              }
+            />
+          )}
+          {(details?.fourthPlacePrize ?? 0) > 0 && (
+            <ResultTile
+              label="4º lugar"
+              value={fourthPlace?.name ?? '—'}
+              helper={
+                details?.fourthPlacePrize != null
+                  ? formatCurrency(details.fourthPlacePrize)
+                  : undefined
+              }
+            />
+          )}
           <FinalMatchCard match={finalMatch} />
         </div>
 

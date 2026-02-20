@@ -6,6 +6,7 @@ import { InteractiveMatchCard } from './components/InteractiveMatchCard.tsx';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import { useTournamentDetails } from './useTournamentDetails.ts';
 import type { BracketMatch, BracketPlayer, BracketRound } from '../tv/types.ts';
+import { deriveRunnerUp, deriveThirdAndFourth } from './podium.ts';
 import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
 import { useOnboarding } from '../../shared/useOnboarding.ts';
 import { OnboardingHint } from '../../shared/OnboardingHint.tsx';
@@ -224,7 +225,12 @@ export function ManageTournamentPage() {
     const runnerUpFallback = data
       ? deriveRunnerUp(data.rounds, data.totalRounds)?.name
       : null;
+    const thirdAndFourthFromBracket = data
+      ? deriveThirdAndFourth(data.rounds, data.totalRounds)
+      : { thirdPlace: null, fourthPlace: null };
     const runnerUpName = details?.runnerUp?.name ?? runnerUpFallback ?? 'Vice-campeao';
+    const thirdPlaceName = thirdAndFourthFromBracket.thirdPlace?.name ?? null;
+    const fourthPlaceName = thirdAndFourthFromBracket.fourthPlace?.name ?? null;
     const championAmount = details?.championPrize ?? details?.firstPlacePrize ?? null;
     const runnerUpAmount = details?.runnerUpPrize ?? details?.secondPlacePrize ?? null;
     const thirdPlaceAmount = details?.thirdPlacePrize ?? null;
@@ -238,7 +244,13 @@ export function ManageTournamentPage() {
       `Vice: ${runnerUpName}`,
       championAmount != null ? `Premio do campeao: ${formatCurrency(championAmount)}` : null,
       runnerUpAmount != null ? `Premio do vice: ${formatCurrency(runnerUpAmount)}` : null,
+      thirdPlaceAmount != null && thirdPlaceAmount > 0
+        ? `3o lugar: ${thirdPlaceName ?? 'Definicao pendente'}`
+        : null,
       thirdPlaceAmount != null && thirdPlaceAmount > 0 ? `Premio do 3o lugar: ${formatCurrency(thirdPlaceAmount)}` : null,
+      fourthPlaceAmount != null && fourthPlaceAmount > 0
+        ? `4o lugar: ${fourthPlaceName ?? 'Definicao pendente'}`
+        : null,
       fourthPlaceAmount != null && fourthPlaceAmount > 0 ? `Premio do 4o lugar: ${formatCurrency(fourthPlaceAmount)}` : null,
       `Acompanhe: ${shareUrl}`,
     ].filter(Boolean) as string[];
@@ -549,6 +561,10 @@ export function ManageTournamentPage() {
   const totalCount = playableMatches.length;
   const progressPercent = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
   const runnerUpFromBracket = deriveRunnerUp(roundsWithOptimistic, totalRounds);
+  const thirdAndFourthFromBracket = deriveThirdAndFourth(
+    roundsWithOptimistic,
+    totalRounds
+  );
   const champion = details?.champion ?? bracketChampion;
   const runnerUp = details?.runnerUp ?? runnerUpFromBracket;
 
@@ -706,6 +722,8 @@ export function ManageTournamentPage() {
             totalPrize={details?.prizePool ?? details?.calculatedPrizePool ?? null}
             championPrize={details?.championPrize ?? details?.firstPlacePrize ?? null}
             runnerUpPrize={details?.runnerUpPrize ?? details?.secondPlacePrize ?? null}
+            thirdPlace={thirdAndFourthFromBracket.thirdPlace}
+            fourthPlace={thirdAndFourthFromBracket.fourthPlace}
             thirdPlacePrize={details?.thirdPlacePrize ?? null}
             fourthPlacePrize={details?.fourthPlacePrize ?? null}
             tournamentId={tournamentId!}
@@ -965,6 +983,8 @@ function ChampionshipClosureScreen({
   totalPrize,
   championPrize,
   runnerUpPrize,
+  thirdPlace,
+  fourthPlace,
   thirdPlacePrize,
   fourthPlacePrize,
   tournamentId,
@@ -982,6 +1002,8 @@ function ChampionshipClosureScreen({
   totalPrize: number | null;
   championPrize: number | null;
   runnerUpPrize: number | null;
+  thirdPlace: BracketPlayer | { id: string; name: string } | null;
+  fourthPlace: BracketPlayer | { id: string; name: string } | null;
   thirdPlacePrize: number | null;
   fourthPlacePrize: number | null;
   tournamentId: string;
@@ -1071,6 +1093,22 @@ function ChampionshipClosureScreen({
             {runnerUp?.name ?? 'Definição pendente'}
           </span>
         </p>
+        {thirdPlacePrize != null && thirdPlacePrize > 0 && (
+          <p className="mt-2 text-center text-base text-gray-300">
+            3º lugar:{' '}
+            <span className="font-semibold text-gray-100">
+              {thirdPlace?.name ?? 'Definição pendente'}
+            </span>
+          </p>
+        )}
+        {fourthPlacePrize != null && fourthPlacePrize > 0 && (
+          <p className="mt-1 text-center text-base text-gray-300">
+            4º lugar:{' '}
+            <span className="font-semibold text-gray-100">
+              {fourthPlace?.name ?? 'Definição pendente'}
+            </span>
+          </p>
+        )}
         <p className="mt-4 text-center text-sm text-gray-400">{tournamentName}</p>
         <p className="text-center text-sm text-gray-500">{finishedLabel}</p>
 
@@ -1248,17 +1286,6 @@ const CHAMPIONSHIP_PARTICLES = [
   { left: 80, delay: 720 },
   { left: 88, delay: 800 },
 ];
-
-function deriveRunnerUp(rounds: BracketRound[], totalRounds: number) {
-  if (totalRounds === 0) return null;
-  const finalRound = rounds[totalRounds - 1];
-  if (!finalRound || finalRound.matches.length !== 1) return null;
-  const finalMatch = finalRound.matches[0];
-  if (!finalMatch.winner || !finalMatch.player2) return null;
-  return finalMatch.winner.id === finalMatch.player1.id
-    ? finalMatch.player2
-    : finalMatch.player1;
-}
 
 function QRIcon() {
   return (
