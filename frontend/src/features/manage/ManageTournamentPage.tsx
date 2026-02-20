@@ -397,7 +397,7 @@ export function ManageTournamentPage() {
         formatGuidedSystemError(
           resolveGuidedSystemError({
             error: err,
-            context: 'draw',
+            context: 'default',
           })
         )
       );

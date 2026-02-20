@@ -75,7 +75,7 @@ export function useRecordResult(): UseRecordResultReturn {
           formatGuidedSystemError(
             resolveGuidedSystemError({
               error: err,
-              context: 'draw',
+              context: 'default',
             })
           )
         );
