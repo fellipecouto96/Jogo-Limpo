@@ -55,6 +55,7 @@ test.describe('Scenario B2 — Large Tournament With 4th Place Prize', () => {
     // Fill basic info + prize rules
     await page.getByPlaceholder('Ex: Copa de Domingo').fill('Copa 32 + 4º');
     await page.locator('#entry-fee').fill('50');
+    await page.getByRole('button', { name: /configurar regras de premiação/i }).click();
     await page.locator('#organizer-percentage').fill('10');
     await page.locator('#champion-percentage').fill('50');
     await page.locator('#runner-up-percentage').fill('30');

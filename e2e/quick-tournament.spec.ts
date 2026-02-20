@@ -44,46 +44,23 @@ test.describe('Scenario A — Quick Tournament (8 players)', () => {
     // 5. Verify tournament is RUNNING
     await expect(page.locator('text=Em andamento')).toBeVisible();
 
-    // 6. Advance all matches by clicking player names in match cards
+    // 6. Advance all matches by clicking winner buttons
     // 8-player bracket: 4 quarterfinals + 2 semifinals + 1 final = 7 matches
     let matchesAdvanced = 0;
     const maxMatches = 7;
 
     while (matchesAdvanced < maxMatches) {
-      // Wait for match cards to be available
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(350);
 
-      // Find the first pending match card (one without a winner)
-      // Look for player name buttons in interactive match cards
-      const playerButtons = page.locator(
-        'button[class*="rounded"]:not([disabled])'
+      const winnerButtons = page.locator(
+        'button[data-player-id]:not([disabled])'
       );
-      const count = await playerButtons.count();
+      const count = await winnerButtons.count();
+      if (count === 0) break;
 
-      // Find first clickable player button in a match
-      let clicked = false;
-      for (let i = 0; i < count; i++) {
-        const button = playerButtons.nth(i);
-        const text = await button.textContent();
-        // Skip non-player buttons
-        if (
-          text &&
-          players.some((p) => text.includes(p)) &&
-          !text.includes('Remover') &&
-          !text.includes('Desfazer')
-        ) {
-          await button.click();
-          matchesAdvanced++;
-          clicked = true;
-          await page.waitForTimeout(300);
-          break;
-        }
-      }
-
-      if (!clicked) {
-        // Tournament might be finished or no more clickable buttons
-        break;
-      }
+      await winnerButtons.first().click();
+      matchesAdvanced++;
+      await page.waitForTimeout(250);
     }
 
     // 7. Check ceremony appears (tournament should be FINISHED)

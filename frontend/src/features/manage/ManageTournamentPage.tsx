@@ -6,7 +6,7 @@ import { InteractiveMatchCard } from './components/InteractiveMatchCard.tsx';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import { useTournamentDetails } from './useTournamentDetails.ts';
 import type { BracketMatch, BracketPlayer, BracketRound } from '../tv/types.ts';
-import { deriveRunnerUp, deriveThirdAndFourth } from './podium.ts';
+import { deriveRunnerUp, deriveThirdAndFourth, derivePodiumScoreRows } from './podium.ts';
 import { apiFetch, buildHttpResponseError } from '../../shared/api.ts';
 import { useOnboarding } from '../../shared/useOnboarding.ts';
 import { OnboardingHint } from '../../shared/OnboardingHint.tsx';
@@ -565,6 +565,7 @@ export function ManageTournamentPage() {
     roundsWithOptimistic,
     totalRounds
   );
+  const podiumScoreRows = derivePodiumScoreRows(roundsWithOptimistic, totalRounds);
   const champion = details?.champion ?? bracketChampion;
   const runnerUp = details?.runnerUp ?? runnerUpFromBracket;
 
@@ -724,6 +725,7 @@ export function ManageTournamentPage() {
             runnerUpPrize={details?.runnerUpPrize ?? details?.secondPlacePrize ?? null}
             thirdPlace={thirdAndFourthFromBracket.thirdPlace}
             fourthPlace={thirdAndFourthFromBracket.fourthPlace}
+            podiumScoreRows={podiumScoreRows}
             thirdPlacePrize={details?.thirdPlacePrize ?? null}
             fourthPlacePrize={details?.fourthPlacePrize ?? null}
             tournamentId={tournamentId!}
@@ -985,6 +987,7 @@ function ChampionshipClosureScreen({
   runnerUpPrize,
   thirdPlace,
   fourthPlace,
+  podiumScoreRows,
   thirdPlacePrize,
   fourthPlacePrize,
   tournamentId,
@@ -1004,6 +1007,12 @@ function ChampionshipClosureScreen({
   runnerUpPrize: number | null;
   thirdPlace: BracketPlayer | { id: string; name: string } | null;
   fourthPlace: BracketPlayer | { id: string; name: string } | null;
+  podiumScoreRows: Array<{
+    label: string;
+    matchup: string;
+    score: string;
+    finishedAt: string | null;
+  }>;
   thirdPlacePrize: number | null;
   fourthPlacePrize: number | null;
   tournamentId: string;
@@ -1178,6 +1187,23 @@ function ChampionshipClosureScreen({
             )}
           </div>
         </div>
+
+        {podiumScoreRows.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-gray-700 bg-[#0b1120] p-4">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.24em] text-gray-300">
+              Placares registrados
+            </h3>
+            <div className="space-y-2">
+              {podiumScoreRows.map((row) => (
+                <div key={`${row.label}-${row.matchup}`} className="rounded-xl border border-gray-700/70 bg-[#101826] px-3 py-2">
+                  <p className="text-xs uppercase tracking-[0.18em] text-gray-400">{row.label}</p>
+                  <p className="text-sm text-gray-200">{row.matchup}</p>
+                  <p className="text-base font-semibold text-white">{row.score}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Link

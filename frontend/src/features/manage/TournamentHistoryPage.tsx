@@ -5,7 +5,7 @@ import { useBracketData } from '../tv/useBracketData.ts';
 import { BracketRound } from '../tv/components/BracketRound.tsx';
 import { StatusBadge } from '../tournaments/components/StatusBadge.tsx';
 import type { BracketMatch } from '../tv/types.ts';
-import { deriveRunnerUp, deriveThirdAndFourth } from './podium.ts';
+import { deriveRunnerUp, deriveThirdAndFourth, derivePodiumScoreRows } from './podium.ts';
 import { GuidedErrorCard } from '../../shared/GuidedErrorCard.tsx';
 import { parseGuidedSystemErrorText } from '../../shared/systemErrors.ts';
 import {
@@ -92,6 +92,7 @@ export function TournamentHistoryPage() {
   const thirdAndFourth = deriveThirdAndFourth(rounds, totalRounds);
   const thirdPlace = thirdAndFourth.thirdPlace;
   const fourthPlace = thirdAndFourth.fourthPlace;
+  const podiumScoreRows = derivePodiumScoreRows(rounds, totalRounds);
 
   const tournamentPublicSlug = details?.publicSlug ?? null;
   const shareUrl = tournamentPublicSlug
@@ -277,6 +278,22 @@ export function TournamentHistoryPage() {
           )}
           <FinalMatchCard match={finalMatch} />
         </div>
+        {podiumScoreRows.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <h3 className="text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold mb-3">
+              Placares registrados
+            </h3>
+            <div className="space-y-2">
+              {podiumScoreRows.map((row) => (
+                <div key={`${row.label}-${row.matchup}`} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                  <p className="text-xs uppercase tracking-[0.18em] text-gray-400">{row.label}</p>
+                  <p className="text-sm text-gray-200">{row.matchup}</p>
+                  <p className="text-base font-semibold text-white">{row.score}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {totalRounds > 0 && (
           <div className="mt-6">
@@ -423,6 +440,7 @@ function FinalMatchCard({ match }: { match: BracketMatch | null }) {
   const result = match?.winner
     ? `${match.winner.name} venceu`
     : 'Resultado não registrado';
+  const hasScore = match?.player1Score !== null && match?.player2Score !== null;
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 text-gray-100">
       <p className="text-[11px] uppercase tracking-[0.4em] opacity-70 font-semibold">
@@ -430,12 +448,14 @@ function FinalMatchCard({ match }: { match: BracketMatch | null }) {
       </p>
       <p className="text-lg font-semibold mt-2">{matchup}</p>
       <p className="text-sm text-gray-300 mt-1">{result}</p>
-      <p className="text-xs text-gray-500 mt-3">Placar final</p>
-      <p className="text-xl font-semibold text-white">
-        {match && match.player1Score !== null && match.player2Score !== null
-          ? `${match.player1Score} × ${match.player2Score}`
-          : 'Não registrado'}
-      </p>
+      {hasScore && (
+        <>
+          <p className="text-xs text-gray-500 mt-3">Placar final</p>
+          <p className="text-xl font-semibold text-white">
+            {`${match!.player1Score} × ${match!.player2Score}`}
+          </p>
+        </>
+      )}
       {match?.finishedAt && (
         <p className="text-xs text-gray-500 mt-2">
           Disputada em {formatDateTime(match.finishedAt)}

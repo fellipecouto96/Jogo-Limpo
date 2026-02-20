@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { BracketRound } from '../tv/types.ts';
-import { deriveRunnerUp, deriveThirdAndFourth } from './podium.ts';
+import {
+  deriveRunnerUp,
+  deriveThirdAndFourth,
+  derivePodiumScoreRows,
+} from './podium.ts';
 
 function buildRounds(): BracketRound[] {
   return [
@@ -100,5 +104,43 @@ describe('podium helpers', () => {
     const result = deriveThirdAndFourth(rounds, 1);
     expect(result.thirdPlace).toBeNull();
     expect(result.fourthPlace).toBeNull();
+  });
+
+  it('returns only recorded scores for final and semifinals', () => {
+    const rows = derivePodiumScoreRows(buildRounds(), 3);
+    expect(rows.map((row) => row.label)).toEqual([
+      'Final',
+      'Semifinal 1',
+      'Semifinal 2',
+    ]);
+    expect(rows[0]?.score).toBe('0 × 2');
+    expect(rows[1]?.score).toBe('2 × 0');
+    expect(rows[2]?.score).toBe('1 × 2');
+  });
+
+  it('returns empty array when no scores are registered', () => {
+    const rounds: BracketRound[] = [
+      {
+        id: 'r-final',
+        roundNumber: 1,
+        label: 'Final',
+        matches: [
+          {
+            id: 'm-final',
+            positionInBracket: 1,
+            player1: { id: 'p-1', name: 'Alice' },
+            player2: { id: 'p-2', name: 'Bruno' },
+            winner: { id: 'p-1', name: 'Alice' },
+            player1Score: null,
+            player2Score: null,
+            isBye: false,
+            finishedAt: '2026-02-20T11:00:00.000Z',
+          },
+        ],
+      },
+    ];
+
+    const rows = derivePodiumScoreRows(rounds, 1);
+    expect(rows).toEqual([]);
   });
 });

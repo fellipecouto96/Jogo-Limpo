@@ -11,13 +11,13 @@ export async function registerAndLogin(page: Page, name = 'Teste E2E') {
   const password = 'Teste123!';
 
   await page.goto('/register');
-  await page.getByPlaceholder('Seu nome').fill(name);
-  await page.getByPlaceholder('seu@email.com').fill(email);
-  await page.getByPlaceholder('Sua senha').fill(password);
+  await page.locator('#name').fill(name);
+  await page.locator('#email').fill(email);
+  await page.locator('#password').fill(password);
   await page.getByRole('button', { name: /criar conta/i }).click();
 
-  // Should redirect to dashboard
-  await page.waitForURL('**/app/tournaments', { timeout: 15_000 });
+  // Should redirect to app shell/dashboard
+  await page.waitForURL('**/app**', { timeout: 15_000 });
 
   return { email, password };
 }
