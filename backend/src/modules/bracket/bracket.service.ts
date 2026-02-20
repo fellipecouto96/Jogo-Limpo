@@ -105,8 +105,10 @@ export async function fetchBracket(
   let champion: { id: string; name: string } | null = null;
   if (tournament.status === 'FINISHED' && totalRounds > 0) {
     const finalRound = rounds[totalRounds - 1];
-    if (finalRound.matches.length === 1 && finalRound.matches[0].winner) {
-      champion = finalRound.matches[0].winner;
+    const championshipMatch =
+      finalRound.matches.find((m) => m.positionInBracket === 1) ?? null;
+    if (championshipMatch?.winner) {
+      champion = championshipMatch.winner;
     }
   }
 

@@ -606,6 +606,8 @@ export async function finishTournament(
       organizerId: true,
       championId: true,
       runnerUpId: true,
+      thirdPlacePercentage: true,
+      fourthPlacePercentage: true,
     },
   });
 
@@ -626,6 +628,7 @@ export async function finishTournament(
       matches: {
         orderBy: { positionInBracket: 'asc' },
         select: {
+          positionInBracket: true,
           player1Id: true,
           player2Id: true,
           winnerId: true,
@@ -637,18 +640,38 @@ export async function finishTournament(
   let championId = tournament.championId;
   let runnerUpId = tournament.runnerUpId;
 
-  const finalMatch =
-    finalRound && finalRound.matches.length === 1
-      ? finalRound.matches[0]
-      : null;
+  const finalMatch = finalRound
+    ? finalRound.matches.find((m) => m.positionInBracket === 1) ?? null
+    : null;
 
-  if (finalMatch?.winnerId) {
-    championId = finalMatch.winnerId;
-    runnerUpId =
-      finalMatch.player1Id === finalMatch.winnerId
-        ? finalMatch.player2Id
-        : finalMatch.player1Id;
+  if (!finalMatch?.winnerId) {
+    throw new TournamentError(
+      'A final ainda nao foi concluida. Registre o vencedor antes de encerrar.',
+      409
+    );
   }
+
+  const hasThirdOrFourthPrize =
+    (tournament.thirdPlacePercentage?.toNumber() ?? 0) > 0 ||
+    (tournament.fourthPlacePercentage?.toNumber() ?? 0) > 0;
+
+  if (hasThirdOrFourthPrize) {
+    const thirdPlaceMatch = finalRound
+      ? finalRound.matches.find((m) => m.positionInBracket === 2) ?? null
+      : null;
+    if (!thirdPlaceMatch?.winnerId) {
+      throw new TournamentError(
+        'A disputa de 3o lugar ainda nao foi concluida.',
+        409
+      );
+    }
+  }
+
+  championId = finalMatch.winnerId;
+  runnerUpId =
+    finalMatch.player1Id === finalMatch.winnerId
+      ? finalMatch.player2Id
+      : finalMatch.player1Id;
 
   await prisma.tournament.update({
     where: { id: tournamentId },

@@ -144,13 +144,23 @@ function formatDate(iso: string): string {
 }
 
 function deriveRunnerUp(
-  rounds: { matches: { winner: { id: string; name: string } | null; player1: { id: string; name: string }; player2: { id: string; name: string } | null }[] }[],
+  rounds: {
+    matches: {
+      positionInBracket: number;
+      winner: { id: string; name: string } | null;
+      player1: { id: string; name: string };
+      player2: { id: string; name: string } | null;
+    }[];
+  }[],
   totalRounds: number
 ) {
   if (totalRounds === 0) return null;
   const finalRound = rounds[totalRounds - 1];
-  if (!finalRound || finalRound.matches.length !== 1) return null;
-  const finalMatch = finalRound.matches[0];
+  if (!finalRound) return null;
+  const finalMatch =
+    finalRound.matches.find((match) => match.positionInBracket === 1) ??
+    finalRound.matches[0];
+  if (!finalMatch) return null;
   if (!finalMatch.winner || !finalMatch.player2) return null;
   return finalMatch.winner.id === finalMatch.player1.id
     ? finalMatch.player2

@@ -33,8 +33,11 @@ export function deriveRunnerUp(
 ): BracketPlayer | null {
   if (totalRounds === 0) return null;
   const finalRound = rounds[totalRounds - 1];
-  if (!finalRound || finalRound.matches.length !== 1) return null;
-  return deriveMatchLoser(finalRound.matches[0]);
+  if (!finalRound) return null;
+  const championshipMatch =
+    finalRound.matches.find((match) => match.positionInBracket === 1) ?? null;
+  if (!championshipMatch) return null;
+  return deriveMatchLoser(championshipMatch);
 }
 
 export function deriveThirdAndFourth(
@@ -43,6 +46,21 @@ export function deriveThirdAndFourth(
 ): ThirdAndFourth {
   if (totalRounds < 2) {
     return { thirdPlace: null, fourthPlace: null };
+  }
+
+  const finalRound = rounds[totalRounds - 1];
+  if (finalRound) {
+    const thirdPlaceMatch =
+      finalRound.matches.find((match) => match.positionInBracket === 2) ?? null;
+    if (thirdPlaceMatch?.winner) {
+      const fourthPlace = deriveMatchLoser(thirdPlaceMatch);
+      if (fourthPlace) {
+        return {
+          thirdPlace: thirdPlaceMatch.winner,
+          fourthPlace,
+        };
+      }
+    }
   }
 
   const semifinalRound = rounds[totalRounds - 2];
@@ -69,7 +87,8 @@ export function derivePodiumScoreRows(
 
   if (totalRounds > 0) {
     const finalRound = rounds[totalRounds - 1];
-    const finalMatch = finalRound?.matches.length === 1 ? finalRound.matches[0] : null;
+    const finalMatch =
+      finalRound?.matches.find((match) => match.positionInBracket === 1) ?? null;
     if (finalMatch && hasRecordedScore(finalMatch)) {
       rows.push({
         label: 'Final',
@@ -78,20 +97,17 @@ export function derivePodiumScoreRows(
         finishedAt: finalMatch.finishedAt,
       });
     }
-  }
 
-  if (totalRounds > 1) {
-    const semifinalRound = rounds[totalRounds - 2];
-    const semifinalRows = [...(semifinalRound?.matches ?? [])]
-      .sort((a, b) => a.positionInBracket - b.positionInBracket)
-      .filter(hasRecordedScore)
-      .map((match, index) => ({
-        label: `Semifinal ${index + 1}`,
-        matchup: `${match.player1.name} vs ${match.player2?.name ?? 'TBD'}`,
-        score: scoreForMatch(match),
-        finishedAt: match.finishedAt,
-      }));
-    rows.push(...semifinalRows);
+    const thirdPlaceMatch =
+      finalRound?.matches.find((match) => match.positionInBracket === 2) ?? null;
+    if (thirdPlaceMatch && hasRecordedScore(thirdPlaceMatch)) {
+      rows.push({
+        label: 'Disputa de 3º',
+        matchup: `${thirdPlaceMatch.player1.name} vs ${thirdPlaceMatch.player2?.name ?? 'TBD'}`,
+        score: scoreForMatch(thirdPlaceMatch),
+        finishedAt: thirdPlaceMatch.finishedAt,
+      });
+    }
   }
 
   return rows;

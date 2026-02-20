@@ -52,7 +52,9 @@ export function TournamentHistoryPage() {
   const finalMatch = useMemo<BracketMatch | null>(() => {
     if (!bracket || bracket.totalRounds === 0) return null;
     const finalRound = bracket.rounds[bracket.totalRounds - 1];
-    return finalRound?.matches.length === 1 ? finalRound.matches[0] : null;
+    return (
+      finalRound?.matches.find((match) => match.positionInBracket === 1) ?? null
+    );
   }, [bracket]);
 
   if (isLoading) {

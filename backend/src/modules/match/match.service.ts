@@ -1,6 +1,7 @@
 import { prisma } from '../../shared/database/prisma.js';
 import { withPerformanceLog } from '../../shared/logging/performance.service.js';
 import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
+import { Decimal } from '@prisma/client/runtime/library';
 
 export interface RecordResultInput {
   winnerId: string;
@@ -44,6 +45,8 @@ export async function recordMatchResult(
             id: true,
             organizerId: true,
             status: true,
+            thirdPlacePercentage: true,
+            fourthPlacePercentage: true,
           },
         }),
       { tournamentId }
@@ -172,10 +175,26 @@ export async function recordMatchResult(
     });
 
     if (!nextRound) {
-      // Final round complete — finish tournament
-      const championId = winnerId;
-      const runnerUpId =
-        match.player1Id === winnerId ? match.player2Id : match.player1Id;
+      // Championship is always match position 1 in the last round.
+      const finalRoundMatches = await tx.match.findMany({
+        where: { roundId: match.roundId },
+        select: {
+          positionInBracket: true,
+          winnerId: true,
+          player1Id: true,
+          player2Id: true,
+        },
+      });
+      const championshipMatch =
+        finalRoundMatches.find((m) => m.positionInBracket === 1) ?? null;
+      const championId = championshipMatch?.winnerId ?? winnerId;
+      const runnerUpId = championshipMatch
+        ? championshipMatch.player1Id === championshipMatch.winnerId
+          ? championshipMatch.player2Id
+          : championshipMatch.player1Id
+        : match.player1Id === winnerId
+          ? match.player2Id
+          : match.player1Id;
       await tx.tournament.update({
         where: { id: tournamentId },
         data: {
@@ -213,6 +232,56 @@ export async function recordMatchResult(
       where: { roundId: match.roundId },
       orderBy: { positionInBracket: 'asc' },
     });
+
+    const totalRounds = await tx.round.count({ where: { tournamentId } });
+    const nextRoundIsChampionshipRound = nextRound.roundNumber === totalRounds;
+    const currentRoundIsSemifinal = match.round.roundNumber === totalRounds - 1;
+    const thirdPlaceEnabled =
+      decimalToNumber(tournament.thirdPlacePercentage) > 0 ||
+      decimalToNumber(tournament.fourthPlacePercentage) > 0;
+
+    if (
+      thirdPlaceEnabled &&
+      currentRoundIsSemifinal &&
+      nextRoundIsChampionshipRound &&
+      completedMatches.length === 2
+    ) {
+      const semifinalA = completedMatches[0];
+      const semifinalB = completedMatches[1];
+      const semifinalALoserId = getMatchLoserId(semifinalA);
+      const semifinalBLoserId = getMatchLoserId(semifinalB);
+
+      const finalAndThirdPlaceMatches = [
+        {
+          tournamentId,
+          roundId: nextRound.id,
+          player1Id: semifinalA.winnerId!,
+          player2Id: semifinalB.winnerId!,
+          positionInBracket: 1,
+        },
+      ];
+
+      if (semifinalALoserId && semifinalBLoserId) {
+        finalAndThirdPlaceMatches.push({
+          tournamentId,
+          roundId: nextRound.id,
+          player1Id: semifinalALoserId,
+          player2Id: semifinalBLoserId,
+          positionInBracket: 2,
+        });
+      }
+
+      await tx.match.createMany({ data: finalAndThirdPlaceMatches });
+
+      return {
+        matchId,
+        winnerId,
+        player1Score: updatedMatch.player1Score,
+        player2Score: updatedMatch.player2Score,
+        roundComplete: true,
+        tournamentFinished: false,
+      };
+    }
 
     const nextMatches = [];
     for (let i = 0; i < completedMatches.length; i += 2) {
@@ -486,6 +555,7 @@ export async function getTournamentStatistics(
             select: {
               id: true,
               roundId: true,
+              positionInBracket: true,
               winnerId: true,
               player1Id: true,
               player2Id: true,
@@ -575,7 +645,11 @@ export async function getTournamentStatistics(
   if (tournament.rounds.length > 0) {
     const finalRound = tournament.rounds[0];
     const finalMatch = matches.find(
-      (m) => m.roundId === finalRound.id && m.winnerId !== null && m.player2 !== null
+      (m) =>
+        m.roundId === finalRound.id &&
+        m.winnerId !== null &&
+        m.player2 !== null &&
+        m.positionInBracket === 1
     );
     if (finalMatch && finalMatch.player1Score !== null && finalMatch.player2Score !== null) {
       finalScore = {
@@ -615,4 +689,18 @@ export class MatchError extends Error {
     super(message);
     this.name = 'MatchError';
   }
+}
+
+function decimalToNumber(value: Decimal | null | undefined): number {
+  if (!value) return 0;
+  return value.toNumber();
+}
+
+function getMatchLoserId(match: {
+  winnerId: string | null;
+  player1Id: string;
+  player2Id: string | null;
+}): string | null {
+  if (!match.winnerId || !match.player2Id) return null;
+  return match.winnerId === match.player1Id ? match.player2Id : match.player1Id;
 }

@@ -59,6 +59,17 @@ function buildRounds(): BracketRound[] {
           isBye: false,
           finishedAt: '2026-02-20T11:00:00.000Z',
         },
+        {
+          id: 'm-third',
+          positionInBracket: 2,
+          player1: { id: 'p-2', name: 'Bruno' },
+          player2: { id: 'p-3', name: 'Caio' },
+          winner: { id: 'p-2', name: 'Bruno' },
+          player1Score: 2,
+          player2Score: 1,
+          isBye: false,
+          finishedAt: '2026-02-20T11:05:00.000Z',
+        },
       ],
     },
   ];
@@ -110,12 +121,10 @@ describe('podium helpers', () => {
     const rows = derivePodiumScoreRows(buildRounds(), 3);
     expect(rows.map((row) => row.label)).toEqual([
       'Final',
-      'Semifinal 1',
-      'Semifinal 2',
+      'Disputa de 3º',
     ]);
     expect(rows[0]?.score).toBe('0 × 2');
-    expect(rows[1]?.score).toBe('2 × 0');
-    expect(rows[2]?.score).toBe('1 × 2');
+    expect(rows[1]?.score).toBe('2 × 1');
   });
 
   it('returns empty array when no scores are registered', () => {

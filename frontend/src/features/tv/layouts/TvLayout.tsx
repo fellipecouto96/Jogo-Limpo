@@ -74,8 +74,10 @@ export function TvLayout({ data }: TvLayoutProps) {
 function deriveRunnerUp(rounds: BracketData['rounds'], totalRounds: number) {
   if (totalRounds === 0) return null;
   const finalRound = rounds[totalRounds - 1];
-  if (!finalRound || finalRound.matches.length !== 1) return null;
-  const finalMatch = finalRound.matches[0];
+  if (!finalRound) return null;
+  const finalMatch =
+    finalRound.matches.find((match) => match.positionInBracket === 1) ?? null;
+  if (!finalMatch) return null;
   if (!finalMatch.winner || !finalMatch.player2) return null;
   return finalMatch.winner.id === finalMatch.player1.id
     ? finalMatch.player2
