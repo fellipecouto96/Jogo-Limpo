@@ -128,13 +128,13 @@ export function TournamentHistoryPage() {
       championAmount != null ? `Premio do campeao: ${formatCurrency(championAmount)}` : null,
       runnerUpAmount != null ? `Premio do vice: ${formatCurrency(runnerUpAmount)}` : null,
       thirdPlaceAmount != null && thirdPlaceAmount > 0
-        ? `3o lugar: ${thirdPlaceName ?? 'Definicao pendente'}`
+        ? `3º lugar: ${thirdPlaceName ?? 'Definicao pendente'}`
         : null,
-      thirdPlaceAmount != null && thirdPlaceAmount > 0 ? `Premio do 3o lugar: ${formatCurrency(thirdPlaceAmount)}` : null,
+      thirdPlaceAmount != null && thirdPlaceAmount > 0 ? `Premio do 3º lugar: ${formatCurrency(thirdPlaceAmount)}` : null,
       fourthPlaceAmount != null && fourthPlaceAmount > 0
-        ? `4o lugar: ${fourthPlaceName ?? 'Definicao pendente'}`
+        ? `4º lugar: ${fourthPlaceName ?? 'Definicao pendente'}`
         : null,
-      fourthPlaceAmount != null && fourthPlaceAmount > 0 ? `Premio do 4o lugar: ${formatCurrency(fourthPlaceAmount)}` : null,
+      fourthPlaceAmount != null && fourthPlaceAmount > 0 ? `Premio do 4º lugar: ${formatCurrency(fourthPlaceAmount)}` : null,
       `Acompanhe: ${shareUrl}`,
     ].filter(Boolean) as string[];
     const message = lines.join('\n');

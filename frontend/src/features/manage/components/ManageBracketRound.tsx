@@ -32,7 +32,10 @@ export function ManageBracketRound({
       <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider text-center mb-2">
         {round.label}
       </h3>
-      {matchSlots.map((match, index) => (
+      {matchSlots.map((match, index) => {
+        const isThirdPlaceMatch = isLastRound && (match?.positionInBracket === 2);
+        const matchLabel = isThirdPlaceMatch ? 'Disputa de 3º Lugar' : round.label;
+        return (
         <div
           key={match?.id ?? `empty-${round.roundNumber}-${index}`}
           className="relative"
@@ -40,7 +43,7 @@ export function ManageBracketRound({
           {match ? (
             <InteractiveMatchCard
               match={match}
-              roundLabel={round.label}
+              roundLabel={matchLabel}
               tournamentStatus={tournamentStatus}
               isBusy={false}
               onSelectWinner={async () => {
@@ -59,7 +62,8 @@ export function ManageBracketRound({
             />
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

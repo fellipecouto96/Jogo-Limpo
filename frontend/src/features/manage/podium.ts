@@ -102,7 +102,7 @@ export function derivePodiumScoreRows(
       finalRound?.matches.find((match) => match.positionInBracket === 2) ?? null;
     if (thirdPlaceMatch && hasRecordedScore(thirdPlaceMatch)) {
       rows.push({
-        label: 'Disputa de 3º',
+        label: 'Disputa de 3º Lugar',
         matchup: `${thirdPlaceMatch.player1.name} vs ${thirdPlaceMatch.player2?.name ?? 'TBD'}`,
         score: scoreForMatch(thirdPlaceMatch),
         finishedAt: thirdPlaceMatch.finishedAt,

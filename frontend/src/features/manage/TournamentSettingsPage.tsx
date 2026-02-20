@@ -513,7 +513,7 @@ export function TournamentSettingsPage() {
                   ].join(' ')}
                 >
                   <label className="block text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold mb-1">
-                    3o lugar
+                    3º lugar
                   </label>
                   <div className="flex items-center gap-2">
                     <input
@@ -554,7 +554,7 @@ export function TournamentSettingsPage() {
                   ].join(' ')}
                 >
                   <label className="block text-xs uppercase tracking-[0.4em] text-gray-500 font-semibold mb-1">
-                    4o lugar
+                    4º lugar
                   </label>
                   <div className="flex items-center gap-2">
                     <input
