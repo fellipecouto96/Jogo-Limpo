@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { Prisma } from '@prisma/client';
 import { fetchBracket, BracketError } from './bracket.service.js';
 import { logEvent } from '../../shared/logging/log.service.js';
 import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
@@ -25,6 +26,24 @@ export async function getBracket(
         metadata: { statusCode: err.statusCode },
       });
       return reply.status(err.statusCode).send({ error: err.message });
+    }
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError ||
+      err instanceof Prisma.PrismaClientUnknownRequestError ||
+      err instanceof Prisma.PrismaClientInitializationError
+    ) {
+      const code =
+        err instanceof Prisma.PrismaClientKnownRequestError ? err.code : 'unknown';
+      logEvent({
+        level: 'ERROR',
+        journey: LOG_JOURNEYS.BRACKET,
+        tournamentId: request.params.tournamentId,
+        message: 'Prisma database error on bracket fetch',
+        metadata: { code, error: err.message.substring(0, 300) },
+      });
+      return reply
+        .status(503)
+        .send({ error: 'Servico temporariamente indisponivel. Tente novamente.' });
     }
     logEvent({
       level: 'ERROR',

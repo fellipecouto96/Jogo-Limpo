@@ -33,39 +33,12 @@ export async function recordMatchResult(
 ): Promise<RecordResultResponse> {
   const { winnerId, player1Score, player2Score } = input;
 
-  return await prisma.$transaction(async (tx) => {
-    // 1. Validate tournament
-    const tournament = await withPerformanceLog(
-      LOG_JOURNEYS.RECORD_RESULT,
-      'match_tournament_lookup',
-      () =>
-        tx.tournament.findUnique({
-          where: { id: tournamentId },
-          select: {
-            id: true,
-            organizerId: true,
-            status: true,
-            thirdPlacePercentage: true,
-            fourthPlacePercentage: true,
-          },
-        }),
-      { tournamentId }
-    );
-
-    if (!tournament) {
-      throw new MatchError('Torneio nao encontrado', 404);
-    }
-    if (tournament.organizerId !== organizerId) {
-      throw new MatchError('Acesso negado', 403);
-    }
-    if (tournament.status !== 'RUNNING') {
-      throw new MatchError('Torneio nao esta em andamento', 409);
-    }
-
-    // 2. Validate match
+  return await prisma.$transaction(
+    async (tx) => {
+      // 1+2. Validate match + tournament in one query
     const match = await withPerformanceLog(
       LOG_JOURNEYS.RECORD_RESULT,
-      'match_lookup',
+      'match_with_tournament_lookup',
       () =>
         tx.match.findUnique({
           where: { id: matchId },
@@ -79,6 +52,15 @@ export async function recordMatchResult(
             player1Id: true,
             player2Id: true,
             round: { select: { roundNumber: true } },
+            tournament: {
+              select: {
+                id: true,
+                organizerId: true,
+                status: true,
+                thirdPlacePercentage: true,
+                fourthPlacePercentage: true,
+              },
+            },
           },
         }),
       { tournamentId, matchId }
@@ -87,6 +69,17 @@ export async function recordMatchResult(
     if (!match || match.tournamentId !== tournamentId) {
       throw new MatchError('Partida nao encontrada', 404);
     }
+    const tournament = match.tournament;
+    if (!tournament) {
+      throw new MatchError('Torneio nao encontrado', 404);
+    }
+    if (tournament.organizerId !== organizerId) {
+      throw new MatchError('Acesso negado', 403);
+    }
+    if (tournament.status !== 'RUNNING') {
+      throw new MatchError('Torneio nao esta em andamento', 409);
+    }
+
     const nextSlotPosition = Math.ceil(match.positionInBracket / 2);
     const downstreamMatch = await tx.match.findFirst({
       where: {
@@ -159,32 +152,31 @@ export async function recordMatchResult(
       };
     }
 
-    // 6. Round complete — check for next round
-    const nextRound = await tx.round.findUnique({
-      where: {
-        tournamentId_roundNumber: {
-          tournamentId,
-          roundNumber: match.round.roundNumber + 1,
+    // 6. Round complete — fetch next round, current round matches, and total rounds in parallel
+    const [nextRound, completedMatchesForRound, totalRounds] = await Promise.all([
+      tx.round.findUnique({
+        where: {
+          tournamentId_roundNumber: {
+            tournamentId,
+            roundNumber: match.round.roundNumber + 1,
+          },
         },
-      },
-      include: {
-        matches: {
-          select: { id: true, winnerId: true, player1Id: true, player2Id: true },
+        include: {
+          matches: {
+            select: { id: true, winnerId: true, player1Id: true, player2Id: true },
+          },
         },
-      },
-    });
+      }),
+      tx.match.findMany({
+        where: { roundId: match.roundId },
+        orderBy: { positionInBracket: 'asc' },
+      }),
+      tx.round.count({ where: { tournamentId } }),
+    ]);
 
     if (!nextRound) {
       // Championship is always match position 1 in the last round.
-      const finalRoundMatches = await tx.match.findMany({
-        where: { roundId: match.roundId },
-        select: {
-          positionInBracket: true,
-          winnerId: true,
-          player1Id: true,
-          player2Id: true,
-        },
-      });
+      const finalRoundMatches = completedMatchesForRound;
       const championshipMatch =
         finalRoundMatches.find((m) => m.positionInBracket === 1) ?? null;
       const championId = championshipMatch?.winnerId ?? winnerId;
@@ -228,12 +220,7 @@ export async function recordMatchResult(
       }
     }
 
-    const completedMatches = await tx.match.findMany({
-      where: { roundId: match.roundId },
-      orderBy: { positionInBracket: 'asc' },
-    });
-
-    const totalRounds = await tx.round.count({ where: { tournamentId } });
+    const completedMatches = completedMatchesForRound;
     const nextRoundIsChampionshipRound = nextRound.roundNumber === totalRounds;
     const currentRoundIsSemifinal = match.round.roundNumber === totalRounds - 1;
     const thirdPlaceEnabled =
@@ -320,7 +307,9 @@ export async function recordMatchResult(
       roundComplete: true,
       tournamentFinished: false,
     };
-  });
+  },
+  { timeout: 30000 }
+  );
 }
 
 export async function undoLastMatchResult(
@@ -441,7 +430,9 @@ export async function undoLastMatchResult(
       roundNumber: latestMatch.round.roundNumber,
       tournamentReopened,
     };
-  });
+  },
+  { timeout: 30000 }
+  );
 }
 
 export interface UpdateScoreInput {

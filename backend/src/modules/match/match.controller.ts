@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { Prisma } from '@prisma/client';
 import {
   recordMatchResult,
   undoLastMatchResult,
@@ -7,7 +8,35 @@ import {
   MatchError,
 } from './match.service.js';
 import { logEvent } from '../../shared/logging/log.service.js';
-import { LOG_JOURNEYS } from '../../shared/logging/journeys.js';
+import { LOG_JOURNEYS, type LogJourney } from '../../shared/logging/journeys.js';
+
+function handlePrismaError(
+  err: unknown,
+  journey: LogJourney,
+  tournamentId: string,
+  reply: FastifyReply,
+  extra?: Record<string, unknown>
+): FastifyReply | null {
+  if (
+    err instanceof Prisma.PrismaClientKnownRequestError ||
+    err instanceof Prisma.PrismaClientUnknownRequestError ||
+    err instanceof Prisma.PrismaClientInitializationError
+  ) {
+    const code =
+      err instanceof Prisma.PrismaClientKnownRequestError ? err.code : 'unknown';
+    logEvent({
+      level: 'ERROR',
+      journey,
+      tournamentId,
+      message: 'Prisma database error',
+      metadata: { code, error: err.message.substring(0, 300), ...extra },
+    });
+    return reply
+      .status(503)
+      .send({ error: 'Servico temporariamente indisponivel. Tente novamente.' });
+  }
+  return null;
+}
 
 interface MatchParams {
   tournamentId: string;
@@ -58,6 +87,14 @@ export async function updateMatchResult(
       });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    const prismaReply = handlePrismaError(
+      err,
+      LOG_JOURNEYS.ADVANCE_WINNER,
+      request.params.tournamentId,
+      reply,
+      { matchId: request.params.matchId }
+    );
+    if (prismaReply) return prismaReply;
     throw err;
   }
 }
@@ -95,6 +132,14 @@ export async function patchMatchScore(
       });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    const prismaReply = handlePrismaError(
+      err,
+      LOG_JOURNEYS.ADVANCE_WINNER,
+      request.params.tournamentId,
+      reply,
+      { matchId: request.params.matchId }
+    );
+    if (prismaReply) return prismaReply;
     throw err;
   }
 }
@@ -152,6 +197,13 @@ export async function postUndoLastMatchResult(
       });
       return reply.status(err.statusCode).send({ error: err.message });
     }
+    const prismaReply = handlePrismaError(
+      err,
+      LOG_JOURNEYS.ADVANCE_WINNER,
+      request.params.tournamentId,
+      reply
+    );
+    if (prismaReply) return prismaReply;
     throw err;
   }
 }

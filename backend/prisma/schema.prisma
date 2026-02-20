@@ -121,6 +121,8 @@ model Match {
 
   @@index([tournamentId])
   @@index([roundId])
+  @@index([roundId, winnerId])
+  @@index([tournamentId, positionInBracket])
   @@index([player1Id])
   @@index([player2Id])
   @@map("matches")
