@@ -776,10 +776,13 @@ export function ManageTournamentPage() {
                   </p>
                 ) : (
                   matches.map((match) => {
+                    const isThirdPlaceMatch =
+                      round.roundNumber === totalRounds && match.positionInBracket === 2;
+                    const matchLabel = isThirdPlaceMatch ? 'Disputa de 3º Lugar' : round.label;
                     const entry: OrderedMatch = {
                       match,
                       roundNumber: round.roundNumber,
-                      roundLabel: round.label,
+                      roundLabel: matchLabel,
                     };
 
                     return (
@@ -789,9 +792,14 @@ export function ManageTournamentPage() {
                           matchRefs.current[match.id] = node;
                         }}
                       >
+                        {isThirdPlaceMatch && (
+                          <h2 className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-amber-400/80">
+                            Disputa de 3º Lugar
+                          </h2>
+                        )}
                         <InteractiveMatchCard
                           match={match}
-                          roundLabel={round.label}
+                          roundLabel={matchLabel}
                           tournamentStatus={tournament.status}
                           isBusy={pendingMatchId !== null || isUndoingLastAction}
                           isPending={pendingMatchId === match.id}
