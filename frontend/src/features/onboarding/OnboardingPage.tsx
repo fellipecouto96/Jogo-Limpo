@@ -131,6 +131,7 @@ export function OnboardingPage() {
   const [allowRebuyUntilRound, setAllowRebuyUntilRound] = useState(1);
   const [rebuyCustomFee, setRebuyCustomFee] = useState(false);
   const [rebuyFeeInput, setRebuyFeeInput] = useState('');
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
 
   const uniquePlayers = useMemo(
     () =>
@@ -595,6 +596,12 @@ export function OnboardingPage() {
                   </label>
 
                   {allowLateEntry && (
+                    <p className="px-1 text-xs leading-relaxed text-sky-300/80">
+                      Entrada tardia permite novos jogadores apenas enquanto a 1ª rodada estiver ativa. Todos precisam jogar para avançar.
+                    </p>
+                  )}
+
+                  {allowLateEntry && (
                     <div className="mt-2 space-y-2 pl-2">
                       <div className="flex items-center gap-3">
                         <label className="text-sm text-gray-300 whitespace-nowrap">Até a rodada</label>
@@ -642,6 +649,12 @@ export function OnboardingPage() {
                   </label>
 
                   {allowRebuy && (
+                    <p className="px-1 text-xs leading-relaxed text-amber-300/80">
+                      Repescagem cria uma rodada extra entre eliminados da 1ª fase. Apenas quem vencer volta ao torneio.
+                    </p>
+                  )}
+
+                  {allowRebuy && (
                     <div className="mt-2 space-y-2 pl-2">
                       <div className="flex items-center gap-3">
                         <label className="text-sm text-gray-300 whitespace-nowrap">Até a rodada</label>
@@ -676,6 +689,20 @@ export function OnboardingPage() {
                         </div>
                       )}
                     </div>
+                  )}
+                  {(allowLateEntry || allowRebuy) && (
+                    <button
+                      type="button"
+                      onClick={() => setIsRulesModalOpen(true)}
+                      className="mt-1 flex items-center gap-1.5 text-sm text-emerald-400 underline-offset-2 hover:text-emerald-300 hover:underline transition-colors [touch-action:manipulation]"
+                    >
+                      <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 16v-4" />
+                        <path d="M12 8h.01" />
+                      </svg>
+                      Como funcionam essas regras?
+                    </button>
                   )}
                 </div>
               </div>
@@ -863,6 +890,60 @@ export function OnboardingPage() {
           </section>
         )}
       </div>
+
+      {isRulesModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsRulesModalOpen(false); }}
+        >
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1120] p-5 shadow-[0_25px_60px_rgba(0,0,0,0.65)]">
+            <h3 className="mb-4 text-xl font-semibold text-white">
+              Regras de Entrada Tardia e Repescagem
+            </h3>
+
+            {allowLateEntry && (
+              <div className="mb-4">
+                <p className="mb-2 text-sm font-semibold text-sky-300">
+                  🔓 Entrada Tardia
+                </p>
+                <ol className="space-y-1 pl-1 text-sm text-gray-300">
+                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">1.</span>Só durante a 1ª rodada</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">2.</span>Jogador entra para disputar partida</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">3.</span>Ninguém avança sem jogar</li>
+                </ol>
+              </div>
+            )}
+
+            {allowRebuy && (
+              <div className="mb-4">
+                <p className="mb-2 text-sm font-semibold text-amber-300">
+                  🔁 Repescagem
+                </p>
+                <ol className="space-y-1 pl-1 text-sm text-gray-300">
+                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">1.</span>Eliminado na 1ª rodada</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">2.</span>Paga nova inscrição</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">3.</span>Disputa rodada extra</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">4.</span>Apenas vencedores voltam</li>
+                </ol>
+              </div>
+            )}
+
+            <p className="mb-4 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+              O sistema garante justiça: todos precisam vencer partidas para avançar.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setIsRulesModalOpen(false)}
+              className="h-12 w-full rounded-xl bg-gray-800 text-base font-semibold text-white transition hover:bg-gray-700 [touch-action:manipulation]"
+            >
+              Entendi
+            </button>
+          </div>
+        </div>
+      )}
 
       {pendingDuplicateName && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">

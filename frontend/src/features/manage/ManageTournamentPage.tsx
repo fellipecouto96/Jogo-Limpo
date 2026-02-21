@@ -65,6 +65,9 @@ export function ManageTournamentPage() {
   const [lateEntryName, setLateEntryName] = useState('');
   const [lateEntryDuplicate, setLateEntryDuplicate] = useState<string | null>(null);
   const [isSubmittingLateEntry, setIsSubmittingLateEntry] = useState(false);
+  const [isRebuyConfirmOpen, setIsRebuyConfirmOpen] = useState(false);
+  const [pendingRebuyPlayerId, setPendingRebuyPlayerId] = useState<string | null>(null);
+  const [isShareScriptOpen, setIsShareScriptOpen] = useState(false);
   const [isEndingTournament, setIsEndingTournament] = useState(false);
   const [isUndoingLastAction, setIsUndoingLastAction] = useState(false);
   const [pendingMatchId, setPendingMatchId] = useState<string | null>(null);
@@ -382,6 +385,11 @@ export function ManageTournamentPage() {
     } finally {
       setIsSubmittingLateEntry(false);
     }
+  }
+
+  function requestRebuy(playerId: string) {
+    setPendingRebuyPlayerId(playerId);
+    setIsRebuyConfirmOpen(true);
   }
 
   async function handleRebuy(playerId: string) {
@@ -788,6 +796,18 @@ export function ManageTournamentPage() {
                 >
                   Ver seed do sorteio
                 </button>
+                {(details?.allowLateEntry || details?.allowRebuy) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsShareScriptOpen(true);
+                      setIsMenuOpen(false);
+                    }}
+                    className="mb-1 flex h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40 [touch-action:manipulation]"
+                  >
+                    Explicação rápida para jogadores
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -929,7 +949,7 @@ export function ManageTournamentPage() {
                             handleSelectWinner(entry, winnerId, winnerName, score1, score2)
                           }
                           onUpdateScore={handleUpdateScore}
-                          onRebuy={details?.allowRebuy ? handleRebuy : undefined}
+                          onRebuy={details?.allowRebuy ? requestRebuy : undefined}
                         />
                       </div>
                     );
@@ -1085,6 +1105,45 @@ export function ManageTournamentPage() {
         </div>
       )}
 
+      {isRebuyConfirmOpen && pendingRebuyPlayerId && (
+        <div className="fixed inset-0 z-50 bg-black/70 p-4" role="dialog" aria-modal="true">
+          <div className="mx-auto mt-20 w-full max-w-md rounded-3xl border border-amber-500/30 bg-[#120d00] p-5 shadow-[0_25px_60px_rgba(0,0,0,0.65)]">
+            <h3 className="mb-2 text-xl font-semibold text-white">Confirmar repescagem</h3>
+            <p className="mb-4 rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+              Jogador disputará rodada de repescagem. Apenas vencedores avançam.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRebuyConfirmOpen(false);
+                  void handleRebuy(pendingRebuyPlayerId);
+                  setPendingRebuyPlayerId(null);
+                }}
+                className="h-12 rounded-xl bg-amber-500 text-base font-semibold text-gray-950 transition hover:bg-amber-400 [touch-action:manipulation]"
+              >
+                Confirmar
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsRebuyConfirmOpen(false); setPendingRebuyPlayerId(null); }}
+                className="h-12 rounded-xl bg-gray-800 text-base font-semibold text-white transition hover:bg-gray-700 [touch-action:manipulation]"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isShareScriptOpen && (
+        <ShareScriptModal
+          allowLateEntry={details?.allowLateEntry ?? false}
+          allowRebuy={details?.allowRebuy ?? false}
+          onClose={() => setIsShareScriptOpen(false)}
+        />
+      )}
+
       {isQROpen && tournamentPublicSlug && (
         <TournamentQRModal
           tournamentSlug={tournamentPublicSlug}
@@ -1140,6 +1199,10 @@ export function ManageTournamentPage() {
                 </button>
               </div>
             )}
+
+            <p className="mb-3 rounded-xl border border-sky-400/20 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
+              Jogador entrará na 1ª rodada e precisará jogar normalmente.
+            </p>
 
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -1511,6 +1574,93 @@ const CHAMPIONSHIP_PARTICLES = [
   { left: 80, delay: 720 },
   { left: 88, delay: 800 },
 ];
+
+function ShareScriptModal({
+  allowLateEntry,
+  allowRebuy,
+  onClose,
+}: {
+  allowLateEntry: boolean;
+  allowRebuy: boolean;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const lines: string[] = ['Pessoal, atenção às regras:', ''];
+
+  if (allowLateEntry && allowRebuy) {
+    lines.push('Hoje temos entrada tardia e repescagem.', '');
+  } else if (allowLateEntry) {
+    lines.push('Hoje temos entrada tardia.', '');
+  } else if (allowRebuy) {
+    lines.push('Hoje temos repescagem.', '');
+  }
+
+  if (allowLateEntry) {
+    lines.push(
+      'Entrada tardia:',
+      'Quem chegar depois pode entrar apenas enquanto a 1ª rodada estiver ativa.',
+      'Vai jogar normalmente, sem vantagem.',
+      ''
+    );
+  }
+
+  if (allowRebuy) {
+    lines.push(
+      'Repescagem:',
+      'Quem perder na 1ª rodada pode pagar nova inscrição e disputar uma rodada extra.',
+      'Só quem vencer essa rodada volta para a próxima fase.',
+      ''
+    );
+  }
+
+  lines.push('Aqui ninguém avança sem jogar.', 'O torneio continua justo para todos.');
+
+  const script = lines.join('\n');
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(script);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // fallback: select textarea
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 p-4" role="dialog" aria-modal="true">
+      <div className="mx-auto mt-10 w-full max-w-md rounded-3xl border border-gray-700 bg-[#0b1120] p-5 shadow-[0_25px_60px_rgba(0,0,0,0.65)]">
+        <h3 className="mb-1 text-xl font-semibold text-white">Explicação rápida para jogadores</h3>
+        <p className="mb-3 text-sm text-gray-400">Copie e envie no grupo antes de começar.</p>
+        <div className="mb-3 rounded-xl border border-gray-700 bg-gray-950 px-4 py-3">
+          <pre className="whitespace-pre-wrap text-sm text-gray-200 font-sans leading-relaxed">{script}</pre>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className={[
+              'h-12 rounded-xl text-base font-semibold transition [touch-action:manipulation]',
+              copied
+                ? 'bg-emerald-600 text-white'
+                : 'bg-emerald-500 text-gray-950 hover:bg-emerald-400',
+            ].join(' ')}
+          >
+            {copied ? 'Copiado!' : 'Copiar texto'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-12 rounded-xl bg-gray-800 text-base font-semibold text-white transition hover:bg-gray-700 [touch-action:manipulation]"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function QRIcon() {
   return (
