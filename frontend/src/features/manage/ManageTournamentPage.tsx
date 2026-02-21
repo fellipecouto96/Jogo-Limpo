@@ -244,20 +244,20 @@ export function ManageTournamentPage() {
 
     const hasPrize = championAmount != null || runnerUpAmount != null;
     const lines: string[] = [
-      `🏆 RESULTADO OFICIAL – ${tournamentName}`,
+      `RESULTADO OFICIAL – ${tournamentName}`,
       '',
-      `Campeão 🥇 ${championName}`,
-      `Vice 🥈 ${runnerUpName}`,
+      `Campeão ${championName}`,
+      `Vice ${runnerUpName}`,
     ];
-    if (thirdPlaceName) lines.push(`3º lugar 🥉 ${thirdPlaceName}`);
-    if (fourthPlaceName) lines.push(`4º lugar 🎖 ${fourthPlaceName}`);
+    if (thirdPlaceName) lines.push(`3º lugar ${thirdPlaceName}`);
+    if (fourthPlaceName) lines.push(`4º lugar ${fourthPlaceName}`);
     if (hasPrize) {
       lines.push('');
-      lines.push('💰 Premiação:');
-      if (championAmount != null) lines.push(`🥇 ${formatCurrency(championAmount)}`);
-      if (runnerUpAmount != null) lines.push(`🥈 ${formatCurrency(runnerUpAmount)}`);
-      if (thirdPlaceAmount != null && thirdPlaceAmount > 0) lines.push(`🥉 ${formatCurrency(thirdPlaceAmount)}`);
-      if (fourthPlaceAmount != null && fourthPlaceAmount > 0) lines.push(`🎖 ${formatCurrency(fourthPlaceAmount)}`);
+      lines.push('Premiação:');
+      if (championAmount != null) lines.push(`${formatCurrency(championAmount)}`);
+      if (runnerUpAmount != null) lines.push(`${formatCurrency(runnerUpAmount)}`);
+      if (thirdPlaceAmount != null && thirdPlaceAmount > 0) lines.push(`${formatCurrency(thirdPlaceAmount)}`);
+      if (fourthPlaceAmount != null && fourthPlaceAmount > 0) lines.push(`${formatCurrency(fourthPlaceAmount)}`);
     }
     lines.push('');
     const infoLine = [
@@ -267,7 +267,7 @@ export function ManageTournamentPage() {
     if (infoLine) lines.push(infoLine);
     lines.push('');
     lines.push('Confira a chave completa:');
-    lines.push(`👉 ${shareUrl}`);
+    lines.push(`${shareUrl}`);
     const message = lines.join('\n');
 
     setActionError(null);
