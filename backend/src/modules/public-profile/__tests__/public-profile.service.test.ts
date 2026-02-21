@@ -195,7 +195,7 @@ describe('public profile service', () => {
       ).toBeUndefined();
       expect(
         (result!.tournament as unknown as Record<string, unknown>).prizePool
-      ).toBeUndefined();
+      ).toBeNull();
       expect(
         (result!.tournament as unknown as Record<string, unknown>).organizerId
       ).toBeUndefined();

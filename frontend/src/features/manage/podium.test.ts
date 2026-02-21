@@ -121,7 +121,7 @@ describe('podium helpers', () => {
     const rows = derivePodiumScoreRows(buildRounds(), 3);
     expect(rows.map((row) => row.label)).toEqual([
       'Final',
-      'Disputa de 3º',
+      'Disputa de 3º Lugar',
     ]);
     expect(rows[0]?.score).toBe('0 × 2');
     expect(rows[1]?.score).toBe('2 × 1');

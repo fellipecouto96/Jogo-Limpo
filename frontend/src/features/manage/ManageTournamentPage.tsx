@@ -61,6 +61,10 @@ export function ManageTournamentPage() {
   const [isSeedOpen, setIsSeedOpen] = useState(false);
   const [isPlayersOpen, setIsPlayersOpen] = useState(false);
   const [isFinishOpen, setIsFinishOpen] = useState(false);
+  const [isLateEntryOpen, setIsLateEntryOpen] = useState(false);
+  const [lateEntryName, setLateEntryName] = useState('');
+  const [lateEntryDuplicate, setLateEntryDuplicate] = useState<string | null>(null);
+  const [isSubmittingLateEntry, setIsSubmittingLateEntry] = useState(false);
   const [isEndingTournament, setIsEndingTournament] = useState(false);
   const [isUndoingLastAction, setIsUndoingLastAction] = useState(false);
   const [pendingMatchId, setPendingMatchId] = useState<string | null>(null);
@@ -333,6 +337,70 @@ export function ManageTournamentPage() {
     }
   }
 
+  async function handleLateEntry(force = false) {
+    const name = lateEntryName.trim();
+    if (!name) return;
+
+    setIsSubmittingLateEntry(true);
+    setActionError(null);
+
+    try {
+      const response = await apiFetch(`/tournaments/${tournamentId}/late-entry`, {
+        method: 'POST',
+        body: JSON.stringify({ playerName: name, force }),
+      });
+
+      if (response.status === 409) {
+        const payload = await response.json();
+        if (payload.isDuplicate) {
+          setLateEntryDuplicate(payload.existingName);
+          return;
+        }
+        throw await buildHttpResponseError(response);
+      }
+
+      if (!response.ok) {
+        throw await buildHttpResponseError(response);
+      }
+
+      await Promise.all([refetch(), refetchDetails()]);
+      setFeedback(`Jogador "${name}" adicionado ao torneio.`);
+      setIsLateEntryOpen(false);
+      setLateEntryName('');
+      setLateEntryDuplicate(null);
+    } catch (err) {
+      setActionError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({ error: err })
+        )
+      );
+    } finally {
+      setIsSubmittingLateEntry(false);
+    }
+  }
+
+  async function handleRebuy(playerId: string) {
+    setActionError(null);
+    setFeedback(null);
+
+    try {
+      const response = await apiFetch(`/tournaments/${tournamentId}/players/${playerId}/rebuy`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw await buildHttpResponseError(response);
+      }
+      await Promise.all([refetch(), refetchDetails()]);
+      setFeedback('Repescagem registrada com sucesso.');
+    } catch (err) {
+      setActionError(
+        formatGuidedSystemError(
+          resolveGuidedSystemError({ error: err })
+        )
+      );
+    }
+  }
+
   async function handleFinishTournament() {
     if (data?.tournament.status === 'FINISHED') return;
 
@@ -596,16 +664,25 @@ export function ManageTournamentPage() {
         <div className="flex items-center gap-2">
           <Link
             to={`/tournament/${tournamentId}/tv`}
-            className="flex h-11 items-center justify-center rounded-xl bg-gray-800 px-4 text-sm font-semibold text-gray-200 border border-gray-700 hover:bg-gray-700 transition-colors"
+            className="hidden sm:flex h-11 items-center justify-center rounded-xl bg-gray-800 px-4 text-sm font-semibold text-gray-200 border border-gray-700 hover:bg-gray-700 transition-colors"
           >
             Modo TV
           </Link>
           <Link
             to={`/tournament/${tournamentId}/mobile`}
-            className="flex h-11 items-center justify-center rounded-xl bg-gray-800 px-4 text-sm font-semibold text-gray-200 border border-gray-700 hover:bg-gray-700 transition-colors"
+            className="hidden sm:flex h-11 items-center justify-center rounded-xl bg-gray-800 px-4 text-sm font-semibold text-gray-200 border border-gray-700 hover:bg-gray-700 transition-colors"
           >
             Celular
           </Link>
+          {tournament.status === 'RUNNING' && details?.allowLateEntry && (
+            <button
+              type="button"
+              onClick={() => { setIsLateEntryOpen(true); setLateEntryName(''); setLateEntryDuplicate(null); }}
+              className="flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white border border-emerald-500 hover:bg-emerald-500 transition-colors [touch-action:manipulation]"
+            >
+              + Jogador atrasado
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setIsQROpen(true)}
@@ -613,7 +690,7 @@ export function ManageTournamentPage() {
             className="flex h-11 items-center justify-center gap-2 rounded-xl bg-gray-800 px-4 text-sm font-semibold text-gray-200 border border-gray-700 hover:bg-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60 [touch-action:manipulation]"
           >
             <QRIcon />
-            Compartilhar este torneio
+            <span className="hidden sm:inline">Compartilhar este torneio</span>
           </button>
           <div className="relative" ref={menuRef}>
             <button
@@ -651,6 +728,20 @@ export function ManageTournamentPage() {
                 role="menu"
                 className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-gray-700 bg-[#0b1120] p-2 shadow-[0_20px_40px_rgba(0,0,0,0.55)]"
               >
+                <Link
+                  to={`/tournament/${tournamentId}/tv`}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="sm:hidden mb-1 flex h-11 items-center rounded-xl px-3 text-sm font-semibold text-gray-100 transition hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40"
+                >
+                  Modo TV
+                </Link>
+                <Link
+                  to={`/tournament/${tournamentId}/mobile`}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="sm:hidden mb-1 flex h-11 items-center rounded-xl px-3 text-sm font-semibold text-gray-100 transition hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40"
+                >
+                  Celular
+                </Link>
                 {tournament.status === 'FINISHED' ? (
                   <div className="mb-1 flex h-11 items-center rounded-xl px-3 text-sm font-semibold text-gray-500">
                     Ajustar premiação (bloqueado)
@@ -823,10 +914,12 @@ export function ManageTournamentPage() {
                               : null
                           }
                           animateConnector={recentAdvance?.matchId === match.id}
+                          allowRebuy={details?.allowRebuy === true}
                           onSelectWinner={(winnerId, winnerName, score1, score2) =>
                             handleSelectWinner(entry, winnerId, winnerName, score1, score2)
                           }
                           onUpdateScore={handleUpdateScore}
+                          onRebuy={details?.allowRebuy ? handleRebuy : undefined}
                         />
                       </div>
                     );
@@ -991,6 +1084,73 @@ export function ManageTournamentPage() {
           }
           onClose={() => setIsQROpen(false)}
         />
+      )}
+
+      {isLateEntryOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 p-4" role="dialog" aria-modal="true">
+          <div className="mx-auto mt-16 w-full max-w-md rounded-3xl border border-gray-700 bg-[#0b1120] p-5 shadow-[0_25px_60px_rgba(0,0,0,0.65)]">
+            <h3 className="mb-1 text-xl font-semibold text-white">Entrada tardia</h3>
+            <p className="mb-4 text-sm text-gray-400">
+              Taxa:{' '}
+              <span className="font-semibold text-gray-200">
+                {details?.lateEntryFee != null
+                  ? formatCurrency(details.lateEntryFee)
+                  : details?.entryFee != null
+                    ? formatCurrency(details.entryFee)
+                    : 'Sem taxa'}
+              </span>
+            </p>
+
+            <label htmlFor="late-entry-name" className="mb-1 block text-sm font-semibold text-gray-300">
+              Nome do jogador
+            </label>
+            <input
+              id="late-entry-name"
+              type="text"
+              autoComplete="off"
+              value={lateEntryName}
+              onChange={(e) => { setLateEntryName(e.target.value); setLateEntryDuplicate(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && lateEntryName.trim()) handleLateEntry(false); }}
+              placeholder="Nome do jogador"
+              className="mb-3 h-12 w-full rounded-xl border border-gray-700 bg-gray-950 px-4 text-base text-white placeholder:text-gray-500 focus:border-emerald-400 focus:outline-none"
+            />
+
+            {lateEntryDuplicate && (
+              <div className="mb-3 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-3">
+                <p className="mb-2 text-sm text-amber-100">
+                  Já existe um jogador chamado "{lateEntryDuplicate}" neste torneio. Deseja continuar mesmo assim?
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleLateEntry(true)}
+                  disabled={isSubmittingLateEntry}
+                  className="h-10 w-full rounded-xl bg-amber-500 text-sm font-semibold text-gray-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60 [touch-action:manipulation]"
+                >
+                  Confirmar mesmo assim
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => handleLateEntry(false)}
+                disabled={!lateEntryName.trim() || isSubmittingLateEntry}
+                className="h-12 rounded-xl bg-emerald-500 text-base font-semibold text-gray-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400 [touch-action:manipulation]"
+              >
+                {isSubmittingLateEntry ? 'Adicionando...' : 'Adicionar jogador'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsLateEntryOpen(false); setLateEntryName(''); setLateEntryDuplicate(null); }}
+                disabled={isSubmittingLateEntry}
+                className="h-12 rounded-xl bg-gray-800 text-base font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:text-gray-500 [touch-action:manipulation]"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

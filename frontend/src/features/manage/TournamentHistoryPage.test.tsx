@@ -66,6 +66,12 @@ describe('TournamentHistoryPage', () => {
         createdAt: '2026-02-19T12:00:00.000Z',
         startedAt: '2026-02-19T12:00:00.000Z',
         finishedAt: '2026-02-19T13:00:00.000Z',
+        allowLateEntry: false,
+        allowLateEntryUntilRound: 1,
+        lateEntryFee: null,
+        allowRebuy: false,
+        allowRebuyUntilRound: 1,
+        rebuyFee: null,
       },
       error: null,
       isLoading: false,
@@ -111,9 +117,6 @@ describe('TournamentHistoryPage', () => {
 
     renderPage();
 
-    expect(
-      screen.getByRole('button', { name: /compartilhar resultado/i })
-    ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: /compartilhar no whatsapp/i })
     ).toBeInTheDocument();

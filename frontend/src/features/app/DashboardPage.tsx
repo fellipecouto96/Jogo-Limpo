@@ -91,7 +91,7 @@ export function DashboardPage() {
     <div className="space-y-5">
       <header className="space-y-1.5">
         <h1 className="font-display text-3xl text-white">
-          {`Boa noite, ${organizer?.name ?? 'Organizador'}.`}
+          {`${getGreeting()}, ${organizer?.name ?? 'Organizador'}.`}
         </h1>
         <p className="text-sm text-gray-300">Resumo da sua operação</p>
         {activeCount > 0 && (
@@ -153,8 +153,8 @@ export function DashboardPage() {
             )}
           </section>
 
-          <section className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-            <div className="flex min-w-max gap-2.5">
+          <section>
+            <div className="grid grid-cols-2 gap-2.5 sm:flex sm:gap-2.5">
               <CompactKpiCard
                 icon="R$"
                 label="Arrecadado no mês"
@@ -169,7 +169,7 @@ export function DashboardPage() {
               />
               <CompactKpiCard
                 icon="%"
-                label="Seu lucro estimado"
+                label="Lucro estimado"
                 value={formatCurrency(estimatedProfit)}
                 subtitle="No mês atual"
               />
@@ -249,7 +249,7 @@ export function DashboardPage() {
                       <div className="mt-2.5 flex justify-end">
                         <Link
                           to={actionHref}
-                          className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-700 bg-gray-900 px-3 text-xs font-semibold text-gray-100 transition hover:bg-gray-800"
+                          className="inline-flex h-9 items-center justify-center rounded-lg border border-gray-700 bg-gray-900 px-3 text-xs font-semibold text-gray-100 transition hover:bg-gray-800"
                         >
                           {actionLabel}
                         </Link>
@@ -296,7 +296,7 @@ function CompactKpiCard({
   subtitle: string;
 }) {
   return (
-    <article className="w-[220px] rounded-xl border border-gray-800 bg-[#0b1222] px-3 py-3">
+    <article className="sm:w-[220px] rounded-xl border border-gray-800 bg-[#0b1222] px-3 py-3">
       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">
         {label}
       </p>
@@ -307,6 +307,13 @@ function CompactKpiCard({
       <p className="text-[11px] text-gray-500">{subtitle}</p>
     </article>
   );
+}
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 12) return 'Bom dia';
+  if (hour >= 12 && hour < 18) return 'Boa tarde';
+  return 'Boa noite';
 }
 
 function formatCurrency(value: number): string {

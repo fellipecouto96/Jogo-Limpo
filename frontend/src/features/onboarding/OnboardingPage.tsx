@@ -122,6 +122,15 @@ export function OnboardingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDrawArmed, setIsDrawArmed] = useState(false);
   const [error, setError] = useState<GuidedSystemError | null>(null);
+  const [pendingDuplicateName, setPendingDuplicateName] = useState<string | null>(null);
+  const [allowLateEntry, setAllowLateEntry] = useState(false);
+  const [allowLateEntryUntilRound, setAllowLateEntryUntilRound] = useState(1);
+  const [lateEntryCustomFee, setLateEntryCustomFee] = useState(false);
+  const [lateEntryFeeInput, setLateEntryFeeInput] = useState('');
+  const [allowRebuy, setAllowRebuy] = useState(false);
+  const [allowRebuyUntilRound, setAllowRebuyUntilRound] = useState(1);
+  const [rebuyCustomFee, setRebuyCustomFee] = useState(false);
+  const [rebuyFeeInput, setRebuyFeeInput] = useState('');
 
   const uniquePlayers = useMemo(
     () =>
@@ -226,7 +235,7 @@ export function OnboardingPage() {
       (item) => item.toLowerCase() === normalized.toLowerCase()
     );
     if (exists) {
-      setPlayerInput('');
+      setPendingDuplicateName(normalized);
       return;
     }
 
@@ -235,6 +244,16 @@ export function OnboardingPage() {
       playerNames: [...previous.playerNames, normalized],
     }));
     setPlayerInput('');
+    setError(null);
+  };
+
+  const addPlayerForce = (name: string) => {
+    setData((previous) => ({
+      ...previous,
+      playerNames: [...previous.playerNames, name],
+    }));
+    setPlayerInput('');
+    setPendingDuplicateName(null);
     setError(null);
   };
 
@@ -261,6 +280,9 @@ export function OnboardingPage() {
     setIsSubmitting(true);
     setError(null);
     try {
+      const parsedLateEntryFee = lateEntryCustomFee ? parseEntryFee(lateEntryFeeInput) : null;
+      const parsedRebuyFee = rebuyCustomFee ? parseEntryFee(rebuyFeeInput) : null;
+
       const response = await apiFetch('/onboarding/setup', {
         method: 'POST',
         body: JSON.stringify({
@@ -274,6 +296,12 @@ export function OnboardingPage() {
           fourthPlacePercentage: safeFourthPlacePercentage,
           firstPlacePercentage: safeChampionPercentage,
           secondPlacePercentage: safeRunnerUpPercentage,
+          allowLateEntry,
+          allowLateEntryUntilRound,
+          lateEntryFee: lateEntryCustomFee ? parsedLateEntryFee : null,
+          allowRebuy,
+          allowRebuyUntilRound,
+          rebuyFee: rebuyCustomFee ? parsedRebuyFee : null,
         }),
       });
 
@@ -455,9 +483,9 @@ export function OnboardingPage() {
             <button
               type="button"
               onClick={() => setIsAdvancedOpen((current) => !current)}
-              className="mb-3 flex h-10 w-full items-center justify-center rounded-xl border border-gray-700 bg-gray-800 px-4 text-sm font-semibold text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gray-500/60 [touch-action:manipulation]"
+              className="mb-3 flex h-11 w-full items-center justify-center rounded-xl border border-gray-700 bg-gray-800 px-4 text-sm font-semibold text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gray-500/60 [touch-action:manipulation]"
             >
-              Configurar regras de premiação
+              Configurações avançadas (premiação e receita)
             </button>
 
             {isAdvancedOpen && (
@@ -550,6 +578,106 @@ export function OnboardingPage() {
                     }
                   />
                 )}
+
+                <div className="border-t border-gray-700 pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">
+                    Funcionalidades de receita
+                  </p>
+
+                  <label className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-gray-100">
+                    <input
+                      type="checkbox"
+                      checked={allowLateEntry}
+                      onChange={(e) => setAllowLateEntry(e.target.checked)}
+                      className="h-5 w-5 rounded border-gray-600 bg-gray-900 text-emerald-500"
+                    />
+                    Entrada tardia
+                  </label>
+
+                  {allowLateEntry && (
+                    <div className="mt-2 space-y-2 pl-2">
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-gray-300 whitespace-nowrap">Até a rodada</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={allowLateEntryUntilRound}
+                          onChange={(e) => setAllowLateEntryUntilRound(Math.max(1, Number(e.target.value)))}
+                          className="h-11 w-20 rounded-xl border border-gray-700 bg-gray-900 px-3 text-base text-white focus:border-emerald-400 focus:outline-none"
+                        />
+                      </div>
+                      <label className="flex items-center gap-3 text-sm text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={lateEntryCustomFee}
+                          onChange={(e) => setLateEntryCustomFee(e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-600 bg-gray-900 text-emerald-500"
+                        />
+                        Taxa personalizada
+                      </label>
+                      {lateEntryCustomFee && (
+                        <div className="relative">
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">R$</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={lateEntryFeeInput}
+                            onChange={(e) => setLateEntryFeeInput(e.target.value)}
+                            placeholder="0,00"
+                            className="h-11 w-full rounded-xl border border-gray-700 bg-gray-900 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-emerald-400 focus:outline-none"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <label className="mt-2 flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-gray-100">
+                    <input
+                      type="checkbox"
+                      checked={allowRebuy}
+                      onChange={(e) => setAllowRebuy(e.target.checked)}
+                      className="h-5 w-5 rounded border-gray-600 bg-gray-900 text-emerald-500"
+                    />
+                    Repescagem
+                  </label>
+
+                  {allowRebuy && (
+                    <div className="mt-2 space-y-2 pl-2">
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-gray-300 whitespace-nowrap">Até a rodada</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={allowRebuyUntilRound}
+                          onChange={(e) => setAllowRebuyUntilRound(Math.max(1, Number(e.target.value)))}
+                          className="h-11 w-20 rounded-xl border border-gray-700 bg-gray-900 px-3 text-base text-white focus:border-emerald-400 focus:outline-none"
+                        />
+                      </div>
+                      <label className="flex items-center gap-3 text-sm text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={rebuyCustomFee}
+                          onChange={(e) => setRebuyCustomFee(e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-600 bg-gray-900 text-emerald-500"
+                        />
+                        Taxa personalizada
+                      </label>
+                      {rebuyCustomFee && (
+                        <div className="relative">
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">R$</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={rebuyFeeInput}
+                            onChange={(e) => setRebuyFeeInput(e.target.value)}
+                            placeholder="0,00"
+                            className="h-11 w-full rounded-xl border border-gray-700 bg-gray-900 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-emerald-400 focus:outline-none"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -735,6 +863,33 @@ export function OnboardingPage() {
           </section>
         )}
       </div>
+
+      {pendingDuplicateName && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-3xl border border-amber-400/40 bg-[#1a1200] p-5 shadow-[0_25px_60px_rgba(0,0,0,0.65)]">
+            <p className="mb-1 text-lg font-semibold text-amber-200">⚠️ Nome duplicado</p>
+            <p className="mb-4 text-sm text-amber-100">
+              "{pendingDuplicateName}" já foi adicionado. Deseja continuar mesmo assim?
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => addPlayerForce(pendingDuplicateName)}
+                className="h-11 rounded-xl bg-amber-500 text-sm font-semibold text-gray-950 transition hover:bg-amber-400 [touch-action:manipulation]"
+              >
+                Continuar mesmo assim
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingDuplicateName(null)}
+                className="h-11 rounded-xl bg-gray-800 text-sm font-semibold text-white transition hover:bg-gray-700 [touch-action:manipulation]"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
