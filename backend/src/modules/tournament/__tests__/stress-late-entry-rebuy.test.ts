@@ -34,7 +34,7 @@ beforeEach(() => {
   );
   vi.mocked(prisma.tournament.update).mockResolvedValue({} as never);
   vi.mocked(prisma.match.aggregate).mockResolvedValue({ _max: { positionInBracket: 4 } } as never);
-  vi.mocked(withPerformanceLog).mockImplementation((_j: unknown, _o: unknown, fn: () => unknown) => fn());
+  vi.mocked(withPerformanceLog).mockImplementation((_j, _o, fn) => fn());
 });
 
 function dec(n: number) { return new Decimal(n); }
@@ -219,8 +219,9 @@ describe('lateEntry – stress scenarios', () => {
     const mockTU = vi.mocked(prisma.tournament.update);
 
     const feeCalls: number[] = [];
-    mockTU.mockImplementation((args: { data: { totalCollected: Decimal } }) => {
-      feeCalls.push(args.data.totalCollected.toNumber());
+    mockTU.mockImplementation((args) => {
+      const data = args.data as unknown as { totalCollected: Decimal };
+      feeCalls.push(data.totalCollected.toNumber());
       return {} as never;
     });
 
@@ -399,8 +400,9 @@ describe('rebuy – stress scenarios', () => {
     const mockTU = vi.mocked(prisma.tournament.update);
 
     const feeCalls: number[] = [];
-    mockTU.mockImplementation((args: { data: { totalCollected: Decimal } }) => {
-      feeCalls.push(args.data.totalCollected.toNumber());
+    mockTU.mockImplementation((args) => {
+      const data = args.data as unknown as { totalCollected: Decimal };
+      feeCalls.push(data.totalCollected.toNumber());
       return {} as never;
     });
 
@@ -472,8 +474,9 @@ describe('fairness rule enforcement', () => {
 
   it('lateEntry + rebuy both respect financial accuracy (no double counting)', async () => {
     const feeCalls: number[] = [];
-    vi.mocked(prisma.tournament.update).mockImplementation((args: { data: { totalCollected: Decimal } }) => {
-      feeCalls.push(args.data.totalCollected.toNumber());
+    vi.mocked(prisma.tournament.update).mockImplementation((args) => {
+      const data = args.data as unknown as { totalCollected: Decimal };
+      feeCalls.push(data.totalCollected.toNumber());
       return {} as never;
     });
 
