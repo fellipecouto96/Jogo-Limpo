@@ -23,6 +23,12 @@ export interface OnboardingInput {
   fourthPlacePercentage?: number | null;
   firstPlacePercentage?: number;
   secondPlacePercentage?: number;
+  allowLateEntry?: boolean;
+  allowLateEntryUntilRound?: number;
+  lateEntryFee?: number | null;
+  allowRebuy?: boolean;
+  allowRebuyUntilRound?: number;
+  rebuyFee?: number | null;
 }
 
 export interface OnboardingResult {
@@ -46,6 +52,12 @@ export async function runOnboardingSetup(
     fourthPlacePercentage,
     firstPlacePercentage,
     secondPlacePercentage,
+    allowLateEntry,
+    allowLateEntryUntilRound,
+    lateEntryFee,
+    allowRebuy,
+    allowRebuyUntilRound,
+    rebuyFee,
   } = input;
 
   if (!tournamentName.trim()) {
@@ -195,6 +207,12 @@ export async function runOnboardingSetup(
         calculatedOrganizerAmount: new Decimal(snapshot.organizerAmount),
         calculatedPrizePool: new Decimal(snapshot.prizePool),
         prizePool: new Decimal(snapshot.prizePool),
+        allowLateEntry: allowLateEntry ?? false,
+        allowLateEntryUntilRound: allowLateEntryUntilRound ?? 1,
+        lateEntryFee: lateEntryFee != null ? new Decimal(lateEntryFee) : null,
+        allowRebuy: allowRebuy ?? false,
+        allowRebuyUntilRound: allowRebuyUntilRound ?? 1,
+        rebuyFee: rebuyFee != null ? new Decimal(rebuyFee) : null,
       },
     });
 

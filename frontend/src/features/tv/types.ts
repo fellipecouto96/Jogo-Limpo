@@ -1,6 +1,7 @@
 export interface BracketPlayer {
   id: string;
   name: string;
+  isRebuy?: boolean;
 }
 
 export interface BracketMatch {

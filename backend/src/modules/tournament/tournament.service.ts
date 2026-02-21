@@ -210,6 +210,12 @@ export interface TournamentDetail {
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
+  allowLateEntry: boolean;
+  allowLateEntryUntilRound: number;
+  lateEntryFee: number | null;
+  allowRebuy: boolean;
+  allowRebuyUntilRound: number;
+  rebuyFee: number | null;
 }
 
 export async function getTournamentById(
@@ -240,6 +246,12 @@ export async function getTournamentById(
       createdAt: true,
       startedAt: true,
       finishedAt: true,
+      allowLateEntry: true,
+      allowLateEntryUntilRound: true,
+      lateEntryFee: true,
+      allowRebuy: true,
+      allowRebuyUntilRound: true,
+      rebuyFee: true,
       organizer: { select: { name: true } },
       champion: { select: { id: true, name: true } },
       runnerUp: { select: { id: true, name: true } },
@@ -365,6 +377,12 @@ export async function getTournamentById(
     createdAt: t.createdAt.toISOString(),
     startedAt: t.startedAt?.toISOString() ?? null,
     finishedAt: t.finishedAt?.toISOString() ?? null,
+    allowLateEntry: t.allowLateEntry,
+    allowLateEntryUntilRound: t.allowLateEntryUntilRound,
+    lateEntryFee: decimalToNumber(t.lateEntryFee),
+    allowRebuy: t.allowRebuy,
+    allowRebuyUntilRound: t.allowRebuyUntilRound,
+    rebuyFee: decimalToNumber(t.rebuyFee),
   };
 }
 
@@ -738,6 +756,215 @@ export async function renameTournamentPlayer(
   });
 
   return updated;
+}
+
+export type LateEntryResult =
+  | { isDuplicate: true; existingName: string }
+  | { player: { id: string; name: string }; match: { id: string } };
+
+export async function lateEntry(
+  tournamentId: string,
+  organizerId: string,
+  playerName: string,
+  force: boolean
+): Promise<LateEntryResult> {
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: {
+      organizerId: true,
+      status: true,
+      allowLateEntry: true,
+      allowLateEntryUntilRound: true,
+      lateEntryFee: true,
+      entryFee: true,
+      totalCollected: true,
+      organizerPercentage: true,
+    },
+  });
+
+  if (!tournament) throw new TournamentError('Torneio nao encontrado', 404);
+  if (tournament.organizerId !== organizerId) throw new TournamentError('Acesso negado', 403);
+  if (tournament.status !== 'RUNNING') throw new TournamentError('Torneio nao esta em andamento', 409);
+  if (!tournament.allowLateEntry) throw new TournamentError('Entrada tardia nao permitida neste torneio', 409);
+
+  const currentRound = await prisma.round.findFirst({
+    where: {
+      tournamentId,
+      matches: { some: { winnerId: null } },
+    },
+    orderBy: { roundNumber: 'asc' },
+    select: { id: true, roundNumber: true },
+  });
+
+  if (!currentRound) throw new TournamentError('Nenhuma rodada ativa encontrada', 409);
+  if (currentRound.roundNumber > tournament.allowLateEntryUntilRound) {
+    throw new TournamentError(
+      `Entrada tardia encerrada. Permitida apenas ate a rodada ${tournament.allowLateEntryUntilRound}`,
+      409
+    );
+  }
+
+  const trimmedName = playerName.trim();
+
+  if (!force) {
+    const existing = await prisma.player.findFirst({
+      where: {
+        name: { equals: trimmedName, mode: 'insensitive' },
+        OR: [
+          { matchesAsPlayer1: { some: { tournamentId } } },
+          { matchesAsPlayer2: { some: { tournamentId } } },
+        ],
+      },
+      select: { name: true },
+    });
+    if (existing) {
+      return { isDuplicate: true, existingName: existing.name };
+    }
+  }
+
+  const maxPosition = await prisma.match.aggregate({
+    where: { roundId: currentRound.id },
+    _max: { positionInBracket: true },
+  });
+  const nextPosition = (maxPosition._max.positionInBracket ?? 0) + 1;
+
+  const { player, match } = await prisma.$transaction(async (tx) => {
+    const player = await tx.player.create({
+      data: { name: trimmedName },
+      select: { id: true, name: true },
+    });
+    const match = await tx.match.create({
+      data: {
+        tournamentId,
+        roundId: currentRound.id,
+        player1Id: player.id,
+        isBye: true,
+        winnerId: player.id,
+        finishedAt: new Date(),
+        positionInBracket: nextPosition,
+      },
+      select: { id: true },
+    });
+    return { player, match };
+  }, { timeout: 30000 });
+
+  const fee = decimalToNumber(tournament.lateEntryFee) ?? decimalToNumber(tournament.entryFee) ?? 0;
+  const currentTotal = decimalToNumber(tournament.totalCollected) ?? 0;
+  const newTotal = Math.round((currentTotal + fee) * 100) / 100;
+  const organizerPct = decimalToNumber(tournament.organizerPercentage) ?? 0;
+  const organizerAmount = Math.round(newTotal * (organizerPct / 100) * 100) / 100;
+  const prizePool = Math.round((newTotal - organizerAmount) * 100) / 100;
+
+  await prisma.tournament.update({
+    where: { id: tournamentId },
+    data: {
+      totalCollected: new Decimal(newTotal),
+      calculatedPrizePool: new Decimal(prizePool),
+      calculatedOrganizerAmount: new Decimal(organizerAmount),
+    },
+  });
+
+  return { player, match };
+}
+
+export async function rebuy(
+  tournamentId: string,
+  organizerId: string,
+  playerId: string
+): Promise<{ player: { id: string; name: string; isRebuy: boolean }; match: { id: string } }> {
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: {
+      organizerId: true,
+      status: true,
+      allowRebuy: true,
+      allowRebuyUntilRound: true,
+      rebuyFee: true,
+      entryFee: true,
+      totalCollected: true,
+      organizerPercentage: true,
+    },
+  });
+
+  if (!tournament) throw new TournamentError('Torneio nao encontrado', 404);
+  if (tournament.organizerId !== organizerId) throw new TournamentError('Acesso negado', 403);
+  if (tournament.status !== 'RUNNING') throw new TournamentError('Torneio nao esta em andamento', 409);
+  if (!tournament.allowRebuy) throw new TournamentError('Repescagem nao permitida neste torneio', 409);
+
+  const currentRound = await prisma.round.findFirst({
+    where: {
+      tournamentId,
+      matches: { some: { winnerId: null } },
+    },
+    orderBy: { roundNumber: 'asc' },
+    select: { id: true, roundNumber: true },
+  });
+
+  if (!currentRound) throw new TournamentError('Nenhuma rodada ativa encontrada', 409);
+  if (currentRound.roundNumber > tournament.allowRebuyUntilRound) {
+    throw new TournamentError(
+      `Repescagem encerrada. Permitida apenas ate a rodada ${tournament.allowRebuyUntilRound}`,
+      409
+    );
+  }
+
+  const eliminationMatch = await prisma.match.findFirst({
+    where: {
+      tournamentId,
+      OR: [{ player1Id: playerId }, { player2Id: playerId }],
+      winnerId: { not: null },
+      NOT: { winnerId: playerId },
+    },
+  });
+
+  if (!eliminationMatch) {
+    throw new TournamentError('Jogador nao esta eliminado ou nao pertence a este torneio', 409);
+  }
+
+  const maxPosition = await prisma.match.aggregate({
+    where: { roundId: currentRound.id },
+    _max: { positionInBracket: true },
+  });
+  const nextPosition = (maxPosition._max.positionInBracket ?? 0) + 1;
+
+  const { player, match } = await prisma.$transaction(async (tx) => {
+    const player = await tx.player.update({
+      where: { id: playerId },
+      data: { isRebuy: true },
+      select: { id: true, name: true, isRebuy: true },
+    });
+    const match = await tx.match.create({
+      data: {
+        tournamentId,
+        roundId: currentRound.id,
+        player1Id: playerId,
+        isBye: true,
+        winnerId: playerId,
+        finishedAt: new Date(),
+        positionInBracket: nextPosition,
+      },
+      select: { id: true },
+    });
+    return { player, match };
+  }, { timeout: 30000 });
+
+  const fee = decimalToNumber(tournament.rebuyFee) ?? decimalToNumber(tournament.entryFee) ?? 0;
+  const currentTotal = decimalToNumber(tournament.totalCollected) ?? 0;
+  const newTotal = Math.round((currentTotal + fee) * 100) / 100;
+  const organizerPct = decimalToNumber(tournament.organizerPercentage) ?? 0;
+  const organizerAmount = Math.round(newTotal * (organizerPct / 100) * 100) / 100;
+  const prizePool = Math.round((newTotal - organizerAmount) * 100) / 100;
+
+  await prisma.tournament.update({
+    where: { id: tournamentId },
+    data: {
+      totalCollected: new Decimal(newTotal),
+      calculatedPrizePool: new Decimal(prizePool),
+      calculatedOrganizerAmount: new Decimal(organizerAmount),
+    },
+  });
+
+  return { player, match };
 }
 
 export class TournamentError extends Error {

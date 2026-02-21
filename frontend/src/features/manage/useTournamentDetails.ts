@@ -37,6 +37,12 @@ export interface TournamentDetail {
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
+  allowLateEntry: boolean;
+  allowLateEntryUntilRound: number;
+  lateEntryFee: number | null;
+  allowRebuy: boolean;
+  allowRebuyUntilRound: number;
+  rebuyFee: number | null;
 }
 
 interface UseTournamentDetailsResult {

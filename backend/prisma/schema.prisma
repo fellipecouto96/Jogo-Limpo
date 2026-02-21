@@ -34,6 +34,7 @@ model Organizer {
 model Player {
   id        String   @id @default(uuid())
   name      String
+  isRebuy   Boolean  @default(false) @map("is_rebuy")
   createdAt DateTime @default(now()) @map("created_at")
 
   matchesAsPlayer1 Match[] @relation("Player1Matches")
@@ -69,6 +70,14 @@ model Tournament {
   fourthPlacePercentage Decimal? @map("fourth_place_percentage")
   calculatedPrizePool   Decimal? @map("calculated_prize_pool")
   calculatedOrganizerAmount Decimal? @map("calculated_organizer_amount")
+
+  allowLateEntry          Boolean   @default(false) @map("allow_late_entry")
+  allowLateEntryUntilRound Int      @default(1) @map("allow_late_entry_until_round")
+  lateEntryFee            Decimal?  @db.Decimal(10, 2) @map("late_entry_fee")
+  allowRebuy              Boolean   @default(false) @map("allow_rebuy")
+  allowRebuyUntilRound    Int       @default(1) @map("allow_rebuy_until_round")
+  rebuyFee                Decimal?  @db.Decimal(10, 2) @map("rebuy_fee")
+
   championId            String?  @map("champion_id")
   runnerUpId            String?  @map("runner_up_id")
   champion              Player?  @relation("TournamentChampion", fields: [championId], references: [id], onDelete: SetNull)

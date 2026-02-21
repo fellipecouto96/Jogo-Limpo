@@ -11,8 +11,10 @@ interface InteractiveMatchCardProps {
   isPending?: boolean;
   recentWinnerId?: string | null;
   animateConnector?: boolean;
+  allowRebuy?: boolean;
   onSelectWinner: (winnerId: string, winnerName: string, score1?: number, score2?: number) => void;
   onUpdateScore?: (matchId: string, score1: number, score2: number) => void;
+  onRebuy?: (playerId: string) => void;
 }
 
 export function InteractiveMatchCard({
@@ -23,8 +25,10 @@ export function InteractiveMatchCard({
   isPending = false,
   recentWinnerId = null,
   animateConnector = false,
+  allowRebuy = false,
   onSelectWinner,
   onUpdateScore,
+  onRebuy,
 }: InteractiveMatchCardProps) {
   const [showScoreInput, setShowScoreInput] = useState(false);
 
@@ -122,8 +126,11 @@ export function InteractiveMatchCard({
           isWinner={player1IsWinner}
           isLoser={Boolean(match.winner && !player1IsWinner)}
           isRecentlyAdvanced={recentWinnerId === match.player1.id}
+          isRebuy={match.player1.isRebuy}
           disabled={!canInteract}
           onClick={() => handlePlayerClick(match.player1.id, match.player1.name)}
+          showRebuyButton={Boolean(match.winner && !player1IsWinner && allowRebuy && !isBusy && onRebuy)}
+          onRebuy={onRebuy ? () => onRebuy(match.player1.id) : undefined}
         />
 
         {match.player2 ? (
@@ -134,8 +141,11 @@ export function InteractiveMatchCard({
             isWinner={player2IsWinner}
             isLoser={Boolean(match.winner && !player2IsWinner)}
             isRecentlyAdvanced={recentWinnerId === match.player2.id}
+            isRebuy={match.player2.isRebuy}
             disabled={!canInteract}
             onClick={() => handlePlayerClick(match.player2!.id, match.player2!.name)}
+            showRebuyButton={Boolean(match.winner && !player2IsWinner && allowRebuy && !isBusy && onRebuy)}
+            onRebuy={onRebuy ? () => onRebuy(match.player2!.id) : undefined}
           />
         ) : (
           <div className="flex min-h-[60px] items-center px-4 text-base font-semibold text-gray-500">
@@ -180,8 +190,11 @@ function PlayerRow({
   isWinner,
   isLoser,
   isRecentlyAdvanced,
+  isRebuy,
   disabled,
   onClick,
+  showRebuyButton,
+  onRebuy,
 }: {
   playerId: string;
   name: string;
@@ -189,8 +202,11 @@ function PlayerRow({
   isWinner: boolean;
   isLoser: boolean;
   isRecentlyAdvanced: boolean;
+  isRebuy?: boolean;
   disabled: boolean;
   onClick: () => void;
+  showRebuyButton?: boolean;
+  onRebuy?: () => void;
 }) {
   const classes = [
     'flex min-h-[64px] w-full items-center px-4 text-left text-lg font-semibold transition-all [touch-action:manipulation]',
@@ -205,23 +221,40 @@ function PlayerRow({
     .join(' ');
 
   return (
-    <button
-      type="button"
-      className={classes}
-      disabled={disabled}
-      onClick={onClick}
-      aria-label={`Selecionar ${name} como vencedor`}
-      data-player-id={playerId}
-    >
-      <span className="truncate flex-1">{name}</span>
-      {score !== null && (
-        <span className={`ml-2 text-2xl font-bold tabular-nums ${isWinner ? 'text-emerald-400' : 'text-gray-500'}`}>
-          {score}
+    <div className="relative">
+      <button
+        type="button"
+        className={classes}
+        disabled={disabled}
+        onClick={onClick}
+        aria-label={`Selecionar ${name} como vencedor`}
+        data-player-id={playerId}
+      >
+        <span className="truncate flex-1">
+          {name}
+          {isRebuy && (
+            <span className="ml-1.5 text-xs text-gray-500" title="Repescagem">🔁</span>
+          )}
         </span>
+        {score !== null && (
+          <span className={`ml-2 text-2xl font-bold tabular-nums ${isWinner ? 'text-emerald-400' : 'text-gray-500'}`}>
+            {score}
+          </span>
+        )}
+        {isWinner && score === null && (
+          <span className="ml-auto text-sm font-bold uppercase tracking-[0.14em]">Vencedor</span>
+        )}
+      </button>
+      {showRebuyButton && onRebuy && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onRebuy(); }}
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-semibold text-gray-400 hover:bg-gray-700/60 hover:text-gray-200 transition-colors [touch-action:manipulation]"
+          title="Repescagem"
+        >
+          🔁 Repescagem
+        </button>
       )}
-      {isWinner && score === null && (
-        <span className="ml-auto text-sm font-bold uppercase tracking-[0.14em]">Vencedor</span>
-      )}
-    </button>
+    </div>
   );
 }

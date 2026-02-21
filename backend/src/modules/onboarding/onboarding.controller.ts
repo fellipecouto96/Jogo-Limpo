@@ -18,6 +18,12 @@ interface OnboardingBody {
   fourthPlacePercentage?: number | null;
   firstPlacePercentage?: number;
   secondPlacePercentage?: number;
+  allowLateEntry?: boolean;
+  allowLateEntryUntilRound?: number;
+  lateEntryFee?: number | null;
+  allowRebuy?: boolean;
+  allowRebuyUntilRound?: number;
+  rebuyFee?: number | null;
 }
 
 export async function setupOnboarding(
@@ -37,6 +43,12 @@ export async function setupOnboarding(
       fourthPlacePercentage,
       firstPlacePercentage,
       secondPlacePercentage,
+      allowLateEntry,
+      allowLateEntryUntilRound,
+      lateEntryFee,
+      allowRebuy,
+      allowRebuyUntilRound,
+      rebuyFee,
     } = request.body;
 
     if (!Array.isArray(playerNames)) {
@@ -57,6 +69,12 @@ export async function setupOnboarding(
       fourthPlacePercentage,
       firstPlacePercentage,
       secondPlacePercentage,
+      allowLateEntry,
+      allowLateEntryUntilRound,
+      lateEntryFee,
+      allowRebuy,
+      allowRebuyUntilRound,
+      rebuyFee,
     });
 
     logEvent({

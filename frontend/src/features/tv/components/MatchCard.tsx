@@ -89,6 +89,9 @@ function PlayerSlot({ player, score, isWinner, isEliminated, showScore = false }
           </span>
         )}
         {player.name}
+        {player.isRebuy && (
+          <span className="ml-1.5 text-xs text-gray-500" aria-label="repescagem" title="Repescagem">🔁</span>
+        )}
       </span>
       {showScore && score !== null && (
         <span className={`text-xl font-bold tabular-nums ${isWinner ? 'text-emerald-400' : 'text-gray-500'}`}>

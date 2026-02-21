@@ -5,6 +5,8 @@ import {
   updateTournamentFinancials,
   finishTournament,
   renameTournamentPlayer,
+  lateEntry,
+  rebuy,
   TournamentError,
 } from './tournament.service.js';
 import { logEvent } from '../../shared/logging/log.service.js';
@@ -203,6 +205,94 @@ interface TournamentPlayerParams extends TournamentParams {
 
 interface RenamePlayerBody {
   name: string;
+}
+
+interface LateEntryBody {
+  playerName: string;
+  force?: boolean;
+}
+
+export async function postLateEntry(
+  request: FastifyRequest<{ Params: TournamentParams; Body: LateEntryBody }>,
+  reply: FastifyReply
+) {
+  try {
+    const { tournamentId } = request.params;
+    const organizerId = request.user.sub;
+    const { playerName, force = false } = request.body ?? {};
+
+    if (!playerName || typeof playerName !== 'string') {
+      return reply.status(400).send({ error: 'Nome do jogador e obrigatorio' });
+    }
+
+    const result = await lateEntry(tournamentId, organizerId, playerName, force);
+
+    if ('isDuplicate' in result) {
+      return reply.status(409).send(result);
+    }
+
+    return reply.send(result);
+  } catch (err) {
+    if (err instanceof TournamentError) {
+      logEvent({
+        level: 'WARN',
+        journey: LOG_JOURNEYS.TOURNAMENT_PLAYER,
+        tournamentId: request.params.tournamentId,
+        userId: request.user.sub,
+        message: err.message,
+        metadata: { statusCode: err.statusCode },
+      });
+      return reply.status(err.statusCode).send({ error: err.message });
+    }
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.TOURNAMENT_PLAYER,
+      tournamentId: request.params.tournamentId,
+      userId: request.user.sub,
+      message: 'Unexpected late entry error',
+      metadata: {
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
+    throw err;
+  }
+}
+
+export async function postRebuy(
+  request: FastifyRequest<{ Params: TournamentPlayerParams }>,
+  reply: FastifyReply
+) {
+  try {
+    const { tournamentId, playerId } = request.params;
+    const organizerId = request.user.sub;
+
+    const result = await rebuy(tournamentId, organizerId, playerId);
+    return reply.send(result);
+  } catch (err) {
+    if (err instanceof TournamentError) {
+      logEvent({
+        level: 'WARN',
+        journey: LOG_JOURNEYS.TOURNAMENT_PLAYER,
+        tournamentId: request.params.tournamentId,
+        userId: request.user.sub,
+        message: err.message,
+        metadata: { statusCode: err.statusCode, playerId: request.params.playerId },
+      });
+      return reply.status(err.statusCode).send({ error: err.message });
+    }
+    logEvent({
+      level: 'ERROR',
+      journey: LOG_JOURNEYS.TOURNAMENT_PLAYER,
+      tournamentId: request.params.tournamentId,
+      userId: request.user.sub,
+      message: 'Unexpected rebuy error',
+      metadata: {
+        playerId: request.params.playerId,
+        error: err instanceof Error ? err.message.substring(0, 200) : 'unknown_error',
+      },
+    });
+    throw err;
+  }
 }
 
 export async function patchTournamentPlayer(

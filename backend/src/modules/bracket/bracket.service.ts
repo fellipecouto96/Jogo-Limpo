@@ -25,9 +25,9 @@ interface BracketRound {
 interface BracketMatch {
   id: string;
   positionInBracket: number;
-  player1: { id: string; name: string };
-  player2: { id: string; name: string } | null;
-  winner: { id: string; name: string } | null;
+  player1: { id: string; name: string; isRebuy: boolean };
+  player2: { id: string; name: string; isRebuy: boolean } | null;
+  winner: { id: string; name: string; isRebuy: boolean } | null;
   player1Score: number | null;
   player2Score: number | null;
   isBye: boolean;
@@ -63,9 +63,9 @@ export async function fetchBracket(
                   finishedAt: true,
                   player1Score: true,
                   player2Score: true,
-                  player1: { select: { id: true, name: true } },
-                  player2: { select: { id: true, name: true } },
-                  winner: { select: { id: true, name: true } },
+                  player1: { select: { id: true, name: true, isRebuy: true } },
+                  player2: { select: { id: true, name: true, isRebuy: true } },
+                  winner: { select: { id: true, name: true, isRebuy: true } },
                 },
               },
             },
@@ -88,12 +88,12 @@ export async function fetchBracket(
     matches: round.matches.map((match) => ({
       id: match.id,
       positionInBracket: match.positionInBracket,
-      player1: { id: match.player1.id, name: match.player1.name },
+      player1: { id: match.player1.id, name: match.player1.name, isRebuy: match.player1.isRebuy },
       player2: match.player2
-        ? { id: match.player2.id, name: match.player2.name }
+        ? { id: match.player2.id, name: match.player2.name, isRebuy: match.player2.isRebuy }
         : null,
       winner: match.winner
-        ? { id: match.winner.id, name: match.winner.name }
+        ? { id: match.winner.id, name: match.winner.name, isRebuy: match.winner.isRebuy }
         : null,
       player1Score: match.player1Score,
       player2Score: match.player2Score,
