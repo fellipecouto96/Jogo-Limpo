@@ -129,25 +129,28 @@ describe('Scenario A — 16 players + 2 late entries', () => {
     void stateAfterSecond;
   });
 
-  it('rejects a third late entry if round has already advanced past limit', async () => {
+  it('rejects a third late entry if Round 1 has no unplayed matches', async () => {
     mockTournamentFindUnique.mockResolvedValueOnce(
-      baseTournament({ totalCollected: dec(540), allowLateEntryUntilRound: 1 }) as never
+      baseTournament({ totalCollected: dec(540) }) as never
     );
-    // Current round is now 2 — late entry window closed
-    mockRoundFindFirst.mockResolvedValueOnce({ id: 'round-2', roundNumber: 2 } as never);
+    // Round 1 has no unplayed matches — late entry window closed
+    mockRoundFindFirst.mockResolvedValueOnce(null as never);
 
     await expect(lateEntry('t-1', 'org-1', 'Late Player 3', false)).rejects.toMatchObject({
       statusCode: 409,
-      message: 'Entrada tardia encerrada. Permitida apenas ate a rodada 1',
+      message: 'Entrada tardia encerrada. A primeira rodada ja foi concluida.',
     });
   });
 
-  it('preserves bracket: does not modify existing matches, only creates new bye', async () => {
+  it('preserves bracket: does not modify existing matches, creates new pending match (no BYE)', async () => {
     mockTournamentFindUnique.mockResolvedValueOnce(
       baseTournament({ totalCollected: dec(480) }) as never
     );
     mockRoundFindFirst.mockResolvedValueOnce({ id: 'round-1', roundNumber: 1 } as never);
     mockPlayerFindFirst.mockResolvedValueOnce(null);
+    // No open slot, no BYE slot — new player waits for an opponent
+    vi.mocked(prisma.match.findFirst).mockResolvedValueOnce(null as never); // open slot check
+    vi.mocked(prisma.match.findFirst).mockResolvedValueOnce(null as never); // bye slot check
     const newPlayer = nextPlayer('New');
     vi.mocked(prisma.player.create).mockResolvedValueOnce(newPlayer as never);
     vi.mocked(prisma.match.create).mockResolvedValueOnce({ id: 'm-new' } as never);
@@ -156,14 +159,16 @@ describe('Scenario A — 16 players + 2 late entries', () => {
 
     // Only one match.create called — existing bracket untouched
     expect(prisma.match.create).toHaveBeenCalledTimes(1);
+    // New pending match: player1Id set, no isBye, no winnerId (waits for opponent)
     expect(prisma.match.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          isBye: true,
           player1Id: newPlayer.id,
-          winnerId: newPlayer.id,
         }),
       })
+    );
+    expect(prisma.match.create).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ isBye: true }) })
     );
   });
 });
@@ -203,7 +208,7 @@ describe('Scenario B — rebuy flow with double-rebuy block', () => {
 
   it('blocks double rebuy for same player (p-1 already has isRebuy=true)', async () => {
     mockTournamentFindUnique.mockResolvedValueOnce(baseTournament({ totalCollected: dec(540) }) as never);
-    mockRoundFindFirst.mockResolvedValueOnce({ id: 'round-1', roundNumber: 1 } as never);
+    // New code checks elimination first (match.findFirst), then player.findUnique — no round.findFirst at this stage
     vi.mocked(prisma.match.findFirst).mockResolvedValueOnce({ id: 'elim-1-again' } as never);
     // p-1 already has isRebuy=true from first rebuy
     mockPlayerFindUnique.mockResolvedValueOnce({ isRebuy: true } as never);
@@ -248,15 +253,16 @@ describe('Scenario B — rebuy flow with double-rebuy block', () => {
 // Late entry attempt after allowed round
 
 describe('Scenario C — late entry rejected after allowed round', () => {
-  it('rejects late entry when current round > allowLateEntryUntilRound', async () => {
+  it('rejects late entry when Round 1 has no unplayed matches', async () => {
     mockTournamentFindUnique.mockResolvedValueOnce(
-      baseTournament({ allowLateEntryUntilRound: 1 }) as never
+      baseTournament() as never
     );
-    mockRoundFindFirst.mockResolvedValueOnce({ id: 'round-2', roundNumber: 2 } as never);
+    // Round 1 is fully complete — window closed
+    mockRoundFindFirst.mockResolvedValueOnce(null as never);
 
     await expect(lateEntry('t-1', 'org-1', 'Novo Jogador', false)).rejects.toMatchObject({
       statusCode: 409,
-      message: 'Entrada tardia encerrada. Permitida apenas ate a rodada 1',
+      message: 'Entrada tardia encerrada. A primeira rodada ja foi concluida.',
     });
 
     expect(prisma.player.create).not.toHaveBeenCalled();
@@ -264,22 +270,24 @@ describe('Scenario C — late entry rejected after allowed round', () => {
     expect(mockTournamentUpdate).not.toHaveBeenCalled();
   });
 
-  it('rejects even with force=true when round limit exceeded (round guard is unconditional)', async () => {
+  it('rejects even with force=true when Round 1 is complete (guard is unconditional)', async () => {
     mockTournamentFindUnique.mockResolvedValueOnce(
-      baseTournament({ allowLateEntryUntilRound: 1 }) as never
+      baseTournament() as never
     );
-    mockRoundFindFirst.mockResolvedValueOnce({ id: 'round-3', roundNumber: 3 } as never);
+    // Round 1 is complete
+    mockRoundFindFirst.mockResolvedValueOnce(null as never);
 
     await expect(lateEntry('t-1', 'org-1', 'Novo Jogador', true)).rejects.toMatchObject({
       statusCode: 409,
     });
   });
 
-  it('allows late entry when round == allowLateEntryUntilRound (boundary)', async () => {
+  it('allows late entry when Round 1 still has unplayed matches', async () => {
     mockTournamentFindUnique.mockResolvedValueOnce(
-      baseTournament({ allowLateEntryUntilRound: 2, totalCollected: dec(480) }) as never
+      baseTournament({ totalCollected: dec(480) }) as never
     );
-    mockRoundFindFirst.mockResolvedValueOnce({ id: 'round-2', roundNumber: 2 } as never);
+    // Round 1 still has unplayed matches
+    mockRoundFindFirst.mockResolvedValueOnce({ id: 'round-1', roundNumber: 1 } as never);
     mockPlayerFindFirst.mockResolvedValueOnce(null);
     vi.mocked(prisma.player.create).mockResolvedValueOnce(nextPlayer('Late') as never);
     vi.mocked(prisma.match.create).mockResolvedValueOnce({ id: 'm-ok' } as never);
@@ -295,30 +303,35 @@ describe('Scenario C — late entry rejected after allowed round', () => {
 // Rebuy attempt after allowed round
 
 describe('Scenario D — rebuy rejected after allowed round', () => {
-  it('rejects rebuy when current round > allowRebuyUntilRound', async () => {
+  it('rejects rebuy when player was not eliminated in Round 1', async () => {
     mockTournamentFindUnique.mockResolvedValueOnce(
-      baseTournament({ allowRebuyUntilRound: 1 }) as never
+      baseTournament() as never
     );
-    mockRoundFindFirst.mockResolvedValueOnce({ id: 'round-2', roundNumber: 2 } as never);
+    // No Round 1 elimination found for this player
+    vi.mocked(prisma.match.findFirst).mockResolvedValueOnce(null as never);
 
     await expect(rebuy('t-1', 'org-1', 'p-99')).rejects.toMatchObject({
       statusCode: 409,
-      message: 'Repescagem encerrada. Permitida apenas ate a rodada 1',
+      message: 'Repescagem permitida apenas para jogadores eliminados na rodada 1',
     });
 
     expect(prisma.player.update).not.toHaveBeenCalled();
     expect(prisma.match.create).not.toHaveBeenCalled();
   });
 
-  it('allows rebuy when round == allowRebuyUntilRound (boundary)', async () => {
+  it('allows rebuy when player was eliminated in Round 1', async () => {
     mockTournamentFindUnique.mockResolvedValueOnce(
-      baseTournament({ allowRebuyUntilRound: 2, totalCollected: dec(480) }) as never
+      baseTournament({ totalCollected: dec(480) }) as never
     );
-    mockRoundFindFirst.mockResolvedValueOnce({ id: 'round-2', roundNumber: 2 } as never);
+    // Round 1 elimination found
     vi.mocked(prisma.match.findFirst).mockResolvedValueOnce({ id: 'elim-ok' } as never);
     mockPlayerFindUnique.mockResolvedValueOnce({ isRebuy: false } as never);
+    // Repechage round exists
+    mockRoundFindFirst.mockResolvedValueOnce({ id: 'rep-round', roundNumber: 2 } as never);
+    // No open slot in repechage round
+    vi.mocked(prisma.match.findFirst).mockResolvedValueOnce(null as never);
     vi.mocked(prisma.player.update).mockResolvedValueOnce({ id: 'p-ok', name: 'OK Player', isRebuy: true } as never);
-    vi.mocked(prisma.match.create).mockResolvedValueOnce({ id: 'm-bye-ok' } as never);
+    vi.mocked(prisma.match.create).mockResolvedValueOnce({ id: 'm-rep-ok' } as never);
 
     const result = await rebuy('t-1', 'org-1', 'p-ok');
 

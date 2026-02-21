@@ -54,6 +54,7 @@ export async function fetchBracket(
             select: {
               id: true,
               roundNumber: true,
+              isRepechage: true,
               matches: {
                 orderBy: { positionInBracket: 'asc' },
                 select: {
@@ -84,7 +85,7 @@ export async function fetchBracket(
   const rounds: BracketRound[] = tournament.rounds.map((round) => ({
     id: round.id,
     roundNumber: round.roundNumber,
-    label: getRoundLabel(round.roundNumber, totalRounds),
+    label: round.isRepechage ? 'Rodada de Repescagem' : getRoundLabel(round.roundNumber, totalRounds),
     matches: round.matches.map((match) => ({
       id: match.id,
       positionInBracket: match.positionInBracket,

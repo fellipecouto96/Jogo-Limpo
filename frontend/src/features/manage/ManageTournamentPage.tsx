@@ -363,8 +363,13 @@ export function ManageTournamentPage() {
         throw await buildHttpResponseError(response);
       }
 
+      const payload = await response.json() as { paired?: boolean };
       await Promise.all([refetch(), refetchDetails()]);
-      setFeedback(`Jogador "${name}" adicionado ao torneio.`);
+      if (payload.paired === false) {
+        setFeedback(`Jogador "${name}" registrado. Aguardando outro jogador para formar par na Rodada 1.`);
+      } else {
+        setFeedback(`Jogador "${name}" adicionado e pareado na Rodada 1.`);
+      }
       setIsLateEntryOpen(false);
       setLateEntryName('');
       setLateEntryDuplicate(null);
@@ -390,8 +395,13 @@ export function ManageTournamentPage() {
       if (!response.ok) {
         throw await buildHttpResponseError(response);
       }
+      const payload = await response.json() as { paired?: boolean };
       await Promise.all([refetch(), refetchDetails()]);
-      setFeedback('Repescagem registrada com sucesso.');
+      if (payload.paired) {
+        setFeedback('Repescagem: partida criada com sucesso. Os jogadores disputarao a Rodada de Repescagem.');
+      } else {
+        setFeedback('E necessario pelo menos 2 jogadores para iniciar a repescagem. Aguardando mais jogadores.');
+      }
     } catch (err) {
       setActionError(
         formatGuidedSystemError(

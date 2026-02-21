@@ -98,6 +98,7 @@ model Round {
   id           String   @id @default(uuid())
   tournamentId String   @map("tournament_id")
   roundNumber  Int      @map("round_number")
+  isRepechage  Boolean  @default(false) @map("is_repechage")
   createdAt    DateTime @default(now()) @map("created_at")
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Restrict)

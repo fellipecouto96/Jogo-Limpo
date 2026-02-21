@@ -772,7 +772,7 @@ export async function renameTournamentPlayer(
 
 export type LateEntryResult =
   | { isDuplicate: true; existingName: string }
-  | { player: { id: string; name: string }; match: { id: string } };
+  | { player: { id: string; name: string }; match: { id: string }; paired: boolean };
 
 export async function lateEntry(
   tournamentId: string,
@@ -790,7 +790,6 @@ export async function lateEntry(
           organizerId: true,
           status: true,
           allowLateEntry: true,
-          allowLateEntryUntilRound: true,
           lateEntryFee: true,
           entryFee: true,
           totalCollected: true,
@@ -805,27 +804,24 @@ export async function lateEntry(
   if (tournament.status !== 'RUNNING') throw new TournamentError('Torneio nao esta em andamento', 409);
   if (!tournament.allowLateEntry) throw new TournamentError('Entrada tardia nao permitida neste torneio', 409);
 
-  const currentRound = await withPerformanceLog(
+  // Late entry is only allowed while Round 1 still has unplayed matches.
+  const round1WithUnplayed = await withPerformanceLog(
     LOG_JOURNEYS.TOURNAMENT_PLAYER,
-    'late_entry_find_current_round',
+    'late_entry_find_round1',
     () =>
       prisma.round.findFirst({
         where: {
           tournamentId,
+          roundNumber: 1,
           matches: { some: { winnerId: null } },
         },
-        orderBy: { roundNumber: 'asc' },
         select: { id: true, roundNumber: true },
       }),
     { tournamentId }
   );
 
-  if (!currentRound) throw new TournamentError('Nenhuma rodada ativa encontrada', 409);
-  if (currentRound.roundNumber > tournament.allowLateEntryUntilRound) {
-    throw new TournamentError(
-      `Entrada tardia encerrada. Permitida apenas ate a rodada ${tournament.allowLateEntryUntilRound}`,
-      409
-    );
+  if (!round1WithUnplayed) {
+    throw new TournamentError('Entrada tardia encerrada. A primeira rodada ja foi concluida.', 409);
   }
 
   const trimmedName = playerName.trim();
@@ -852,36 +848,87 @@ export async function lateEntry(
     }
   }
 
-  const maxPosition = await prisma.match.aggregate({
-    where: { roundId: currentRound.id },
-    _max: { positionInBracket: true },
-  });
-  const nextPosition = (maxPosition._max.positionInBracket ?? 0) + 1;
-
-  const { player, match } = await withPerformanceLog(
+  // Find an open slot in Round 1: either an original BYE (to convert to real match)
+  // or a waiting match (player2Id null, no winner) from a previous late entry.
+  const openSlot = await withPerformanceLog(
     LOG_JOURNEYS.TOURNAMENT_PLAYER,
-    'late_entry_create_player_and_bye',
+    'late_entry_find_open_slot',
+    () =>
+      prisma.match.findFirst({
+        where: {
+          roundId: round1WithUnplayed.id,
+          player2Id: null,
+          winnerId: null,
+        },
+        orderBy: { positionInBracket: 'asc' },
+        select: { id: true },
+      }),
+    { tournamentId }
+  );
+
+  const byeSlot = !openSlot
+    ? await withPerformanceLog(
+        LOG_JOURNEYS.TOURNAMENT_PLAYER,
+        'late_entry_find_bye_slot',
+        () =>
+          prisma.match.findFirst({
+            where: {
+              roundId: round1WithUnplayed.id,
+              isBye: true,
+              player2Id: null,
+            },
+            orderBy: { positionInBracket: 'asc' },
+            select: { id: true },
+          }),
+        { tournamentId }
+      )
+    : null;
+
+  const existingSlotId = openSlot?.id ?? byeSlot?.id ?? null;
+
+  const { player, match, paired } = await withPerformanceLog(
+    LOG_JOURNEYS.TOURNAMENT_PLAYER,
+    'late_entry_create_player_and_match',
     () =>
       prisma.$transaction(async (tx) => {
         const player = await tx.player.create({
           data: { name: trimmedName },
           select: { id: true, name: true },
         });
+
+        if (existingSlotId) {
+          // Pair the new player with the waiting slot (convert BYE to real match if needed)
+          const match = await tx.match.update({
+            where: { id: existingSlotId },
+            data: {
+              player2Id: player.id,
+              isBye: false,
+              winnerId: null,
+              finishedAt: null,
+            },
+            select: { id: true },
+          });
+          return { player, match, paired: true };
+        }
+
+        // No open slot: create a new pending match waiting for an opponent
+        const maxPosition = await tx.match.aggregate({
+          where: { roundId: round1WithUnplayed.id },
+          _max: { positionInBracket: true },
+        });
+        const nextPosition = (maxPosition._max.positionInBracket ?? 0) + 1;
         const match = await tx.match.create({
           data: {
             tournamentId,
-            roundId: currentRound.id,
+            roundId: round1WithUnplayed.id,
             player1Id: player.id,
-            isBye: true,
-            winnerId: player.id,
-            finishedAt: new Date(),
             positionInBracket: nextPosition,
           },
           select: { id: true },
         });
-        return { player, match };
+        return { player, match, paired: false };
       }, { timeout: 30000 }),
-    { tournamentId, playerName: trimmedName, roundNumber: currentRound.roundNumber, force }
+    { tournamentId, playerName: trimmedName, roundNumber: round1WithUnplayed.roundNumber, force, pairedWithSlot: existingSlotId }
   );
 
   const fee = decimalToNumber(tournament.lateEntryFee) ?? decimalToNumber(tournament.entryFee) ?? 0;
@@ -906,14 +953,14 @@ export async function lateEntry(
     { tournamentId, fee, newTotal, prizePool, playerId: player.id }
   );
 
-  return { player, match };
+  return { player, match, paired };
 }
 
 export async function rebuy(
   tournamentId: string,
   organizerId: string,
   playerId: string
-): Promise<{ player: { id: string; name: string; isRebuy: boolean }; match: { id: string } }> {
+): Promise<{ player: { id: string; name: string; isRebuy: boolean }; match: { id: string }; paired: boolean }> {
   const tournament = await withPerformanceLog(
     LOG_JOURNEYS.TOURNAMENT_PLAYER,
     'rebuy_fetch_tournament',
@@ -924,7 +971,6 @@ export async function rebuy(
           organizerId: true,
           status: true,
           allowRebuy: true,
-          allowRebuyUntilRound: true,
           rebuyFee: true,
           entryFee: true,
           totalCollected: true,
@@ -939,49 +985,29 @@ export async function rebuy(
   if (tournament.status !== 'RUNNING') throw new TournamentError('Torneio nao esta em andamento', 409);
   if (!tournament.allowRebuy) throw new TournamentError('Repescagem nao permitida neste torneio', 409);
 
-  const currentRound = await withPerformanceLog(
+  // Rebuy is only allowed for players eliminated in Round 1.
+  const eliminationInRound1 = await withPerformanceLog(
     LOG_JOURNEYS.TOURNAMENT_PLAYER,
-    'rebuy_find_current_round',
-    () =>
-      prisma.round.findFirst({
-        where: {
-          tournamentId,
-          matches: { some: { winnerId: null } },
-        },
-        orderBy: { roundNumber: 'asc' },
-        select: { id: true, roundNumber: true },
-      }),
-    { tournamentId, playerId }
-  );
-
-  if (!currentRound) throw new TournamentError('Nenhuma rodada ativa encontrada', 409);
-  if (currentRound.roundNumber > tournament.allowRebuyUntilRound) {
-    throw new TournamentError(
-      `Repescagem encerrada. Permitida apenas ate a rodada ${tournament.allowRebuyUntilRound}`,
-      409
-    );
-  }
-
-  const eliminationMatch = await withPerformanceLog(
-    LOG_JOURNEYS.TOURNAMENT_PLAYER,
-    'rebuy_verify_elimination',
+    'rebuy_verify_elimination_round1',
     () =>
       prisma.match.findFirst({
         where: {
           tournamentId,
+          round: { roundNumber: 1 },
           OR: [{ player1Id: playerId }, { player2Id: playerId }],
           winnerId: { not: null },
           NOT: { winnerId: playerId },
         },
+        select: { id: true },
       }),
     { tournamentId, playerId }
   );
 
-  if (!eliminationMatch) {
-    throw new TournamentError('Jogador nao esta eliminado ou nao pertence a este torneio', 409);
+  if (!eliminationInRound1) {
+    throw new TournamentError('Repescagem permitida apenas para jogadores eliminados na rodada 1', 409);
   }
 
-  // MVP rule: each player may rebuy at most once
+  // Each player may rebuy at most once.
   const existingPlayer = await withPerformanceLog(
     LOG_JOURNEYS.TOURNAMENT_PLAYER,
     'rebuy_check_double_rebuy',
@@ -996,15 +1022,40 @@ export async function rebuy(
     throw new TournamentError('Jogador ja utilizou a repescagem neste torneio', 409);
   }
 
-  const maxPosition = await prisma.match.aggregate({
-    where: { roundId: currentRound.id },
-    _max: { positionInBracket: true },
-  });
-  const nextPosition = (maxPosition._max.positionInBracket ?? 0) + 1;
-
-  const { player, match } = await withPerformanceLog(
+  // Find or create the "Rodada de Repescagem" round.
+  const repechageRound = await withPerformanceLog(
     LOG_JOURNEYS.TOURNAMENT_PLAYER,
-    'rebuy_update_player_and_create_bye',
+    'rebuy_find_or_create_repechage_round',
+    () =>
+      prisma.round.findFirst({
+        where: { tournamentId, isRepechage: true },
+        select: { id: true, roundNumber: true },
+      }),
+    { tournamentId, playerId }
+  );
+
+  // Find an open slot in the repechage round (player waiting for opponent).
+  const openSlot = repechageRound
+    ? await withPerformanceLog(
+        LOG_JOURNEYS.TOURNAMENT_PLAYER,
+        'rebuy_find_open_slot',
+        () =>
+          prisma.match.findFirst({
+            where: {
+              roundId: repechageRound.id,
+              player2Id: null,
+              winnerId: null,
+            },
+            orderBy: { positionInBracket: 'asc' },
+            select: { id: true },
+          }),
+        { tournamentId, playerId }
+      )
+    : null;
+
+  const { player, match, paired } = await withPerformanceLog(
+    LOG_JOURNEYS.TOURNAMENT_PLAYER,
+    'rebuy_update_player_and_create_match',
     () =>
       prisma.$transaction(async (tx) => {
         const player = await tx.player.update({
@@ -1012,21 +1063,56 @@ export async function rebuy(
           data: { isRebuy: true },
           select: { id: true, name: true, isRebuy: true },
         });
+
+        // Ensure repechage round exists (create if needed).
+        let roundId: string;
+        let roundNumber: number;
+        if (repechageRound) {
+          roundId = repechageRound.id;
+          roundNumber = repechageRound.roundNumber;
+        } else {
+          // Determine next round number (after the last existing round).
+          const lastRound = await tx.round.findFirst({
+            where: { tournamentId },
+            orderBy: { roundNumber: 'desc' },
+            select: { roundNumber: true },
+          });
+          roundNumber = (lastRound?.roundNumber ?? 1) + 1;
+          const newRound = await tx.round.create({
+            data: { tournamentId, roundNumber, isRepechage: true },
+            select: { id: true, roundNumber: true },
+          });
+          roundId = newRound.id;
+        }
+
+        if (openSlot) {
+          // Pair with the waiting player: fill their open slot.
+          const match = await tx.match.update({
+            where: { id: openSlot.id },
+            data: { player2Id: playerId },
+            select: { id: true },
+          });
+          return { player, match, paired: true };
+        }
+
+        // No open slot: create a new pending match waiting for an opponent.
+        const maxPosition = await tx.match.aggregate({
+          where: { roundId },
+          _max: { positionInBracket: true },
+        });
+        const nextPosition = (maxPosition._max.positionInBracket ?? 0) + 1;
         const match = await tx.match.create({
           data: {
             tournamentId,
-            roundId: currentRound.id,
+            roundId,
             player1Id: playerId,
-            isBye: true,
-            winnerId: playerId,
-            finishedAt: new Date(),
             positionInBracket: nextPosition,
           },
           select: { id: true },
         });
-        return { player, match };
+        return { player, match, paired: false };
       }, { timeout: 30000 }),
-    { tournamentId, playerId, roundNumber: currentRound.roundNumber }
+    { tournamentId, playerId }
   );
 
   const fee = decimalToNumber(tournament.rebuyFee) ?? decimalToNumber(tournament.entryFee) ?? 0;
@@ -1051,7 +1137,7 @@ export async function rebuy(
     { tournamentId, playerId, fee, newTotal, prizePool }
   );
 
-  return { player, match };
+  return { player, match, paired };
 }
 
 export class TournamentError extends Error {
