@@ -20,6 +20,13 @@ function formatCurrency(value: number): string {
   });
 }
 
+function formatShareDate(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(date);
+}
+
 function formatDateFull(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -101,9 +108,48 @@ export function TournamentHistoryPage() {
     ? `${window.location.origin}/tournament/${tournamentPublicSlug}`
     : `${window.location.origin}/tournament/${tournamentId}/tv`;
 
-  const whatsappShareUrl = `https://wa.me/?text=${encodeURIComponent(
-    `Confira o resultado do torneio ${tournament.name}: ${shareUrl}`
-  )}`;
+  function buildShareMessage(): string {
+    const championName = champion?.name ?? 'Campeão';
+    const runnerUpName = runnerUp?.name ?? 'Vice-campeão';
+    const thirdPlaceName = thirdPlace?.name ?? null;
+    const fourthPlaceName = fourthPlace?.name ?? null;
+    const championAmount = details?.championPrize ?? details?.firstPlacePrize ?? null;
+    const runnerUpAmount = details?.runnerUpPrize ?? details?.secondPlacePrize ?? null;
+    const thirdPlaceAmount = details?.thirdPlacePrize ?? null;
+    const fourthPlaceAmount = details?.fourthPlacePrize ?? null;
+    const playerCount = details?.playerCount ?? null;
+    const dateStr = formatShareDate(tournament.finishedAt ?? tournament.startedAt ?? null);
+
+    const hasPrize = championAmount != null || runnerUpAmount != null;
+    const lines: string[] = [
+      `🏆 RESULTADO OFICIAL – ${tournament.name}`,
+      '',
+      `Campeão 🥇 ${championName}`,
+      `Vice 🥈 ${runnerUpName}`,
+    ];
+    if (thirdPlaceName) lines.push(`3º lugar 🥉 ${thirdPlaceName}`);
+    if (fourthPlaceName) lines.push(`4º lugar 🎖 ${fourthPlaceName}`);
+    if (hasPrize) {
+      lines.push('');
+      lines.push('💰 Premiação:');
+      if (championAmount != null) lines.push(`🥇 ${formatCurrency(championAmount)}`);
+      if (runnerUpAmount != null) lines.push(`🥈 ${formatCurrency(runnerUpAmount)}`);
+      if (thirdPlaceAmount != null && thirdPlaceAmount > 0) lines.push(`🥉 ${formatCurrency(thirdPlaceAmount)}`);
+      if (fourthPlaceAmount != null && fourthPlaceAmount > 0) lines.push(`🎖 ${formatCurrency(fourthPlaceAmount)}`);
+    }
+    lines.push('');
+    const infoLine = [
+      playerCount != null ? `${playerCount} jogadores` : null,
+      dateStr,
+    ].filter(Boolean).join(' · ');
+    if (infoLine) lines.push(infoLine);
+    lines.push('');
+    lines.push('Confira a chave completa:');
+    lines.push(`👉 ${shareUrl}`);
+    return lines.join('\n');
+  }
+
+  const whatsappShareUrl = `https://wa.me/?text=${encodeURIComponent(buildShareMessage())}`;
 
   async function handleShareResult() {
     if (isSharing) return;
@@ -112,32 +158,7 @@ export function TournamentHistoryPage() {
     setShareError(null);
     setShareFeedback(null);
 
-    const championName = champion?.name ?? 'Campeao';
-    const runnerUpName = runnerUp?.name ?? 'Vice-campeao';
-    const thirdPlaceName = thirdPlace?.name ?? null;
-    const fourthPlaceName = fourthPlace?.name ?? null;
-    const championAmount = details?.championPrize ?? details?.firstPlacePrize ?? null;
-    const runnerUpAmount = details?.runnerUpPrize ?? details?.secondPlacePrize ?? null;
-    const thirdPlaceAmount = details?.thirdPlacePrize ?? null;
-    const fourthPlaceAmount = details?.fourthPlacePrize ?? null;
-
-    const lines = [
-      `Resultado oficial - ${tournament.name}`,
-      `Campeao: ${championName}`,
-      `Vice: ${runnerUpName}`,
-      championAmount != null ? `Premio do campeao: ${formatCurrency(championAmount)}` : null,
-      runnerUpAmount != null ? `Premio do vice: ${formatCurrency(runnerUpAmount)}` : null,
-      thirdPlaceAmount != null && thirdPlaceAmount > 0
-        ? `3º lugar: ${thirdPlaceName ?? 'Definicao pendente'}`
-        : null,
-      thirdPlaceAmount != null && thirdPlaceAmount > 0 ? `Premio do 3º lugar: ${formatCurrency(thirdPlaceAmount)}` : null,
-      fourthPlaceAmount != null && fourthPlaceAmount > 0
-        ? `4º lugar: ${fourthPlaceName ?? 'Definicao pendente'}`
-        : null,
-      fourthPlaceAmount != null && fourthPlaceAmount > 0 ? `Premio do 4º lugar: ${formatCurrency(fourthPlaceAmount)}` : null,
-      `Acompanhe: ${shareUrl}`,
-    ].filter(Boolean) as string[];
-    const message = lines.join('\n');
+    const message = buildShareMessage();
 
     try {
       if (navigator.share) {

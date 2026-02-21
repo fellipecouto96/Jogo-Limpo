@@ -10,7 +10,7 @@ export const MatchCard = memo(function MatchCard({ match }: MatchCardProps) {
     return (
       <div className="bg-[#0C0A09]/70 border border-white/5 rounded-2xl p-4 min-w-48">
         <PlayerSlot player={null} isWinner={false} isEliminated={false} />
-        <div className="border-t border-gray-700 my-1" />
+        <div className="border-t border-gray-600 my-1" />
         <PlayerSlot player={null} isWinner={false} isEliminated={false} />
       </div>
     );
@@ -20,7 +20,7 @@ export const MatchCard = memo(function MatchCard({ match }: MatchCardProps) {
     return (
       <div className="rounded-2xl p-4 min-w-48 border border-amber-500/30 bg-[#0C0A09]/70 shadow-[0_20px_45px_rgba(0,0,0,0.5)]">
         <PlayerSlot player={match.player1} isWinner={true} isEliminated={false} />
-        <div className="border-t border-gray-700 my-1" />
+        <div className="border-t border-gray-600 my-1" />
         <div className="py-1 px-2 text-gray-600 text-sm italic">Avançou automaticamente</div>
       </div>
     );
@@ -34,8 +34,8 @@ export const MatchCard = memo(function MatchCard({ match }: MatchCardProps) {
       className={[
         'rounded-2xl p-4 min-w-48 border transition-all duration-500',
         isComplete
-          ? 'bg-[#0C0A09]/60 border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.45)]'
-          : 'bg-[#0C0A09]/80 border-emerald-500/40 shadow-[0_25px_60px_rgba(0,0,0,0.55)]',
+          ? 'bg-[#0C0A09]/60 border-white/15 shadow-[0_15px_30px_rgba(0,0,0,0.45)]'
+          : 'bg-[#0C0A09]/80 border-emerald-400/50 shadow-[0_25px_60px_rgba(0,0,0,0.55)]',
       ].join(' ')}
     >
       <PlayerSlot
@@ -45,7 +45,7 @@ export const MatchCard = memo(function MatchCard({ match }: MatchCardProps) {
         isEliminated={isComplete && match.winner?.id !== match.player1.id}
         showScore={hasScores}
       />
-      <div className="border-t border-gray-700 my-1" />
+      <div className="border-t border-gray-600 my-1" />
       <PlayerSlot
         player={match.player2}
         score={match.player2Score}
@@ -73,9 +73,9 @@ function PlayerSlot({ player, score, isWinner, isEliminated, showScore = false }
   const classes = [
     'py-1.5 px-3 text-lg font-semibold rounded-xl transition-all duration-300 bg-white/5 flex items-center justify-between gap-2',
     isWinner &&
-      'text-emerald-300 font-bold bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.35)]',
-    isEliminated && 'text-gray-500 bg-transparent',
-    !isWinner && !isEliminated && 'text-white',
+      'text-emerald-200 font-bold bg-emerald-500/15 shadow-[0_0_24px_rgba(16,185,129,0.4)]',
+    isEliminated && 'text-gray-600 bg-transparent',
+    !isWinner && !isEliminated && 'text-gray-100',
   ]
     .filter(Boolean)
     .join(' ');

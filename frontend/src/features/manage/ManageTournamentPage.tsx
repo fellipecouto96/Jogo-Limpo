@@ -221,39 +221,53 @@ export function ManageTournamentPage() {
   }
 
   async function handleShareResult() {
-    const championName = details?.champion?.name ?? data?.champion?.name ?? 'Campeao';
+    const tournamentName = data?.tournament.name ?? 'Torneio';
+    const championName = details?.champion?.name ?? data?.champion?.name ?? 'Campeão';
     const runnerUpFallback = data
       ? deriveRunnerUp(data.rounds, data.totalRounds)?.name
       : null;
     const thirdAndFourthFromBracket = data
       ? deriveThirdAndFourth(data.rounds, data.totalRounds)
       : { thirdPlace: null, fourthPlace: null };
-    const runnerUpName = details?.runnerUp?.name ?? runnerUpFallback ?? 'Vice-campeao';
+    const runnerUpName = details?.runnerUp?.name ?? runnerUpFallback ?? 'Vice-campeão';
     const thirdPlaceName = thirdAndFourthFromBracket.thirdPlace?.name ?? null;
     const fourthPlaceName = thirdAndFourthFromBracket.fourthPlace?.name ?? null;
     const championAmount = details?.championPrize ?? details?.firstPlacePrize ?? null;
     const runnerUpAmount = details?.runnerUpPrize ?? details?.secondPlacePrize ?? null;
     const thirdPlaceAmount = details?.thirdPlacePrize ?? null;
     const fourthPlaceAmount = details?.fourthPlacePrize ?? null;
+    const playerCount = details?.playerCount ?? null;
+    const dateStr = formatShareDate(details?.finishedAt ?? details?.startedAt ?? null);
     const shareUrl = tournamentPublicSlug
       ? `${window.location.origin}/tournament/${tournamentPublicSlug}`
       : `${window.location.origin}/tournament/${tournamentId}/tv`;
-    const lines = [
-      `Resultado oficial - ${data?.tournament.name ?? 'Torneio'}`,
-      `Campeao: ${championName}`,
-      `Vice: ${runnerUpName}`,
-      championAmount != null ? `Premio do campeao: ${formatCurrency(championAmount)}` : null,
-      runnerUpAmount != null ? `Premio do vice: ${formatCurrency(runnerUpAmount)}` : null,
-      thirdPlaceAmount != null && thirdPlaceAmount > 0
-        ? `3º lugar: ${thirdPlaceName ?? 'Definicao pendente'}`
-        : null,
-      thirdPlaceAmount != null && thirdPlaceAmount > 0 ? `Premio do 3º lugar: ${formatCurrency(thirdPlaceAmount)}` : null,
-      fourthPlaceAmount != null && fourthPlaceAmount > 0
-        ? `4º lugar: ${fourthPlaceName ?? 'Definicao pendente'}`
-        : null,
-      fourthPlaceAmount != null && fourthPlaceAmount > 0 ? `Premio do 4º lugar: ${formatCurrency(fourthPlaceAmount)}` : null,
-      `Acompanhe: ${shareUrl}`,
-    ].filter(Boolean) as string[];
+
+    const hasPrize = championAmount != null || runnerUpAmount != null;
+    const lines: string[] = [
+      `🏆 RESULTADO OFICIAL – ${tournamentName}`,
+      '',
+      `Campeão 🥇 ${championName}`,
+      `Vice 🥈 ${runnerUpName}`,
+    ];
+    if (thirdPlaceName) lines.push(`3º lugar 🥉 ${thirdPlaceName}`);
+    if (fourthPlaceName) lines.push(`4º lugar 🎖 ${fourthPlaceName}`);
+    if (hasPrize) {
+      lines.push('');
+      lines.push('💰 Premiação:');
+      if (championAmount != null) lines.push(`🥇 ${formatCurrency(championAmount)}`);
+      if (runnerUpAmount != null) lines.push(`🥈 ${formatCurrency(runnerUpAmount)}`);
+      if (thirdPlaceAmount != null && thirdPlaceAmount > 0) lines.push(`🥉 ${formatCurrency(thirdPlaceAmount)}`);
+      if (fourthPlaceAmount != null && fourthPlaceAmount > 0) lines.push(`🎖 ${formatCurrency(fourthPlaceAmount)}`);
+    }
+    lines.push('');
+    const infoLine = [
+      playerCount != null ? `${playerCount} jogadores` : null,
+      dateStr,
+    ].filter(Boolean).join(' · ');
+    if (infoLine) lines.push(infoLine);
+    lines.push('');
+    lines.push('Confira a chave completa:');
+    lines.push(`👉 ${shareUrl}`);
     const message = lines.join('\n');
 
     setActionError(null);
@@ -262,7 +276,7 @@ export function ManageTournamentPage() {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `Resultado - ${data?.tournament.name ?? 'Torneio'}`,
+          title: `Resultado - ${tournamentName}`,
           text: message,
           url: shareUrl,
         });
@@ -1102,7 +1116,7 @@ function ChampionshipClosureScreen({
           Campeão do Torneio
         </h2>
         <p className="mt-2 text-center font-display text-4xl text-emerald-200 sm:text-5xl">
-          {champion.name}
+          🏆 {champion.name}
         </p>
         <p className="mt-3 text-center text-base text-gray-300">
           Vice-campeão:{' '}
@@ -1131,25 +1145,25 @@ function ChampionshipClosureScreen({
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <PrizeHighlightCard
-            title="Valor do campeão"
+            title="🥇 Campeão"
             value={championPrize}
             accent="emerald"
           />
           <PrizeHighlightCard
-            title="Valor do vice"
+            title="🥈 Vice"
             value={runnerUpPrize}
             accent="slate"
           />
           {thirdPlacePrize != null && thirdPlacePrize > 0 && (
             <PrizeHighlightCard
-              title="Valor do 3º lugar"
+              title="🥉 3º lugar"
               value={thirdPlacePrize}
               accent="amber"
             />
           )}
           {fourthPlacePrize != null && fourthPlacePrize > 0 && (
             <PrizeHighlightCard
-              title="Valor do 4º lugar"
+              title="🎖 4º lugar"
               value={fourthPlacePrize}
               accent="slate"
             />
@@ -1225,7 +1239,7 @@ function ChampionshipClosureScreen({
             onClick={() => {
               void onShare();
             }}
-            className="h-12 rounded-xl border border-gray-600 bg-gray-800 text-base font-semibold text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gray-400/50 [touch-action:manipulation]"
+            className="h-12 rounded-xl bg-emerald-500 text-base font-semibold text-gray-950 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/50 [touch-action:manipulation]"
           >
             Compartilhar resultado
           </button>
@@ -1305,6 +1319,13 @@ function formatLongDate(value: string | null): string {
     dateStyle: 'long',
     timeStyle: 'short',
   }).format(date);
+}
+
+function formatShareDate(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(date);
 }
 
 const CHAMPIONSHIP_PARTICLES = [

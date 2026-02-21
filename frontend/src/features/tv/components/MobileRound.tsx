@@ -30,7 +30,7 @@ export const MobileRound = memo(function MobileRound({
       <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
         {round.label}
       </h3>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         {matchSlots.map((match, index) => (
           <MatchCard
             key={match?.id ?? `empty-${round.roundNumber}-${index}`}

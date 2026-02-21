@@ -1,3 +1,4 @@
+import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '../../shared/database/prisma.js';
 import { fetchBracket } from '../bracket/bracket.service.js';
 import { getTournamentStatistics } from '../match/match.service.js';
@@ -39,6 +40,12 @@ export interface PublicTournamentDetail {
     finishedAt: string | null;
     playerCount: number;
     championName: string | null;
+    championPrize: number | null;
+    runnerUpPrize: number | null;
+    thirdPlacePrize: number | null;
+    fourthPlacePrize: number | null;
+    totalCollected: number | null;
+    prizePool: number | null;
   };
   bracket: Awaited<ReturnType<typeof fetchBracket>>;
   statistics: Awaited<ReturnType<typeof getTournamentStatistics>>;
@@ -47,6 +54,10 @@ export interface PublicTournamentDetail {
 function countPlayersFromRoundOne(matches: { isBye: boolean }[]): number {
   const byeCount = matches.filter((match) => match.isBye).length;
   return matches.length * 2 - byeCount;
+}
+
+function decimalToNumber(value: Decimal | null | undefined): number | null {
+  return value != null ? value.toNumber() : null;
 }
 
 async function ensurePublicTournamentSlug(tournament: {
@@ -87,6 +98,13 @@ async function buildPublicTournamentDetail(tournament: {
   finishedAt: Date | null;
   champion: { name: string } | null;
   rounds: Array<{ matches: Array<{ isBye: boolean }> }>;
+  totalCollected: Decimal | null;
+  calculatedPrizePool: Decimal | null;
+  prizePool: Decimal | null;
+  firstPlacePercentage: Decimal | null;
+  secondPlacePercentage: Decimal | null;
+  thirdPlacePercentage: Decimal | null;
+  fourthPlacePercentage: Decimal | null;
 }): Promise<PublicTournamentDetail> {
   const publicSlug = await ensurePublicTournamentSlug({
     id: tournament.id,
@@ -99,6 +117,13 @@ async function buildPublicTournamentDetail(tournament: {
     getTournamentStatistics(tournament.id),
   ]);
 
+  const pool = decimalToNumber(tournament.calculatedPrizePool ?? tournament.prizePool) ?? 0;
+  const firstPct = decimalToNumber(tournament.firstPlacePercentage) ?? 0;
+  const secondPct = decimalToNumber(tournament.secondPlacePercentage) ?? 0;
+  const thirdPct = decimalToNumber(tournament.thirdPlacePercentage) ?? 0;
+  const fourthPct = decimalToNumber(tournament.fourthPlacePercentage) ?? 0;
+  const hasPool = pool > 0;
+
   return {
     tournament: {
       publicSlug,
@@ -109,6 +134,12 @@ async function buildPublicTournamentDetail(tournament: {
       finishedAt: tournament.finishedAt?.toISOString() ?? null,
       playerCount,
       championName: tournament.champion?.name ?? null,
+      championPrize: hasPool && firstPct > 0 ? (pool * firstPct) / 100 : null,
+      runnerUpPrize: hasPool && secondPct > 0 ? (pool * secondPct) / 100 : null,
+      thirdPlacePrize: hasPool && thirdPct > 0 ? (pool * thirdPct) / 100 : null,
+      fourthPlacePrize: hasPool && fourthPct > 0 ? (pool * fourthPct) / 100 : null,
+      totalCollected: decimalToNumber(tournament.totalCollected),
+      prizePool: hasPool ? pool : null,
     },
     bracket,
     statistics,
@@ -253,6 +284,13 @@ export async function getPublicTournamentDetail(
           createdAt: true,
           startedAt: true,
           finishedAt: true,
+          totalCollected: true,
+          calculatedPrizePool: true,
+          prizePool: true,
+          firstPlacePercentage: true,
+          secondPlacePercentage: true,
+          thirdPlacePercentage: true,
+          fourthPlacePercentage: true,
           champion: { select: { name: true } },
           rounds: {
             where: { roundNumber: 1 },
@@ -295,6 +333,13 @@ export async function getPublicTournamentBySlug(
           createdAt: true,
           startedAt: true,
           finishedAt: true,
+          totalCollected: true,
+          calculatedPrizePool: true,
+          prizePool: true,
+          firstPlacePercentage: true,
+          secondPlacePercentage: true,
+          thirdPlacePercentage: true,
+          fourthPlacePercentage: true,
           champion: { select: { name: true } },
           rounds: {
             where: { roundNumber: 1 },

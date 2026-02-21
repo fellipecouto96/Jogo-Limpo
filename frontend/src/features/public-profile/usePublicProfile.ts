@@ -42,6 +42,12 @@ interface PublicTournamentDetail {
     finishedAt: string | null;
     playerCount: number;
     championName: string | null;
+    championPrize: number | null;
+    runnerUpPrize: number | null;
+    thirdPlacePrize: number | null;
+    fourthPlacePrize: number | null;
+    totalCollected: number | null;
+    prizePool: number | null;
   };
   bracket: {
     tournament: { id: string; name: string; status: string; startedAt: string | null; finishedAt: string | null };

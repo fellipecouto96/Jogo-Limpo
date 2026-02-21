@@ -29,7 +29,7 @@ export const BracketRound = memo(function BracketRound({
   }, [round.matches, round.roundNumber, totalRounds]);
 
   return (
-    <div className="flex flex-col justify-around h-full gap-2 px-2">
+    <div className="flex flex-col justify-around h-full gap-1 px-2">
       <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider text-center mb-2">
         {round.label}
       </h3>
@@ -41,7 +41,7 @@ export const BracketRound = memo(function BracketRound({
           <MatchCard match={match} />
           {!isLastRound && (
             <div
-              className="absolute top-1/2 -right-3 w-3 border-t-2 border-gray-600"
+              className="absolute top-1/2 -right-3 w-3 border-t-2 border-gray-500"
               aria-hidden="true"
             />
           )}
