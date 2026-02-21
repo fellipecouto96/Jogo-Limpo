@@ -603,16 +603,6 @@ export function OnboardingPage() {
 
                   {allowLateEntry && (
                     <div className="mt-2 space-y-2 pl-2">
-                      <div className="flex items-center gap-3">
-                        <label className="text-sm text-gray-300 whitespace-nowrap">Até a rodada</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={allowLateEntryUntilRound}
-                          onChange={(e) => setAllowLateEntryUntilRound(Math.max(1, Number(e.target.value)))}
-                          className="h-11 w-20 rounded-xl border border-gray-700 bg-gray-900 px-3 text-base text-white focus:border-emerald-400 focus:outline-none"
-                        />
-                      </div>
                       <label className="flex items-center gap-3 text-sm text-gray-300">
                         <input
                           type="checkbox"
@@ -656,16 +646,6 @@ export function OnboardingPage() {
 
                   {allowRebuy && (
                     <div className="mt-2 space-y-2 pl-2">
-                      <div className="flex items-center gap-3">
-                        <label className="text-sm text-gray-300 whitespace-nowrap">Até a rodada</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={allowRebuyUntilRound}
-                          onChange={(e) => setAllowRebuyUntilRound(Math.max(1, Number(e.target.value)))}
-                          className="h-11 w-20 rounded-xl border border-gray-700 bg-gray-900 px-3 text-base text-white focus:border-emerald-400 focus:outline-none"
-                        />
-                      </div>
                       <label className="flex items-center gap-3 text-sm text-gray-300">
                         <input
                           type="checkbox"
