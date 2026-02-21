@@ -129,7 +129,7 @@ export function InteractiveMatchCard({
           isRebuy={match.player1.isRebuy}
           disabled={!canInteract}
           onClick={() => handlePlayerClick(match.player1.id, match.player1.name)}
-          showRebuyButton={Boolean(match.winner && !player1IsWinner && allowRebuy && !isBusy && onRebuy)}
+          showRebuyButton={Boolean(match.winner && !player1IsWinner && !match.player1.isRebuy && allowRebuy && !isBusy && onRebuy)}
           onRebuy={onRebuy ? () => onRebuy(match.player1.id) : undefined}
         />
 
@@ -144,7 +144,7 @@ export function InteractiveMatchCard({
             isRebuy={match.player2.isRebuy}
             disabled={!canInteract}
             onClick={() => handlePlayerClick(match.player2!.id, match.player2!.name)}
-            showRebuyButton={Boolean(match.winner && !player2IsWinner && allowRebuy && !isBusy && onRebuy)}
+            showRebuyButton={Boolean(match.winner && !player2IsWinner && !match.player2?.isRebuy && allowRebuy && !isBusy && onRebuy)}
             onRebuy={onRebuy ? () => onRebuy(match.player2!.id) : undefined}
           />
         ) : (

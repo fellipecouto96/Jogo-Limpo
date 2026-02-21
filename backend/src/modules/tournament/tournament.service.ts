@@ -981,6 +981,21 @@ export async function rebuy(
     throw new TournamentError('Jogador nao esta eliminado ou nao pertence a este torneio', 409);
   }
 
+  // MVP rule: each player may rebuy at most once
+  const existingPlayer = await withPerformanceLog(
+    LOG_JOURNEYS.TOURNAMENT_PLAYER,
+    'rebuy_check_double_rebuy',
+    () =>
+      prisma.player.findUnique({
+        where: { id: playerId },
+        select: { isRebuy: true },
+      }),
+    { tournamentId, playerId }
+  );
+  if (existingPlayer?.isRebuy) {
+    throw new TournamentError('Jogador ja utilizou a repescagem neste torneio', 409);
+  }
+
   const maxPosition = await prisma.match.aggregate({
     where: { roundId: currentRound.id },
     _max: { positionInBracket: true },

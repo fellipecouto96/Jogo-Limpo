@@ -53,6 +53,79 @@ export async function createTournament(
   await page.waitForURL('**/app/tournament/*', { timeout: 15_000 });
 }
 
+/**
+ * Create a tournament with Entrada tardia (late entry) and/or Repescagem (rebuy) enabled.
+ * Opens the advanced config section and toggles the appropriate options.
+ */
+export async function createTournamentWithRevenue(
+  page: Page,
+  opts: {
+    name?: string;
+    players?: string[];
+    entryFee?: string;
+    enableLateEntry?: boolean;
+    enableRebuy?: boolean;
+  } = {}
+) {
+  const {
+    name = 'Torneio Receita E2E',
+    players = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Hank'],
+    entryFee = '30',
+    enableLateEntry = false,
+    enableRebuy = false,
+  } = opts;
+
+  await page.goto('/app/new');
+
+  // Step 0: Fill tournament info
+  await page.getByPlaceholder('Ex: Copa de Domingo').fill(name);
+  await page.locator('#entry-fee').fill(entryFee);
+
+  if (enableLateEntry || enableRebuy) {
+    // Open advanced config section
+    await page.getByRole('button', { name: /configurações avançadas/i }).click();
+    await page.waitForTimeout(300);
+
+    if (enableLateEntry) {
+      // Find and click Entrada tardia checkbox
+      await page.locator('label:has-text("Entrada tardia") input[type="checkbox"]').check();
+      await page.waitForTimeout(200);
+    }
+
+    if (enableRebuy) {
+      // Find and click Repescagem checkbox
+      await page.locator('label:has-text("Repescagem") input[type="checkbox"]').check();
+      await page.waitForTimeout(200);
+    }
+  }
+
+  // Proceed to player step
+  await page.getByRole('button', { name: /continuar/i }).click();
+
+  // Step 1: Add players
+  for (const player of players) {
+    await page.getByPlaceholder('Nome do jogador').fill(player);
+    await page.getByRole('button', { name: /adicionar/i }).click();
+  }
+
+  // Draw
+  await page.getByRole('button', { name: /sortear/i }).click();
+
+  // Should navigate to tournament management
+  await page.waitForURL('**/app/tournament/*', { timeout: 15_000 });
+}
+
+/** Click the first available winner button in a match card */
+export async function advanceOneMatch(page: Page): Promise<boolean> {
+  await page.waitForTimeout(300);
+  const buttons = page.locator('button[data-player-id]:not([disabled])');
+  const count = await buttons.count().catch(() => 0);
+  if (count === 0) return false;
+  await buttons.first().click();
+  await page.waitForTimeout(400);
+  return true;
+}
+
 /** Advance all matches by clicking first available player (winner) */
 export async function advanceAllMatches(page: Page) {
   // Keep clicking winners until tournament finishes

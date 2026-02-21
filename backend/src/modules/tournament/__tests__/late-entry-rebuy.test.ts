@@ -5,7 +5,7 @@ vi.mock('../../../shared/database/prisma.js', () => ({
   prisma: {
     tournament: { findUnique: vi.fn(), update: vi.fn() },
     round: { findFirst: vi.fn() },
-    player: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    player: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     match: { findFirst: vi.fn(), create: vi.fn(), aggregate: vi.fn() },
     $transaction: vi.fn(),
   },
@@ -22,6 +22,7 @@ const mockTournamentFindUnique = vi.mocked(prisma.tournament.findUnique);
 const mockTournamentUpdate = vi.mocked(prisma.tournament.update);
 const mockRoundFindFirst = vi.mocked(prisma.round.findFirst);
 const mockPlayerFindFirst = vi.mocked(prisma.player.findFirst);
+const mockPlayerFindUnique = vi.mocked(prisma.player.findUnique);
 const mockMatchAggregate = vi.mocked(prisma.match.aggregate);
 const mockTransaction = vi.mocked(prisma.$transaction);
 
@@ -128,6 +129,30 @@ describe('lateEntry', () => {
       const result = await lateEntry('t-1', 'org-1', 'ana silva', false);
 
       expect(result).toEqual({ isDuplicate: true, existingName: 'Ana Silva' });
+    });
+
+    it('returns isDuplicate when name has leading/trailing spaces (trimmed before check)', async () => {
+      mockPlayerFindFirst.mockResolvedValue({ name: 'João' } as never);
+
+      const result = await lateEntry('t-1', 'org-1', '  João  ', false);
+
+      expect(result).toEqual({ isDuplicate: true, existingName: 'João' });
+    });
+
+    it('passes trimmed name to duplicate query (not raw input)', async () => {
+      mockPlayerFindFirst.mockResolvedValue(null);
+      vi.mocked(prisma.player.create).mockResolvedValue({ id: 'p-new', name: 'Carlos' } as never);
+      vi.mocked(prisma.match.create).mockResolvedValue({ id: 'm-new' } as never);
+
+      await lateEntry('t-1', 'org-1', '  Carlos  ', false);
+
+      expect(mockPlayerFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            name: expect.objectContaining({ equals: 'Carlos' }),
+          }),
+        })
+      );
     });
 
     it('bypasses duplicate check when force=true', async () => {
@@ -355,6 +380,7 @@ describe('rebuy', () => {
       mockTournamentFindUnique.mockResolvedValue(makeTournament() as never);
       mockRoundFindFirst.mockResolvedValue(makeRound(1) as never);
       vi.mocked(prisma.match.findFirst).mockResolvedValue({ id: 'elim-match' } as never);
+      mockPlayerFindUnique.mockResolvedValue({ isRebuy: false } as never);
     });
 
     it('sets isRebuy=true on player and creates bye match', async () => {
@@ -405,6 +431,7 @@ describe('rebuy', () => {
     beforeEach(() => {
       mockRoundFindFirst.mockResolvedValue(makeRound(1) as never);
       vi.mocked(prisma.match.findFirst).mockResolvedValue({ id: 'elim-match' } as never);
+      mockPlayerFindUnique.mockResolvedValue({ isRebuy: false } as never);
       vi.mocked(prisma.player.update).mockResolvedValue({ id: 'p-1', name: 'Karla', isRebuy: true } as never);
       vi.mocked(prisma.match.create).mockResolvedValue({ id: 'm-bye' } as never);
     });
@@ -446,6 +473,63 @@ describe('rebuy', () => {
           }),
         })
       );
+    });
+  });
+
+  describe('double-rebuy block', () => {
+    it('throws 409 when player already has isRebuy=true', async () => {
+      mockTournamentFindUnique.mockResolvedValue(makeTournament() as never);
+      mockRoundFindFirst.mockResolvedValue(makeRound(1) as never);
+      vi.mocked(prisma.match.findFirst).mockResolvedValue({ id: 'elim-match' } as never);
+      mockPlayerFindUnique.mockResolvedValue({ isRebuy: true } as never);
+
+      await expect(rebuy('t-1', 'org-1', 'p-1')).rejects.toMatchObject({
+        statusCode: 409,
+        message: 'Jogador ja utilizou a repescagem neste torneio',
+      });
+
+      expect(prisma.player.update).not.toHaveBeenCalled();
+      expect(prisma.match.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('edge cases', () => {
+    beforeEach(() => {
+      mockRoundFindFirst.mockResolvedValue(makeRound(1) as never);
+      vi.mocked(prisma.match.findFirst).mockResolvedValue({ id: 'elim-match' } as never);
+      mockPlayerFindUnique.mockResolvedValue({ isRebuy: false } as never);
+      vi.mocked(prisma.player.update).mockResolvedValue({ id: 'p-1', name: 'Lucas', isRebuy: true } as never);
+      vi.mocked(prisma.match.create).mockResolvedValue({ id: 'm-bye' } as never);
+    });
+
+    it('handles 0 rebuyFee without changing totalCollected', async () => {
+      mockTournamentFindUnique.mockResolvedValue(
+        makeTournament({ totalCollected: dec(400), rebuyFee: dec(0), organizerPercentage: dec(30) }) as never
+      );
+
+      await rebuy('t-1', 'org-1', 'p-1');
+
+      expect(mockTournamentUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            totalCollected: new Decimal(400),
+            calculatedPrizePool: new Decimal(280),
+            calculatedOrganizerAmount: new Decimal(120),
+          }),
+        })
+      );
+    });
+
+    it('respects configurable allowRebuyUntilRound (round 3)', async () => {
+      mockTournamentFindUnique.mockResolvedValue(
+        makeTournament({ allowRebuyUntilRound: 3 }) as never
+      );
+      mockRoundFindFirst.mockResolvedValue(makeRound(3) as never);
+
+      const result = await rebuy('t-1', 'org-1', 'p-1');
+
+      expect(result).toHaveProperty('player');
+      expect(result).toHaveProperty('match');
     });
   });
 });
