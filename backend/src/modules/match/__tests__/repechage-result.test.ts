@@ -109,7 +109,8 @@ function mockTx(calls: (() => unknown)[]) {
     },
   };
   vi.mocked(prisma.$transaction).mockImplementation(
-    async (fn: (tx: typeof tx) => unknown) => fn(tx)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async (fn: (tx: any) => unknown) => fn(tx)
   );
   return tx;
 }
