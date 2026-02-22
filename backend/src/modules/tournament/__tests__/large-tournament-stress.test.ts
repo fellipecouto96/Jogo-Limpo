@@ -95,12 +95,12 @@ async function runLateEntries(opts: {
 
   vi.mocked(prisma.match.create).mockImplementation((args) => {
     matchCreateCalls.push(args);
-    return Promise.resolve(makeMatch(matchCreateCalls.length) as never);
+    return makeMatch(matchCreateCalls.length) as never;
   });
 
   vi.mocked(prisma.match.update).mockImplementation((args) => {
     matchUpdateCalls.push(args);
-    return Promise.resolve(makeMatch(matchUpdateCalls.length) as never);
+    return makeMatch(matchUpdateCalls.length) as never;
   });
 
   let playerIdx = 0;
@@ -299,7 +299,7 @@ describe('Tournament 2 – 64 players, 12 late entries (odd number = last waits)
       if (data.totalCollected != null) {
         collectedAmounts.push(data.totalCollected.toNumber());
       }
-      return Promise.resolve({} as never);
+      return {} as never;
     });
 
     for (let i = 0; i < 12; i++) {
@@ -393,7 +393,7 @@ describe('Tournament 4 – 48 players, mixed: 6 late entries + 6 rebuys interlea
     vi.mocked(prisma.tournament.update).mockImplementation((args) => {
       const data = args.data as { totalCollected?: Decimal };
       if (data.totalCollected != null) collectedAmounts.push(data.totalCollected.toNumber());
-      return Promise.resolve({} as never);
+      return {} as never;
     });
 
     // 3 late entries
@@ -463,7 +463,7 @@ describe('Tournament 5 – 64 players, BYE conversion stress (8 BYE slots filled
       vi.mocked(prisma.match.update).mockResolvedValueOnce(makeMatch(i) as never);
 
       const result = await lateEntry(T.id, 'org-1', `Late ${i}`, false);
-      expect(result.paired).toBe(true);
+      expect(result).toMatchObject({ paired: true });
     }
 
     // No new matches created (all filled BYE slots)
@@ -549,7 +549,7 @@ describe('Tournament 8 – 64 players, R$0 entry fee (free tournament)', () => {
     vi.mocked(prisma.tournament.update).mockImplementation((args) => {
       const data = args.data as { totalCollected?: Decimal };
       if (data.totalCollected != null) amounts.push(data.totalCollected.toNumber());
-      return Promise.resolve({} as never);
+      return {} as never;
     });
 
     for (let i = 0; i < 5; i++) {
@@ -615,7 +615,7 @@ describe('Tournament 9 – 128 players, repechage round created once, reused for
     vi.mocked(prisma.tournament.update).mockImplementation((args) => {
       const data = args.data as { totalCollected?: Decimal };
       if (data.totalCollected != null) amounts.push(data.totalCollected.toNumber());
-      return Promise.resolve({} as never);
+      return {} as never;
     });
     vi.mocked(prisma.match.create).mockResolvedValue(makeMatch(0) as never);
     vi.mocked(prisma.match.update).mockResolvedValue(makeMatch(0) as never);
