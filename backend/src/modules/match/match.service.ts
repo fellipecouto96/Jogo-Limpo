@@ -51,7 +51,7 @@ export async function recordMatchResult(
             winnerId: true,
             player1Id: true,
             player2Id: true,
-            round: { select: { roundNumber: true } },
+            round: { select: { roundNumber: true, isRepechage: true } },
             tournament: {
               select: {
                 id: true,
@@ -85,7 +85,7 @@ export async function recordMatchResult(
       where: {
         tournamentId,
         positionInBracket: nextSlotPosition,
-        round: { roundNumber: match.round.roundNumber + 1 },
+        round: { roundNumber: match.round.roundNumber + 1, isRepechage: false },
       },
       select: { id: true, winnerId: true, player1Id: true, player2Id: true },
     });
@@ -135,9 +135,15 @@ export async function recordMatchResult(
       },
     });
 
-    // 6. Check if round is complete — short-circuit on first unfinished match
+    // 6. Check if round is complete — short-circuit on first unfinished match.
+    // For repechage rounds, exclude unpaired pending matches (player2Id: null)
+    // since they have no opponent and can never be resolved.
     const anyUnfinished = await tx.match.findFirst({
-      where: { roundId: match.roundId, winnerId: null },
+      where: {
+        roundId: match.roundId,
+        winnerId: null,
+        ...(match.round.isRepechage ? { player2Id: { not: null } } : {}),
+      },
       select: { id: true },
     });
 
@@ -152,14 +158,28 @@ export async function recordMatchResult(
       };
     }
 
-    // 6. Round complete — fetch next round, current round matches, and total rounds in parallel
+    // Repechage round complete: confirm the result without advancing the main bracket.
+    // The main bracket tournament flow continues independently.
+    if (match.round.isRepechage) {
+      return {
+        matchId,
+        winnerId,
+        player1Score: updatedMatch.player1Score,
+        player2Score: updatedMatch.player2Score,
+        roundComplete: true,
+        tournamentFinished: false,
+      };
+    }
+
+    // 6. Round complete — fetch next main bracket round, current round matches, and total rounds in parallel.
+    // Exclude repechage rounds from nextRound and totalRounds so the bracket
+    // advances correctly even when a repechage round exists.
     const [nextRound, completedMatchesForRound, totalRounds] = await Promise.all([
-      tx.round.findUnique({
+      tx.round.findFirst({
         where: {
-          tournamentId_roundNumber: {
-            tournamentId,
-            roundNumber: match.round.roundNumber + 1,
-          },
+          tournamentId,
+          roundNumber: match.round.roundNumber + 1,
+          isRepechage: false,
         },
         include: {
           matches: {
@@ -171,7 +191,7 @@ export async function recordMatchResult(
         where: { roundId: match.roundId },
         orderBy: { positionInBracket: 'asc' },
       }),
-      tx.round.count({ where: { tournamentId } }),
+      tx.round.count({ where: { tournamentId, isRepechage: false } }),
     ]);
 
     if (!nextRound) {
@@ -367,12 +387,11 @@ export async function undoLastMatchResult(
       throw new MatchError('Nenhum resultado para desfazer', 409);
     }
 
-    const nextRound = await tx.round.findUnique({
+    const nextRound = await tx.round.findFirst({
       where: {
-        tournamentId_roundNumber: {
-          tournamentId,
-          roundNumber: latestMatch.round.roundNumber + 1,
-        },
+        tournamentId,
+        roundNumber: latestMatch.round.roundNumber + 1,
+        isRepechage: false,
       },
       include: {
         matches: {

@@ -80,7 +80,10 @@ export async function fetchBracket(
     throw new BracketError('Torneio nao encontrado', 404);
   }
 
-  const totalRounds = tournament.rounds.length;
+  // Exclude repechage rounds from totalRounds so labels and podium detection
+  // are based on the main bracket only.
+  const mainRoundsRaw = tournament.rounds.filter((r) => !r.isRepechage);
+  const totalRounds = mainRoundsRaw.length;
 
   const rounds: BracketRound[] = tournament.rounds.map((round) => ({
     id: round.id,
@@ -104,10 +107,11 @@ export async function fetchBracket(
   }));
 
   let champion: { id: string; name: string } | null = null;
-  if (tournament.status === 'FINISHED' && totalRounds > 0) {
-    const finalRound = rounds[totalRounds - 1];
+  if (tournament.status === 'FINISHED' && mainRoundsRaw.length > 0) {
+    const finalRoundNumber = mainRoundsRaw[mainRoundsRaw.length - 1].roundNumber;
+    const finalRound = rounds.find((r) => r.roundNumber === finalRoundNumber) ?? null;
     const championshipMatch =
-      finalRound.matches.find((m) => m.positionInBracket === 1) ?? null;
+      finalRound?.matches.find((m) => m.positionInBracket === 1) ?? null;
     if (championshipMatch?.winner) {
       champion = championshipMatch.winner;
     }

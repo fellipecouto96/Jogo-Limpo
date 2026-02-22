@@ -124,11 +124,11 @@ export function OnboardingPage() {
   const [error, setError] = useState<GuidedSystemError | null>(null);
   const [pendingDuplicateName, setPendingDuplicateName] = useState<string | null>(null);
   const [allowLateEntry, setAllowLateEntry] = useState(false);
-  const [allowLateEntryUntilRound, setAllowLateEntryUntilRound] = useState(1);
+  const allowLateEntryUntilRound = 1;
   const [lateEntryCustomFee, setLateEntryCustomFee] = useState(false);
   const [lateEntryFeeInput, setLateEntryFeeInput] = useState('');
   const [allowRebuy, setAllowRebuy] = useState(false);
-  const [allowRebuyUntilRound, setAllowRebuyUntilRound] = useState(1);
+  const allowRebuyUntilRound = 1;
   const [rebuyCustomFee, setRebuyCustomFee] = useState(false);
   const [rebuyFeeInput, setRebuyFeeInput] = useState('');
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
