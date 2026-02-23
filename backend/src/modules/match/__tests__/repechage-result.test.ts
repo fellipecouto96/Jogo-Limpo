@@ -1,11 +1,13 @@
 /**
  * Tests for recordMatchResult repechage round handling.
  *
- * Key bugs fixed:
- * 1. Repechage round completion previously triggered "tournament finished" (wrong).
- * 2. Pending (unpaired) repechage matches (player2Id: null) blocked anyUnfinished forever.
- * 3. Main bracket final round completion found the repechage round as "nextRound" and threw.
- * 4. bracket.service.ts totalRounds included repechage → wrong labels & champion detection.
+ * Verified behaviours:
+ * 1. Each repechage winner is placed into Round 2 immediately after their match.
+ * 2. Placement fills an open Round 2 slot (player2Id:null) or creates a new pending match.
+ * 3. When the last paired repechage match is done, unpaired rebuyers (odd count)
+ *    get auto-BYEs and are also placed into Round 2.
+ * 4. Main bracket rounds are unaffected — repechage rounds are excluded from nextRound
+ *    lookups and totalRounds, so the main bracket finishes correctly.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -37,7 +39,6 @@ function baseTournament() {
   };
 }
 
-/** Build a repechage match stub */
 function repechageMatch(overrides: {
   id?: string;
   positionInBracket?: number;
@@ -55,15 +56,11 @@ function repechageMatch(overrides: {
     winnerId: overrides.winnerId ?? null,
     player1Id: overrides.player1Id ?? 'p1',
     player2Id: overrides.player2Id ?? 'p2',
-    round: {
-      roundNumber: overrides.roundNumber ?? 6,
-      isRepechage: true,
-    },
+    round: { roundNumber: overrides.roundNumber ?? 6, isRepechage: true },
     tournament: baseTournament(),
   };
 }
 
-/** Build a main-bracket match stub */
 function mainMatch(overrides: {
   id?: string;
   roundNumber?: number;
@@ -81,28 +78,29 @@ function mainMatch(overrides: {
     winnerId: overrides.winnerId ?? null,
     player1Id: overrides.player1Id ?? 'p1',
     player2Id: overrides.player2Id ?? 'p2',
-    round: {
-      roundNumber: overrides.roundNumber ?? 5,
-      isRepechage: false,
-    },
+    round: { roundNumber: overrides.roundNumber ?? 5, isRepechage: false },
     tournament: baseTournament(),
   };
 }
 
+/** Build a sequential call mock for prisma.$transaction */
 function mockTx(calls: (() => unknown)[]) {
   let i = 0;
+  const next = () => calls[i++]?.();
   const tx = {
     match: {
-      findUnique: vi.fn(() => calls[i++]?.()),
-      findFirst: vi.fn(() => calls[i++]?.()),
-      findMany: vi.fn(() => calls[i++]?.()),
-      update: vi.fn(() => calls[i++]?.()),
-      createMany: vi.fn(() => calls[i++]?.()),
+      findUnique: vi.fn(next),
+      findFirst: vi.fn(next),
+      findMany: vi.fn(next),
+      update: vi.fn(next),
+      create: vi.fn(next),
+      createMany: vi.fn(next),
+      aggregate: vi.fn(next),
     },
     round: {
-      findFirst: vi.fn(() => calls[i++]?.()),
-      findUnique: vi.fn(() => calls[i++]?.()),
-      count: vi.fn(() => calls[i++]?.()),
+      findFirst: vi.fn(next),
+      findUnique: vi.fn(next),
+      count: vi.fn(next),
     },
     tournament: {
       update: vi.fn(() => ({})),
@@ -115,20 +113,24 @@ function mockTx(calls: (() => unknown)[]) {
   return tx;
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────────
+// ── Repechage tests ───────────────────────────────────────────────────────────
 
-describe('recordMatchResult – repechage round', () => {
+describe('recordMatchResult – repechage round advancement', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('returns roundComplete:false when other paired repechage matches remain', async () => {
-    const match = repechageMatch({ id: 'm-rep-1', positionInBracket: 1 });
+  it('places winner into open Round 2 slot and returns roundComplete:false when other paired matches remain', async () => {
+    const match = repechageMatch({ id: 'm-rep-1' });
     const updatedMatch = { ...match, winnerId: 'p1', player1Score: null, player2Score: null, finishedAt: new Date() };
 
     const tx = mockTx([
-      () => match,          // match.findUnique
-      () => null,           // downstreamMatch.findFirst (repechage: no downstream)
-      () => updatedMatch,   // match.update (record winner)
-      () => ({ id: 'm-rep-2' }), // anyUnfinished.findFirst → another paired match exists
+      () => match,                          // match.findUnique
+      () => null,                           // downstreamMatch (no downstream for repechage)
+      () => updatedMatch,                   // match.update (record winner)
+      // — isRepechage block —
+      () => ({ id: 'round-2' }),            // round.findFirst (Round 2)
+      () => ({ id: 'r2-open-slot' }),       // match.findFirst (open slot in Round 2)
+      () => updatedMatch,                   // match.update (fill open slot with winner)
+      () => ({ id: 'm-rep-2' }),            // match.findFirst (anyUnfinishedRepechage) → another match
     ]);
 
     const result = await recordMatchResult(T_ID, 'm-rep-1', { winnerId: 'p1' }, ORG_ID);
@@ -136,24 +138,56 @@ describe('recordMatchResult – repechage round', () => {
     expect(result.roundComplete).toBe(false);
     expect(result.tournamentFinished).toBe(false);
     expect(result.winnerId).toBe('p1');
-    // Confirm anyUnfinished was called with player2Id: { not: null } filter
-    expect(tx.match.findFirst).toHaveBeenCalledWith(
+
+    // Winner was placed into the open Round 2 slot
+    expect(tx.match.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ player2Id: 'p1' }) })
+    );
+  });
+
+  it('creates new Round 2 pending match when no open slot exists', async () => {
+    const match = repechageMatch({ id: 'm-rep-1' });
+    const updatedMatch = { ...match, winnerId: 'p1', player1Score: null, player2Score: null, finishedAt: new Date() };
+
+    const tx = mockTx([
+      () => match,                          // match.findUnique
+      () => null,                           // downstreamMatch
+      () => updatedMatch,                   // match.update (record winner)
+      // — isRepechage block —
+      () => ({ id: 'round-2' }),            // round.findFirst (Round 2)
+      () => null,                           // match.findFirst (no open slot in Round 2)
+      () => ({ _max: { positionInBracket: 3 } }), // match.aggregate (max pos)
+      () => ({ id: 'new-r2-match' }),       // match.create (new pending match in Round 2)
+      () => ({ id: 'm-rep-2' }),            // match.findFirst (anyUnfinishedRepechage) → another match
+    ]);
+
+    const result = await recordMatchResult(T_ID, 'm-rep-1', { winnerId: 'p1' }, ORG_ID);
+
+    expect(result.roundComplete).toBe(false);
+    expect(result.tournamentFinished).toBe(false);
+
+    // A new Round 2 match was created with the winner as player1
+    expect(tx.match.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ player2Id: { not: null } }),
+        data: expect.objectContaining({ player1Id: 'p1', roundId: 'round-2', positionInBracket: 4 }),
       })
     );
   });
 
-  it('returns roundComplete:true and tournamentFinished:false when last paired repechage match done', async () => {
+  it('returns roundComplete:true when last paired repechage match done and no unpaired remain', async () => {
     const match = repechageMatch({ id: 'm-rep-last' });
     const updatedMatch = { ...match, winnerId: 'p1', player1Score: null, player2Score: null, finishedAt: new Date() };
 
     mockTx([
-      () => match,        // match.findUnique
-      () => null,         // downstreamMatch (no downstream for repechage)
-      () => updatedMatch, // match.update
-      () => null,         // anyUnfinished → none left
-      // repechage short-circuit fires here; nothing else called
+      () => match,
+      () => null,                           // downstreamMatch
+      () => updatedMatch,                   // record winner
+      // — isRepechage block —
+      () => ({ id: 'round-2' }),            // round.findFirst
+      () => ({ id: 'r2-slot' }),            // open slot in Round 2
+      () => updatedMatch,                   // fill slot
+      () => null,                           // anyUnfinishedRepechage → none
+      () => [],                             // match.findMany (unpaired) → empty
     ]);
 
     const result = await recordMatchResult(T_ID, 'm-rep-last', { winnerId: 'p1' }, ORG_ID);
@@ -162,44 +196,67 @@ describe('recordMatchResult – repechage round', () => {
     expect(result.tournamentFinished).toBe(false);
   });
 
-  it('handles odd rebuyers: pending match (player2:null) is ignored by anyUnfinished', async () => {
-    // 3 rebuyers → 1 paired match + 1 pending match (player2: null)
-    // When the paired match is resolved, pending match must NOT block round completion
-    const match = repechageMatch({ id: 'm-rep-paired', positionInBracket: 1 });
-    const updatedMatch = { ...match, winnerId: 'p1', player1Score: null, player2Score: null, finishedAt: new Date() };
+  it('auto-BYEs unpaired rebuyers and places them into Round 2 when last paired match resolves', async () => {
+    // 3 rebuyers: 1 paired match (already done) + 1 pending match (odd rebuyer waiting)
+    // When the last paired match resolves, the odd rebuyer should get a BYE
+    const match = repechageMatch({ id: 'm-rep-last', player1Id: 'pA', player2Id: 'pB' });
+    const updatedMatch = { ...match, winnerId: 'pA', player1Score: null, player2Score: null, finishedAt: new Date() };
 
-    mockTx([
-      () => match,        // match.findUnique
-      () => null,         // downstreamMatch
-      () => updatedMatch, // match.update
-      () => null,         // anyUnfinished (player2Id: {not:null}) → pending match excluded → null
-      // repechage short-circuit
+    const tx = mockTx([
+      () => match,
+      () => null,                                         // downstreamMatch
+      () => updatedMatch,                                 // record winner
+      // — isRepechage block —
+      () => ({ id: 'round-2' }),                          // round.findFirst (Round 2)
+      () => ({ id: 'r2-slot-1' }),                        // open slot for pA
+      () => updatedMatch,                                 // fill slot with pA
+      () => null,                                         // anyUnfinishedRepechage → none left
+      () => [{ id: 'unpaired', player1Id: 'pOdd' }],     // match.findMany (unpaired rebuyers)
+      // — BYE for pOdd —
+      () => updatedMatch,                                 // match.update (set isBye, winnerId=pOdd)
+      () => ({ id: 'r2-slot-2' }),                        // open slot for pOdd
+      () => updatedMatch,                                 // fill slot with pOdd
     ]);
 
-    const result = await recordMatchResult(T_ID, 'm-rep-paired', { winnerId: 'p1' }, ORG_ID);
+    const result = await recordMatchResult(T_ID, 'm-rep-last', { winnerId: 'pA' }, ORG_ID);
 
     expect(result.roundComplete).toBe(true);
     expect(result.tournamentFinished).toBe(false);
+
+    // BYE was set for the unpaired player
+    expect(tx.match.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'unpaired' },
+        data: expect.objectContaining({ winnerId: 'pOdd', isBye: true }),
+      })
+    );
+
+    // Odd player was placed into Round 2
+    expect(tx.match.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'r2-slot-2' },
+        data: expect.objectContaining({ player2Id: 'pOdd' }),
+      })
+    );
   });
 });
+
+// ── Main bracket tests ─────────────────────────────────────────────────────
 
 describe('recordMatchResult – main bracket final with repechage round present', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('finishes tournament correctly when main bracket final completes (repechage round excluded from nextRound)', async () => {
-    // 5-round tournament (32 players). Repechage at round 6.
-    // Main bracket final is round 5. When round 5 completes, nextRound lookup
-    // must NOT find the repechage round (roundNumber=6) — it should return null → tournament finishes.
+  it('finishes tournament correctly when main bracket final completes (repechage excluded)', async () => {
     const match = mainMatch({ roundNumber: 5, positionInBracket: 1, id: 'final-match' });
     const updatedMatch = { ...match, winnerId: 'p1', player1Score: null, player2Score: null, finishedAt: new Date() };
 
     const tx = mockTx([
       () => match,          // match.findUnique
-      () => null,           // downstreamMatch (isRepechage:false → repechage at round 6 excluded, nothing found)
+      () => null,           // downstreamMatch (round 6 with isRepechage:false → not found)
       () => updatedMatch,   // match.update
-      () => null,           // anyUnfinished → none in the final round
-      // NOT repechage, continues to round-complete logic
-      () => null,           // nextRound.findFirst(isRepechage:false) → null (repechage at round 6 is skipped)
+      // — non-repechage block —
+      () => null,           // anyUnfinished (round is done)
+      () => null,           // nextRound.findFirst(isRepechage:false) → null → tournament finishes
       () => [{ ...match, winnerId: 'p1', positionInBracket: 1 }], // completedMatchesForRound
       () => 5,              // totalRounds (isRepechage:false) → 5
     ]);
@@ -208,7 +265,6 @@ describe('recordMatchResult – main bracket final with repechage round present'
 
     expect(result.tournamentFinished).toBe(true);
     expect(result.roundComplete).toBe(true);
-    // tournament.update must have been called with FINISHED status
     expect(tx.tournament.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'FINISHED' }),
@@ -216,15 +272,11 @@ describe('recordMatchResult – main bracket final with repechage round present'
     );
   });
 
-  it('does not throw when main bracket round N-1 completes and nextRound is repechage-excluded', async () => {
-    // Round 4 (semifinal for a 5-round tournament) completes.
-    // nextRound should be round 5 (main final, isRepechage:false), not the repechage round.
+  it('advances to next main round (repechage excluded from nextRound lookup)', async () => {
     const match = mainMatch({ roundNumber: 4, positionInBracket: 1, id: 'semi-match' });
     const updatedMatch = { ...match, winnerId: 'p1', player1Score: null, player2Score: null, finishedAt: new Date() };
 
-    // Round 5 main bracket matches (empty — not yet populated)
     const round5 = { id: 'round-5', roundNumber: 5, matches: [] };
-
     const completedRound4 = [
       { id: 'semi-1', winnerId: 'p1', player1Id: 'p1', player2Id: 'p2', positionInBracket: 1 },
       { id: 'semi-2', winnerId: 'p3', player1Id: 'p3', player2Id: 'p4', positionInBracket: 2 },
@@ -234,18 +286,17 @@ describe('recordMatchResult – main bracket final with repechage round present'
       () => match,               // match.findUnique
       () => null,                // downstreamMatch
       () => updatedMatch,        // match.update
-      () => null,                // anyUnfinished → round 4 done
-      // NOT repechage, continues
-      () => round5,              // nextRound.findFirst(isRepechage:false) → round 5 (NOT the repechage)
+      // — non-repechage block —
+      () => null,                // anyUnfinished → round done
+      () => round5,              // nextRound.findFirst(isRepechage:false) → round 5
       () => completedRound4,     // completedMatchesForRound
-      () => 5,                   // totalRounds (isRepechage:false) = 5
+      () => 5,                   // totalRounds
     ]);
 
     const result = await recordMatchResult(T_ID, 'semi-match', { winnerId: 'p1' }, ORG_ID);
 
     expect(result.roundComplete).toBe(true);
     expect(result.tournamentFinished).toBe(false);
-    // Round 5 match should have been created (final match)
     expect(tx.match.createMany).toHaveBeenCalled();
   });
 });

@@ -640,7 +640,7 @@ export function OnboardingPage() {
 
                   {allowRebuy && (
                     <p className="px-1 text-xs leading-relaxed text-amber-300/80">
-                      Repescagem cria uma rodada extra entre eliminados da 1ª fase. Apenas quem vencer volta ao torneio.
+                      Eliminados na 1ª rodada podem pagar uma nova inscrição e disputar a rodada de repescagem. Quem vencer volta automaticamente para a 2ª rodada e pode ganhar o torneio.
                     </p>
                   )}
 
@@ -902,16 +902,16 @@ export function OnboardingPage() {
                   🔁 Repescagem
                 </p>
                 <ol className="space-y-1 pl-1 text-sm text-gray-300">
-                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">1.</span>Eliminado na 1ª rodada</li>
-                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">2.</span>Paga nova inscrição</li>
-                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">3.</span>Disputa rodada extra</li>
-                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">4.</span>Apenas vencedores voltam</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">1.</span>Só para eliminados na 1ª rodada</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">2.</span>Paga nova inscrição e entra na rodada de repescagem</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">3.</span>Vencedor volta automaticamente para a 2ª rodada</li>
+                  <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">4.</span>A partir daí, compete normalmente e pode vencer o torneio</li>
                 </ol>
               </div>
             )}
 
             <p className="mb-4 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-              O sistema garante justiça: todos precisam vencer partidas para avançar.
+              O sistema coloca o vencedor da repescagem direto na 2ª rodada — nenhuma ação manual necessária.
             </p>
 
             <button

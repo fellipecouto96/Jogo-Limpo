@@ -1110,7 +1110,7 @@ export function ManageTournamentPage() {
           <div className="mx-auto mt-20 w-full max-w-md rounded-3xl border border-amber-500/30 bg-[#120d00] p-5 shadow-[0_25px_60px_rgba(0,0,0,0.65)]">
             <h3 className="mb-2 text-xl font-semibold text-white">Confirmar repescagem</h3>
             <p className="mb-4 rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-              Jogador disputará rodada de repescagem. Apenas vencedores avançam.
+              Jogador disputará a rodada de repescagem. Se vencer, volta automaticamente para a 2ª rodada e segue no torneio.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <button

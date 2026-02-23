@@ -135,15 +135,104 @@ export async function recordMatchResult(
       },
     });
 
-    // 6. Check if round is complete — short-circuit on first unfinished match.
-    // For repechage rounds, exclude unpaired pending matches (player2Id: null)
-    // since they have no opponent and can never be resolved.
+    // 6. Repechage match: advance winner into Round 2, then handle BYEs for
+    // any unpaired rebuyers (odd count) once all paired matches are done.
+    if (match.round.isRepechage) {
+      const round2 = await tx.round.findFirst({
+        where: { tournamentId, roundNumber: 2, isRepechage: false },
+        select: { id: true },
+      });
+
+      if (round2) {
+        // Place this winner into Round 2 (fill open slot or create new pending match)
+        const openSlot = await tx.match.findFirst({
+          where: { roundId: round2.id, player2Id: null, winnerId: null },
+          orderBy: { positionInBracket: 'asc' },
+          select: { id: true },
+        });
+
+        if (openSlot) {
+          await tx.match.update({
+            where: { id: openSlot.id },
+            data: { player2Id: winnerId },
+          });
+        } else {
+          const maxPos = await tx.match.aggregate({
+            where: { roundId: round2.id },
+            _max: { positionInBracket: true },
+          });
+          await tx.match.create({
+            data: {
+              tournamentId,
+              roundId: round2.id,
+              player1Id: winnerId,
+              positionInBracket: (maxPos._max.positionInBracket ?? 0) + 1,
+            },
+          });
+        }
+      }
+
+      // Check if any OTHER paired repechage matches still need to be played
+      const anyUnfinishedRepechage = await tx.match.findFirst({
+        where: { roundId: match.roundId, winnerId: null, player2Id: { not: null } },
+        select: { id: true },
+      });
+
+      // When all paired matches are done: auto-BYE any unpaired rebuyer (odd count)
+      // and place them directly into Round 2
+      if (!anyUnfinishedRepechage && round2) {
+        const unpairedMatches = await tx.match.findMany({
+          where: { roundId: match.roundId, player2Id: null, winnerId: null },
+          select: { id: true, player1Id: true },
+        });
+
+        for (const unpaired of unpairedMatches) {
+          await tx.match.update({
+            where: { id: unpaired.id },
+            data: { winnerId: unpaired.player1Id, isBye: true, finishedAt: new Date() },
+          });
+
+          const byeOpenSlot = await tx.match.findFirst({
+            where: { roundId: round2.id, player2Id: null, winnerId: null },
+            orderBy: { positionInBracket: 'asc' },
+            select: { id: true },
+          });
+
+          if (byeOpenSlot) {
+            await tx.match.update({
+              where: { id: byeOpenSlot.id },
+              data: { player2Id: unpaired.player1Id },
+            });
+          } else {
+            const byeMaxPos = await tx.match.aggregate({
+              where: { roundId: round2.id },
+              _max: { positionInBracket: true },
+            });
+            await tx.match.create({
+              data: {
+                tournamentId,
+                roundId: round2.id,
+                player1Id: unpaired.player1Id,
+                positionInBracket: (byeMaxPos._max.positionInBracket ?? 0) + 1,
+              },
+            });
+          }
+        }
+      }
+
+      return {
+        matchId,
+        winnerId,
+        player1Score: updatedMatch.player1Score,
+        player2Score: updatedMatch.player2Score,
+        roundComplete: !anyUnfinishedRepechage,
+        tournamentFinished: false,
+      };
+    }
+
+    // 6. Round complete (non-repechage) — short-circuit on first unfinished match
     const anyUnfinished = await tx.match.findFirst({
-      where: {
-        roundId: match.roundId,
-        winnerId: null,
-        ...(match.round.isRepechage ? { player2Id: { not: null } } : {}),
-      },
+      where: { roundId: match.roundId, winnerId: null },
       select: { id: true },
     });
 
@@ -158,20 +247,7 @@ export async function recordMatchResult(
       };
     }
 
-    // Repechage round complete: confirm the result without advancing the main bracket.
-    // The main bracket tournament flow continues independently.
-    if (match.round.isRepechage) {
-      return {
-        matchId,
-        winnerId,
-        player1Score: updatedMatch.player1Score,
-        player2Score: updatedMatch.player2Score,
-        roundComplete: true,
-        tournamentFinished: false,
-      };
-    }
-
-    // 6. Round complete — fetch next main bracket round, current round matches, and total rounds in parallel.
+    // 7. Fetch next main bracket round, current round matches, and total rounds in parallel.
     // Exclude repechage rounds from nextRound and totalRounds so the bracket
     // advances correctly even when a repechage round exists.
     const [nextRound, completedMatchesForRound, totalRounds] = await Promise.all([
