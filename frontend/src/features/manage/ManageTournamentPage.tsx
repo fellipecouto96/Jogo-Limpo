@@ -280,22 +280,8 @@ export function ManageTournamentPage() {
     setActionError(null);
     setFeedback(null);
 
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `Resultado - ${tournamentName}`,
-          text: message,
-          url: shareUrl,
-        });
-        setFeedback('Resultado compartilhado com sucesso.');
-        return;
-      }
-
-      await navigator.clipboard.writeText(message);
-      setFeedback('Resultado copiado para compartilhamento.');
-    } catch {
-      setActionError('Não foi possível compartilhar o resultado.');
-    }
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
   }
 
   async function handleRenamePlayer(player: BracketPlayer) {
@@ -1474,7 +1460,7 @@ function ChampionshipClosureScreen({
             }}
             className="h-12 rounded-xl bg-emerald-500 text-base font-semibold text-gray-950 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/50 [touch-action:manipulation]"
           >
-            Compartilhar resultado
+            Compartilhar no WhatsApp
           </button>
           <Link
             to={`/app/tournament/${tournamentId}/history`}
