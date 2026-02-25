@@ -14,6 +14,9 @@ export const BracketRound = memo(function BracketRound({
   isLastRound,
 }: BracketRoundProps) {
   const matchSlots = useMemo(() => {
+    if (round.isRepechage) {
+      return round.matches.map((m) => m);
+    }
     const firstRoundMatchCount = Math.pow(2, totalRounds - 1);
     const expectedMatchCount =
       firstRoundMatchCount / Math.pow(2, round.roundNumber - 1);
@@ -26,7 +29,7 @@ export const BracketRound = memo(function BracketRound({
       const position = i + 1;
       return matchByPosition.get(position) ?? null;
     });
-  }, [round.matches, round.roundNumber, totalRounds]);
+  }, [round.isRepechage, round.matches, round.roundNumber, totalRounds]);
 
   return (
     <div className="flex flex-col justify-around h-full gap-1 px-2">

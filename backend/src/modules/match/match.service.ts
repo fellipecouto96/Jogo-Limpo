@@ -135,89 +135,102 @@ export async function recordMatchResult(
       },
     });
 
-    // 6. Repechage match: advance winner into Round 2, then handle BYEs for
-    // any unpaired rebuyers (odd count) once all paired matches are done.
+    // 6. Repechage match: reduce to 1 champion via dynamic sub-rounds, then
+    // insert into main bracket. Multiple rebuyers → multiple sub-rounds in the
+    // same repechage round until only 1 unplaced winner remains.
     if (match.round.isRepechage) {
-      const round2 = await tx.round.findFirst({
-        where: { tournamentId, roundNumber: 2, isRepechage: false },
-        select: { id: true },
-      });
-
-      if (round2) {
-        // Place this winner into Round 2 (fill open slot or create new pending match)
-        const openSlot = await tx.match.findFirst({
-          where: { roundId: round2.id, player2Id: null, winnerId: null },
-          orderBy: { positionInBracket: 'asc' },
-          select: { id: true },
-        });
-
-        if (openSlot) {
-          await tx.match.update({
-            where: { id: openSlot.id },
-            data: { player2Id: winnerId },
-          });
-        } else {
-          const maxPos = await tx.match.aggregate({
-            where: { roundId: round2.id },
-            _max: { positionInBracket: true },
-          });
-          await tx.match.create({
-            data: {
-              tournamentId,
-              roundId: round2.id,
-              player1Id: winnerId,
-              positionInBracket: (maxPos._max.positionInBracket ?? 0) + 1,
-            },
-          });
-        }
-      }
-
-      // Check if any OTHER paired repechage matches still need to be played
+      // Step A: wait for all paired (both players) repechage matches to finish.
       const anyUnfinishedRepechage = await tx.match.findFirst({
         where: { roundId: match.roundId, winnerId: null, player2Id: { not: null } },
         select: { id: true },
       });
 
-      // When all paired matches are done: auto-BYE any unpaired rebuyer (odd count)
-      // and place them directly into Round 2
-      if (!anyUnfinishedRepechage && round2) {
-        const unpairedMatches = await tx.match.findMany({
-          where: { roundId: match.roundId, player2Id: null, winnerId: null },
-          select: { id: true, player1Id: true },
+      if (anyUnfinishedRepechage) {
+        return {
+          matchId,
+          winnerId,
+          player1Score: updatedMatch.player1Score,
+          player2Score: updatedMatch.player2Score,
+          roundComplete: false,
+          tournamentFinished: false,
+        };
+      }
+
+      // Step B: auto-BYE any initial unpaired rebuyers (registered without an opponent).
+      const unpairedInitial = await tx.match.findMany({
+        where: { roundId: match.roundId, player2Id: null, winnerId: null },
+        select: { id: true, player1Id: true },
+      });
+      for (const u of unpairedInitial) {
+        await tx.match.update({
+          where: { id: u.id },
+          data: { winnerId: u.player1Id, isBye: true, finishedAt: new Date() },
         });
+      }
 
-        for (const unpaired of unpairedMatches) {
-          await tx.match.update({
-            where: { id: unpaired.id },
-            data: { winnerId: unpaired.player1Id, isBye: true, finishedAt: new Date() },
+      // Step C: compute unplaced winners across all repechage sub-rounds.
+      const allRepMatches = await tx.match.findMany({
+        where: { roundId: match.roundId },
+        select: { id: true, player1Id: true, player2Id: true, winnerId: true, isBye: true },
+      });
+      const unplaced = getUnplacedRepechageWinners(allRepMatches);
+
+      // Step D: if 2+ unplaced → pair them in a new sub-round (same roundId).
+      if (unplaced.length >= 2) {
+        const posAgg = await tx.match.aggregate({
+          where: { roundId: match.roundId },
+          _max: { positionInBracket: true },
+        });
+        let nextPos = (posAgg._max.positionInBracket ?? 0) + 1;
+        const subMatches: {
+          tournamentId: string;
+          roundId: string;
+          player1Id: string;
+          player2Id?: string | null;
+          winnerId?: string;
+          isBye?: boolean;
+          positionInBracket: number;
+          finishedAt?: Date;
+        }[] = [];
+
+        for (let i = 0; i + 1 < unplaced.length; i += 2) {
+          subMatches.push({
+            tournamentId,
+            roundId: match.roundId,
+            player1Id: unplaced[i],
+            player2Id: unplaced[i + 1],
+            positionInBracket: nextPos++,
           });
-
-          const byeOpenSlot = await tx.match.findFirst({
-            where: { roundId: round2.id, player2Id: null, winnerId: null },
-            orderBy: { positionInBracket: 'asc' },
-            select: { id: true },
-          });
-
-          if (byeOpenSlot) {
-            await tx.match.update({
-              where: { id: byeOpenSlot.id },
-              data: { player2Id: unpaired.player1Id },
-            });
-          } else {
-            const byeMaxPos = await tx.match.aggregate({
-              where: { roundId: round2.id },
-              _max: { positionInBracket: true },
-            });
-            await tx.match.create({
-              data: {
-                tournamentId,
-                roundId: round2.id,
-                player1Id: unpaired.player1Id,
-                positionInBracket: (byeMaxPos._max.positionInBracket ?? 0) + 1,
-              },
-            });
-          }
         }
+        // Odd winner: auto-BYE straight into the next sub-round.
+        if (unplaced.length % 2 === 1) {
+          const odd = unplaced[unplaced.length - 1];
+          subMatches.push({
+            tournamentId,
+            roundId: match.roundId,
+            player1Id: odd,
+            player2Id: null,
+            winnerId: odd,
+            isBye: true,
+            positionInBracket: nextPos++,
+            finishedAt: new Date(),
+          });
+        }
+        await tx.match.createMany({ data: subMatches });
+        return {
+          matchId,
+          winnerId,
+          player1Score: updatedMatch.player1Score,
+          player2Score: updatedMatch.player2Score,
+          roundComplete: false,
+          tournamentFinished: false,
+        };
+      }
+
+      // Step E: exactly 1 unplaced winner → insert into main bracket.
+      const champion = unplaced[0];
+      if (champion) {
+        await placeRepechageChampionInRound2(tx, tournamentId, champion);
       }
 
       return {
@@ -225,7 +238,7 @@ export async function recordMatchResult(
         winnerId,
         player1Score: updatedMatch.player1Score,
         player2Score: updatedMatch.player2Score,
-        roundComplete: !anyUnfinishedRepechage,
+        roundComplete: true,
         tournamentFinished: false,
       };
     }
@@ -323,14 +336,19 @@ export async function recordMatchResult(
       decimalToNumber(tournament.thirdPlacePercentage) > 0 ||
       decimalToNumber(tournament.fourthPlacePercentage) > 0;
 
+    // Use only non-BYE semis for 3rd/4th determination. This handles the case
+    // where a repechage champion got a BYE through the semi-final.
+    const realSemis = completedMatches.filter((m) => !m.isBye && m.player2Id !== null);
+
     if (
       thirdPlaceEnabled &&
       currentRoundIsSemifinal &&
       nextRoundIsChampionshipRound &&
-      completedMatches.length === 2
+      realSemis.length >= 2
     ) {
-      const semifinalA = completedMatches[0];
-      const semifinalB = completedMatches[1];
+      // Use the last two real (non-BYE) semis to determine finalists and 3rd/4th.
+      const semifinalA = realSemis[realSemis.length - 2];
+      const semifinalB = realSemis[realSemis.length - 1];
       const semifinalALoserId = getMatchLoserId(semifinalA);
       const semifinalBLoserId = getMatchLoserId(semifinalB);
 
@@ -394,6 +412,26 @@ export async function recordMatchResult(
     }
 
     await tx.match.createMany({ data: nextMatches });
+
+    // If we just created Round 2 (nextRound.roundNumber === 2), check whether
+    // the repechage champion was determined while Round 1 was still in progress
+    // (i.e., champion is waiting to be placed because Round 2 didn't exist yet).
+    if (nextRound.roundNumber === 2) {
+      const repechageRound = await tx.round.findFirst({
+        where: { tournamentId, isRepechage: true },
+        select: { id: true },
+      });
+      if (repechageRound) {
+        const allRepMatches = await tx.match.findMany({
+          where: { roundId: repechageRound.id },
+          select: { id: true, player1Id: true, player2Id: true, winnerId: true, isBye: true },
+        });
+        const unplaced = getUnplacedRepechageWinners(allRepMatches);
+        if (unplaced.length === 1) {
+          await placeRepechageChampionInRound2(tx, tournamentId, unplaced[0]);
+        }
+      }
+    }
 
     return {
       matchId,
@@ -789,4 +827,77 @@ function getMatchLoserId(match: {
 }): string | null {
   if (!match.winnerId || !match.player2Id) return null;
   return match.winnerId === match.player1Id ? match.player2Id : match.player1Id;
+}
+
+/**
+ * Returns the set of repechage winners who have NOT yet been placed in a
+ * subsequent match (as a player where they are not the winner). This detects
+ * which winners still need to be paired in the next sub-round or inserted
+ * into the main bracket.
+ */
+function getUnplacedRepechageWinners(
+  matches: { id: string; player1Id: string; player2Id: string | null; winnerId: string | null; isBye: boolean }[]
+): string[] {
+  const uniqueWinners = new Set<string>();
+  for (const m of matches) {
+    if (m.winnerId) uniqueWinners.add(m.winnerId);
+  }
+
+  const unplaced: string[] = [];
+  for (const w of uniqueWinners) {
+    // A winner is "placed" if they appear as a player in ANY match where
+    // they are NOT the winner (i.e., they'll play or already lost).
+    const isPlaced = matches.some(
+      (other) => (other.player1Id === w || other.player2Id === w) && other.winnerId !== w
+    );
+    if (!isPlaced) {
+      unplaced.push(w);
+    }
+  }
+  return unplaced;
+}
+
+/**
+ * Places the repechage champion into Round 2 of the main bracket.
+ * - If an open slot exists (player2Id: null, winnerId: null), fill it.
+ * - Otherwise, create a BYE match so the champion auto-advances to Round 3.
+ */
+async function placeRepechageChampionInRound2(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  tournamentId: string,
+  champion: string
+): Promise<void> {
+  const round2 = await tx.round.findFirst({
+    where: { tournamentId, roundNumber: 2, isRepechage: false },
+    select: { id: true },
+  });
+  if (!round2) return;
+
+  const openSlot = await tx.match.findFirst({
+    where: { roundId: round2.id, player2Id: null, winnerId: null },
+    orderBy: { positionInBracket: 'asc' },
+    select: { id: true },
+  });
+
+  if (openSlot) {
+    await tx.match.update({ where: { id: openSlot.id }, data: { player2Id: champion } });
+  } else {
+    // Round 2 is fully paired — give champion a BYE so they advance to Round 3.
+    const posAgg = await tx.match.aggregate({
+      where: { roundId: round2.id },
+      _max: { positionInBracket: true },
+    });
+    await tx.match.create({
+      data: {
+        tournamentId,
+        roundId: round2.id,
+        player1Id: champion,
+        player2Id: null,
+        winnerId: champion,
+        isBye: true,
+        positionInBracket: (posAgg._max.positionInBracket ?? 0) + 1,
+        finishedAt: new Date(),
+      },
+    });
+  }
 }

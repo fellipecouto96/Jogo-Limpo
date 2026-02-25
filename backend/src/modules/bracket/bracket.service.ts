@@ -18,6 +18,7 @@ export interface BracketResponse {
 interface BracketRound {
   id: string;
   roundNumber: number;
+  isRepechage: boolean;
   label: string;
   matches: BracketMatch[];
 }
@@ -88,6 +89,7 @@ export async function fetchBracket(
   const rounds: BracketRound[] = tournament.rounds.map((round) => ({
     id: round.id,
     roundNumber: round.roundNumber,
+    isRepechage: round.isRepechage,
     label: round.isRepechage ? 'Rodada de Repescagem' : getRoundLabel(round.roundNumber, totalRounds),
     matches: round.matches.map((match) => ({
       id: match.id,

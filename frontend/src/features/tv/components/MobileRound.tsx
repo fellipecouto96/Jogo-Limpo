@@ -12,6 +12,11 @@ export const MobileRound = memo(function MobileRound({
   totalRounds,
 }: MobileRoundProps) {
   const matchSlots = useMemo(() => {
+    // Repechage rounds have a dynamic number of sub-round matches — don't apply
+    // the power-of-2 formula; just render whatever matches exist.
+    if (round.isRepechage) {
+      return round.matches.map((m) => m);
+    }
     const firstRoundMatchCount = Math.pow(2, totalRounds - 1);
     const expectedMatchCount =
       firstRoundMatchCount / Math.pow(2, round.roundNumber - 1);
@@ -23,7 +28,7 @@ export const MobileRound = memo(function MobileRound({
       const position = i + 1;
       return matchByPosition.get(position) ?? null;
     });
-  }, [round.matches, round.roundNumber, totalRounds]);
+  }, [round.isRepechage, round.matches, round.roundNumber, totalRounds]);
 
   return (
     <section>

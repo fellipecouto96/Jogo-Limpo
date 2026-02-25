@@ -30,6 +30,7 @@ export interface TournamentStatistics {
 export interface BracketRound {
   id: string;
   roundNumber: number;
+  isRepechage?: boolean;
   label: string;
   matches: BracketMatch[];
 }

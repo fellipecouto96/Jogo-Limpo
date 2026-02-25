@@ -55,6 +55,7 @@ interface PublicTournamentDetail {
     rounds: {
       id: string;
       roundNumber: number;
+      isRepechage?: boolean;
       label: string;
       matches: {
         id: string;
