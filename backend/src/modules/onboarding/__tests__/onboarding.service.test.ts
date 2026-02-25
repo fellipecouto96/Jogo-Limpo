@@ -1,34 +1,38 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const prismaTransactionMock = vi.fn();
-const generateDrawMock = vi.fn();
-const calculateFinancialsMock = vi.fn();
-const generateUniqueTournamentSlugMock = vi.fn();
-
 vi.mock('../../../shared/database/prisma.js', () => ({
   prisma: {
-    $transaction: prismaTransactionMock,
+    $transaction: vi.fn(),
   },
 }));
 
 vi.mock('../../draw/draw.service.js', () => ({
-  generateDraw: generateDrawMock,
+  generateDraw: vi.fn(),
 }));
 
 vi.mock('../../tournament/financials.js', () => ({
-  calculateFinancials: calculateFinancialsMock,
+  calculateFinancials: vi.fn(),
 }));
 
 vi.mock('../../tournament/public-slug.js', () => ({
-  generateUniqueTournamentSlug: generateUniqueTournamentSlugMock,
+  generateUniqueTournamentSlug: vi.fn(),
 }));
 
 import { runOnboardingSetup } from '../onboarding.service.js';
+import { prisma } from '../../../shared/database/prisma.js';
+import { generateDraw } from '../../draw/draw.service.js';
+import { calculateFinancials } from '../../tournament/financials.js';
+import { generateUniqueTournamentSlug } from '../../tournament/public-slug.js';
+
+const mockTransaction = vi.mocked(prisma.$transaction);
+const mockGenerateDraw = vi.mocked(generateDraw);
+const mockCalculateFinancials = vi.mocked(calculateFinancials);
+const mockGenerateSlug = vi.mocked(generateUniqueTournamentSlug);
 
 describe('runOnboardingSetup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    calculateFinancialsMock.mockReturnValue({
+    mockCalculateFinancials.mockReturnValue({
       totalCollected: 0,
       organizerAmount: 0,
       prizePool: 0,
@@ -39,8 +43,8 @@ describe('runOnboardingSetup', () => {
       firstPlacePrize: 0,
       secondPlacePrize: 0,
     });
-    generateUniqueTournamentSlugMock.mockResolvedValue('copa-1');
-    generateDrawMock.mockResolvedValue({
+    mockGenerateSlug.mockResolvedValue('copa-1');
+    mockGenerateDraw.mockResolvedValue({
       tournamentId: 't-1',
       seed: 'seed',
       totalRounds: 5,
@@ -61,7 +65,7 @@ describe('runOnboardingSetup', () => {
       },
     };
 
-    prismaTransactionMock.mockImplementation(async (callback: (trx: typeof tx) => Promise<unknown>) =>
+    mockTransaction.mockImplementation(async (callback: (trx: typeof tx) => Promise<unknown>) =>
       callback(tx)
     );
 
@@ -84,6 +88,6 @@ describe('runOnboardingSetup', () => {
     expect(payload.data).toHaveLength(32);
     expect(result.playerIds).toHaveLength(32);
     expect(new Set(result.playerIds).size).toBe(32);
-    expect(generateDrawMock).toHaveBeenCalledWith('t-1', result.playerIds);
+    expect(mockGenerateDraw).toHaveBeenCalledWith('t-1', result.playerIds);
   });
 });
