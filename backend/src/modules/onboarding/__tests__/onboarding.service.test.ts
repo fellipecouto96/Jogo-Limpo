@@ -65,7 +65,8 @@ describe('runOnboardingSetup', () => {
       },
     };
 
-    mockTransaction.mockImplementation(async (callback: (trx: typeof tx) => Promise<unknown>) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockTransaction.mockImplementation(async (callback: (trx: any) => Promise<unknown>) =>
       callback(tx)
     );
 
